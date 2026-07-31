@@ -1,0 +1,40 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: documind-db
+    environment:
+      POSTGRES_DB: documind
+      POSTGRES_USER: documind
+      POSTGRES_PASSWORD: documind_dev
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U documind -d documind"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    container_name: documind-api
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://documind:documind_dev@db:5432/documind"
+      DATABASE_URL_SYNC: "postgresql://documind:documind_dev@db:5432/documind"
+      OMNIROUTE_BASE_URL: "http://host.docker.internal:20128"
+      OMNIROUTE_MODEL: "auto"
+      EMBEDDING_MODEL: "text-embedding-004"
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:
