@@ -141,5 +141,5 @@ class HealthResponse(BaseModel):
     """Server health check response."""
     status: str  # 'healthy' | 'degraded' | 'unhealthy'
     database: str
-    omniroute: str
+    llm_provider: str
     version: str

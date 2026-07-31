@@ -133,6 +133,36 @@ An integration test that uploads static content will pass once, then fail on eve
 
 ---
 
+## Phase 6: Multi-Turn RAG & System Resilience
+
+- [x] Multi-Turn RAG Windowing Strategy
+- [x] Database Transaction Boundaries (`flush` vs `commit`)
+- [x] Third-Party API Quotas & HTTP 429 Exception Mapping
+- [x] Frontend Race Condition Prevention (`AbortController`)
+
+### 1. Multi-Turn RAG Windowing Strategy
+Passing an entire unlimited chat history to an LLM on every turn causes exponential token growth, increased API costs, and context window exhaustion.
+*   **The Solution:** In `backend/app/routers/chat.py`, we window conversation history by querying the database for the **last 10 messages** (`Message.conversation_id == conversation_id`, ordered chronologically).
+*   **Context Injection:** Prior user/assistant exchanges are formatted into a `Conversation History` prompt section. This enables the LLM to resolve coreferences (e.g., "Who is the lead engineer for *that project*?") while keeping token overhead tightly bounded.
+
+### 2. Database Transaction Boundaries (`flush` vs `commit`)
+In an asynchronous API route handling external service calls, managing database transaction lifecycles is critical for data consistency:
+*   **`await db.flush()`**: Flushes pending ORM objects (`Conversation`, user `Message`) to PostgreSQL within the open transaction. This generates auto-assigned primary keys (UUIDs) so child models can reference them immediately without locking or committing the transaction.
+*   **Single Atomic `await db.commit()`**: We defer committing until *after* vector retrieval and LLM answer generation succeed. This guarantees that user input, assistant response, citations, and analytics logs are written in a single atomic database commit.
+*   **Clean Rollback (`await db.rollback()`)**: If third-party LLM generation fails or times out, `await db.rollback()` unwinds the transaction, preventing orphaned user messages from polluting the database.
+
+### 3. Third-Party API Quotas & HTTP 429 Exception Mapping
+*   **HTTP 500 vs. HTTP 429:** A third-party rate limit (Google Gemini `ResourceExhausted` / 429) is an operational constraint, not an internal application crash. Returning an HTTP 500 server error hides root causes from clients and degrades UX.
+*   **Resilience Pattern:** We created a custom `RateLimitError` exception in `backend/app/services/generation.py` that catches Google API quota violations (`ResourceExhausted` / "Quota exceeded") and translates them into an **HTTP 429 (Too Many Requests)** status code. The frontend renders a clean, actionable warning banner rather than breaking.
+*   **Model Selection for Free Tier Limits:** Frontier preview models (e.g. `gemini-3.6-flash`) enforce strict Free Tier daily caps (e.g. 20 requests/day). Standard production models like `gemini-3.5-flash` or `gemini-1.5-flash` provide higher operational limits (15 RPM / 1,500 RPD), making them ideal for high-throughput testing and development.
+
+### 4. Frontend Race Condition Prevention (`AbortController`)
+When users switch rapidly between chat threads in a SPA sidebar, asynchronous network fetches (`GET /api/conversations/{id}`) can return out of order.
+*   **The Bug:** If a user clicks Thread A, then immediately clicks Thread B, Thread A's delayed network response could arrive *after* Thread B loads, overwriting Thread B's messages with Thread A's data.
+*   **The Fix:** Inside `useConversations.js`, `selectConversation(id)` instantiates an `AbortController`. When a new thread is selected, any active fetch is explicitly aborted (`controller.abort()`), ensuring only the latest active thread updates React state.
+
+---
+
 ## 💡 Master Interview Cheat Sheet
 
 When an interviewer asks you about your technical decisions on DocuMind AI, use these exact, high-impact responses:
@@ -149,10 +179,19 @@ When an interviewer asks you about your technical decisions on DocuMind AI, use 
 #### Q: "Why did you use PostgreSQL instead of a specialized vector DB like Pinecone or Weaviate?"
 > *"I chose **PostgreSQL with the pgvector extension** to implement a unified transactional and vector store. Running separate databases for relational metadata and vector embeddings adds unnecessary network latency, distributed synchronization complexity, and operational overhead. With pgvector, I can perform ACID-compliant relational joins and cosine similarity vector searches within a single query engine."*
 
+#### Q: "How do you manage database transaction boundaries when calling third-party AI APIs?"
+> *"I decouple object creation from transaction commits. In the chat endpoint, I use `await db.flush()` to assign primary keys to the user's prompt without locking or committing the transaction. I only perform a single `await db.commit()` after the LLM successfully returns an answer. If Google Gemini throws a rate limit or network exception, I catch it and execute `await db.rollback()`, ensuring we never persist orphaned prompts or corrupt history states."*
+
+#### Q: "How do you prevent third-party rate limits from crashing your application?"
+> *"I implement custom exception mapping and model fallback strategies. In our generation service, I catch Google's `ResourceExhausted` exceptions and map them to an HTTP 429 (Too Many Requests) response rather than allowing a raw HTTP 500 error to bubble up. Additionally, I configure defaults to high-quota production models (`gemini-3.5-flash` / `gemini-1.5-flash`), providing 1,500 requests per day on free tier accounts."*
+
+#### Q: "How do you handle race conditions in React when fetching historical threads?"
+> *"In my `useConversations` custom hook, I use the browser's `AbortController` API inside `selectConversation(id)`. When a user rapidly clicks between historical threads in the sidebar, any in-flight HTTP request from a previous click is immediately aborted. This guarantees that stale asynchronous responses never overwrite active React state."*
+
 #### Q: "How do you ensure type safety between your database and API?"
 > *"I use a combination of Pydantic for API validation and SQLAlchemy 2.0's `Mapped` syntax for ORM models. By explicitly typing model attributes with `Mapped[str] = mapped_column(...)`, I ensure full compatibility with static type checkers like Pyright. This eliminates runtime assignment errors and keeps the codebase incredibly robust."*
 
-#### Q: "How did you manage environment configurations and secrets?"
+#### Q: "How do you manage environment configurations and secrets?"
 > *"I utilized `pydantic-settings` to dynamically load environment variables from `.env` files. This enforces strict schema validation at startup—if a required key is missing or an invalid key is present, the application fails fast rather than crashing mid-execution. It also allowed me to seamlessly hot-swap between a local OmniRoute mock server and a live Google API endpoint without altering business logic."*
 
 #### Q: "Tell me about a time you solved a complex production database bug."

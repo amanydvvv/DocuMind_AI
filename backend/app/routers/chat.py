@@ -11,10 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Conversation, Message
+from app.models import Conversation, Message, QueryLog
 from app.schemas import ChatRequest, ChatResponse, Citation
 from app.services.retrieval import retrieve_context
-from app.services.generation import generate_answer
+from app.services.generation import generate_answer, RateLimitError
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -28,7 +28,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     start_time = time.time()
 
     try:
-        # 1. Conversation Management
+        # 1. Session Management
         conversation_id = request.conversation_id
         if conversation_id:
             result = await db.execute(
@@ -36,9 +36,9 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
             )
             conv = result.scalar_one_or_none()
             if not conv:
-                conv = Conversation(id=conversation_id, title=request.question[:50])
-                db.add(conv)
-                await db.flush()
+                raise HTTPException(
+                    status_code=404, detail=f"Conversation {conversation_id} not found."
+                )
         else:
             conv = Conversation(id=uuid.uuid4(), title=request.question[:50])
             db.add(conv)
@@ -128,6 +128,17 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
             latency_ms=latency_ms,
         )
         db.add(assistant_msg)
+
+        # 8. Persist QueryLog for analytics
+        query_log = QueryLog(
+            id=uuid.uuid4(),
+            question=request.question,
+            retrieved_chunks=citation_dicts,
+            top_k=request.top_k,
+            avg_similarity=avg_similarity,
+            latency_ms=latency_ms,
+        )
+        db.add(query_log)
         await db.commit()
 
         return ChatResponse(
@@ -138,7 +149,12 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
             avg_similarity=avg_similarity,
         )
 
+    except RateLimitError as e:
+        await db.rollback()
+        raise HTTPException(status_code=429, detail=str(e))
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"RAG engine failed: {str(e)}")
-

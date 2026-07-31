@@ -15,16 +15,10 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Initialize the embedding model dynamically
-kwargs = {}
-if settings.OMNIROUTE_BASE_URL:
-    endpoint = settings.OMNIROUTE_BASE_URL.replace("http://", "").replace("https://", "")
-    kwargs["client_options"] = {"api_endpoint": endpoint}
-
+# Initialize the embedding model
 embeddings = GoogleGenerativeAIEmbeddings(
     model=f"models/{settings.EMBEDDING_MODEL}",
-    google_api_key=settings.GOOGLE_API_KEY or "omniroute_dummy_key",
-    **kwargs
+    google_api_key=settings.GOOGLE_API_KEY,
 )
 
 

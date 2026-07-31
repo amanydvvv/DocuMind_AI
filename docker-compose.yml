@@ -22,9 +22,6 @@ services:
     environment:
       DATABASE_URL: "postgresql+asyncpg://documind:documind_dev@db:5432/documind"
       DATABASE_URL_SYNC: "postgresql://documind:documind_dev@db:5432/documind"
-      OMNIROUTE_BASE_URL: "http://host.docker.internal:20128"
-      OMNIROUTE_MODEL: "auto"
-      EMBEDDING_MODEL: "text-embedding-004"
       DEBUG: "true"
     ports:
       - "8000:8000"

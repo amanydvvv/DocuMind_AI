@@ -56,7 +56,7 @@ app.include_router(analytics_router)
 
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])
 async def health_check():
-    """Check server, database, and OmniRoute connectivity."""
+    """Check server, database, and LLM provider connectivity."""
     from sqlalchemy import text
     from app.database import async_session
 
@@ -69,22 +69,24 @@ async def health_check():
     except Exception:
         db_status = "unhealthy"
 
-    # OmniRoute check
-    omniroute_status = "unhealthy"
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(f"{settings.OMNIROUTE_BASE_URL}/api/health")
-            omniroute_status = "healthy" if resp.status_code == 200 else "degraded"
-    except Exception:
-        omniroute_status = "unreachable"
+    # LLM Provider live check via embedding test
+    llm_status = "unhealthy"
+    if settings.GOOGLE_API_KEY:
+        try:
+            import asyncio
+            from app.services.retrieval import embeddings
+            await asyncio.wait_for(embeddings.aembed_query("healthcheck"), timeout=4.0)
+            llm_status = "healthy"
+        except Exception:
+            llm_status = "unreachable"
 
     overall = "healthy" if db_status == "healthy" else "unhealthy"
-    if omniroute_status != "healthy":
+    if llm_status != "healthy":
         overall = "degraded" if overall == "healthy" else overall
 
     return HealthResponse(
         status=overall,
         database=db_status,
-        omniroute=omniroute_status,
+        llm_provider=llm_status,
         version=settings.APP_VERSION,
     )

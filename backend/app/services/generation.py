@@ -11,17 +11,11 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-kwargs = {}
-if settings.OMNIROUTE_BASE_URL:
-    endpoint = settings.OMNIROUTE_BASE_URL.replace("http://", "").replace("https://", "")
-    kwargs["client_options"] = {"api_endpoint": endpoint}
-
 # Initialize the LLM
 llm = ChatGoogleGenerativeAI(
     model=settings.GENERATIVE_MODEL,
-    google_api_key=settings.GOOGLE_API_KEY or "omniroute_dummy_key",
+    google_api_key=settings.GOOGLE_API_KEY,
     temperature=0.2, # Low temperature for more factual responses
-    **kwargs
 )
 
 RAG_PROMPT_TEMPLATE = """
@@ -46,6 +40,11 @@ prompt = PromptTemplate(
     template=RAG_PROMPT_TEMPLATE,
     input_variables=["chat_history_section", "context", "query"]
 )
+
+class RateLimitError(Exception):
+    """Raised when the LLM provider hits rate limits or quota bounds."""
+    pass
+
 
 async def generate_answer(
     query: str, chunks: List[Chunk], chat_history: Optional[List[Message]] = None
@@ -82,6 +81,17 @@ async def generate_answer(
         })
         return response.content
     except Exception as e:
+        err_str = str(e)
+        if (
+            "429" in err_str
+            or "Quota exceeded" in err_str
+            or "ResourceExhausted" in err_str
+            or "rate limit" in err_str.lower()
+        ):
+            logger.warning(f"LLM Rate Limit Exceeded: {e}")
+            raise RateLimitError(
+                "The AI service is currently at capacity or quota limits have been reached. Please try again in a moment."
+            )
         logger.error(f"Error during LLM generation: {e}", exc_info=True)
         raise
 

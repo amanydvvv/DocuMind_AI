@@ -1,0 +1,107 @@
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+export async function fetchDocuments() {
+  const response = await fetch(`${API_URL}/api/documents`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch documents');
+  }
+  return response.json();
+}
+
+export async function getDocument(documentId) {
+  const response = await fetch(`${API_URL}/api/documents/${documentId}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch document status');
+  }
+  return response.json();
+}
+
+export async function uploadDocument(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_URL}/api/documents/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorMsg = 'Upload failed';
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.detail || errorMsg;
+    } catch (e) {
+      // Ignored
+    }
+    throw new Error(errorMsg);
+  }
+
+  return response.json();
+}
+
+export async function deleteDocument(documentId) {
+  const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete document');
+  }
+
+  return response.json();
+}
+
+export async function sendChatMessage({ question, document_id = null, conversation_id = null, top_k = 5 }) {
+  const response = await fetch(`${API_URL}/api/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      question,
+      document_id,
+      conversation_id,
+      top_k,
+    }),
+  });
+
+  if (!response.ok) {
+    let errorMsg = 'Failed to send message';
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.detail || errorMsg;
+    } catch (e) {
+      // Ignored
+    }
+    throw new Error(errorMsg);
+  }
+
+  return response.json();
+}
+
+export async function fetchConversations() {
+  const response = await fetch(`${API_URL}/api/conversations`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch conversation sessions');
+  }
+  const data = await response.json();
+  return data.conversations || [];
+}
+
+export async function fetchConversationDetails(conversationId, signal = null) {
+  const response = await fetch(`${API_URL}/api/conversations/${conversationId}`, { signal });
+  if (!response.ok) {
+    throw new Error('Failed to fetch conversation history');
+  }
+  return response.json();
+}
+
+export async function deleteConversation(conversationId) {
+  const response = await fetch(`${API_URL}/api/conversations/${conversationId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete conversation');
+  }
+}

@@ -19,13 +19,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://documind:documind_dev@localhost:5435/documind"
     DATABASE_URL_SYNC: str = "postgresql://documind:documind_dev@localhost:5435/documind"
 
-    # OmniRoute / LLM
-    OMNIROUTE_BASE_URL: str | None = None
+    # LLM & Embeddings
     GOOGLE_API_KEY: str | None = None
-    OMNIROUTE_MODEL: str = "auto"
     EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_DIMENSION: int = 768
-    GENERATIVE_MODEL: str = "gemini-flash-latest"
+    GENERATIVE_MODEL: str = "gemini-3.5-flash"
 
     # RAG Settings
     CHUNK_SIZE: int = 800
