@@ -1,6 +1,6 @@
 """
 DocuMind AI — Conversations Router
-Endpoints for managing multi-turn conversation sessions and viewing historical message threads.
+Endpoints for managing multi-turn conversation sessions and viewing historical message threads with tenant isolation.
 """
 
 from uuid import UUID
@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Conversation, Message
+from app.models.user import User
+from app.core.security import get_current_user
 from app.schemas import (
     ConversationResponse,
     ConversationListResponse,
@@ -20,13 +22,20 @@ router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
 
 @router.get("", response_model=ConversationListResponse)
-async def list_conversations(db: AsyncSession = Depends(get_db)):
-    """List all conversation sessions ordered by last update time."""
-    total_res = await db.execute(select(func.count(Conversation.id)))
+async def list_conversations(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List all conversation sessions owned by the authenticated user."""
+    total_res = await db.execute(
+        select(func.count(Conversation.id)).where(Conversation.user_id == current_user.id)
+    )
     total = total_res.scalar_one()
 
     result = await db.execute(
-        select(Conversation).order_by(Conversation.updated_at.desc())
+        select(Conversation)
+        .where(Conversation.user_id == current_user.id)
+        .order_by(Conversation.updated_at.desc())
     )
     convs = result.scalars().all()
 
@@ -47,11 +56,16 @@ async def list_conversations(db: AsyncSession = Depends(get_db)):
 
 @router.get("/{conversation_id}", response_model=ConversationResponse)
 async def get_conversation(
-    conversation_id: UUID, db: AsyncSession = Depends(get_db)
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    """Get full conversation details including chronologically ordered messages."""
+    """Get full conversation details if owned by current user."""
     result = await db.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id
+        )
     )
     conv = result.scalar_one_or_none()
     if not conv:
@@ -77,11 +91,16 @@ async def get_conversation(
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_conversation(
-    conversation_id: UUID, db: AsyncSession = Depends(get_db)
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    """Delete a conversation session and its associated messages."""
+    """Delete a conversation session owned by current user."""
     result = await db.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id
+        )
     )
     conv = result.scalar_one_or_none()
     if not conv:

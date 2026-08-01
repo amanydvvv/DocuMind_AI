@@ -1,7 +1,87 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+export function getAuthToken() {
+  return localStorage.getItem('documind_token');
+}
+
+export function setAuthToken(token) {
+  if (token) {
+    localStorage.setItem('documind_token', token);
+  } else {
+    localStorage.removeItem('documind_token');
+  }
+}
+
+export function removeAuthToken() {
+  localStorage.removeItem('documind_token');
+}
+
+function getAuthHeaders(customHeaders = {}) {
+  const token = getAuthToken();
+  const headers = { ...customHeaders };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+export async function loginUser(email, password) {
+  const response = await fetch(`${API_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) {
+    let errorMsg = 'Login failed';
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.detail || errorMsg;
+    } catch (e) {}
+    throw new Error(errorMsg);
+  }
+
+  const data = await response.json();
+  setAuthToken(data.access_token);
+  return data;
+}
+
+export async function signupUser(email, password) {
+  const response = await fetch(`${API_URL}/api/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) {
+    let errorMsg = 'Signup failed';
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.detail || errorMsg;
+    } catch (e) {}
+    throw new Error(errorMsg);
+  }
+
+  const data = await response.json();
+  setAuthToken(data.access_token);
+  return data;
+}
+
+export async function fetchCurrentUser() {
+  const response = await fetch(`${API_URL}/api/auth/me`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    removeAuthToken();
+    throw new Error('Unauthorized');
+  }
+  return response.json();
+}
+
 export async function fetchDocuments() {
-  const response = await fetch(`${API_URL}/api/documents`);
+  const response = await fetch(`${API_URL}/api/documents`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error('Failed to fetch documents');
   }
@@ -9,7 +89,9 @@ export async function fetchDocuments() {
 }
 
 export async function getDocument(documentId) {
-  const response = await fetch(`${API_URL}/api/documents/${documentId}`);
+  const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error('Failed to fetch document status');
   }
@@ -22,6 +104,7 @@ export async function uploadDocument(file) {
 
   const response = await fetch(`${API_URL}/api/documents/upload`, {
     method: 'POST',
+    headers: getAuthHeaders(),
     body: formData,
   });
 
@@ -30,9 +113,7 @@ export async function uploadDocument(file) {
     try {
       const errorData = await response.json();
       errorMsg = errorData.detail || errorMsg;
-    } catch (e) {
-      // Ignored
-    }
+    } catch (e) {}
     throw new Error(errorMsg);
   }
 
@@ -42,21 +123,18 @@ export async function uploadDocument(file) {
 export async function deleteDocument(documentId) {
   const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
     method: 'DELETE',
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
     throw new Error('Failed to delete document');
   }
-
-  return response.json();
 }
 
 export async function sendChatMessage({ question, document_id = null, conversation_id = null, top_k = 5 }) {
   const response = await fetch(`${API_URL}/api/chat`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
       question,
       document_id,
@@ -70,9 +148,7 @@ export async function sendChatMessage({ question, document_id = null, conversati
     try {
       const errorData = await response.json();
       errorMsg = errorData.detail || errorMsg;
-    } catch (e) {
-      // Ignored
-    }
+    } catch (e) {}
     throw new Error(errorMsg);
   }
 
@@ -92,9 +168,7 @@ export async function sendChatMessageStream({
   try {
     const response = await fetch(`${API_URL}/api/chat/stream`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         question,
         document_id,
@@ -108,9 +182,7 @@ export async function sendChatMessageStream({
       try {
         const errorData = await response.json();
         errorMsg = errorData.detail || errorMsg;
-      } catch (e) {
-        // Ignored
-      }
+      } catch (e) {}
       if (onError) onError(errorMsg);
       return;
     }
@@ -125,7 +197,7 @@ export async function sendChatMessageStream({
 
       buffer += decoder.decode(value, { stream: true });
       const blocks = buffer.split('\n\n');
-      buffer = blocks.pop() || ''; // keep trailing unparsed buffer
+      buffer = blocks.pop() || '';
 
       for (const block of blocks) {
         if (!block.trim()) continue;
@@ -166,7 +238,9 @@ export async function sendChatMessageStream({
 }
 
 export async function fetchConversations() {
-  const response = await fetch(`${API_URL}/api/conversations`);
+  const response = await fetch(`${API_URL}/api/conversations`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error('Failed to fetch conversation sessions');
   }
@@ -175,7 +249,10 @@ export async function fetchConversations() {
 }
 
 export async function fetchConversationDetails(conversationId, signal = null) {
-  const response = await fetch(`${API_URL}/api/conversations/${conversationId}`, { signal });
+  const response = await fetch(`${API_URL}/api/conversations/${conversationId}`, {
+    signal,
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error('Failed to fetch conversation history');
   }
@@ -185,6 +262,7 @@ export async function fetchConversationDetails(conversationId, signal = null) {
 export async function deleteConversation(conversationId) {
   const response = await fetch(`${API_URL}/api/conversations/${conversationId}`, {
     method: 'DELETE',
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {

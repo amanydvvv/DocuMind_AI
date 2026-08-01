@@ -1,12 +1,12 @@
 """
 DocuMind AI - Chat Router
-RAG Q&A engine endpoint for natural language document querying with multi-turn memory.
+RAG Q&A engine endpoint for natural language document querying with multi-turn memory and user tenant isolation.
 """
 
 import time
 import uuid
-
 from json import dumps
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -14,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Conversation, Message, QueryLog
+from app.models.user import User
+from app.core.security import get_current_user
 from app.schemas import ChatRequest, ChatResponse, Citation
 from app.services.retrieval import retrieve_context
 from app.services.generation import generate_answer, generate_answer_stream, RateLimitError
@@ -22,10 +24,14 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
 @router.post("", response_model=ChatResponse)
-async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+async def chat(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     """
     Query the knowledge base using Retrieval-Augmented Generation (RAG)
-    with multi-turn conversation memory.
+    with multi-turn conversation memory, scoped to current user.
     """
     start_time = time.time()
 
@@ -34,7 +40,10 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
         conversation_id = request.conversation_id
         if conversation_id:
             result = await db.execute(
-                select(Conversation).where(Conversation.id == conversation_id)
+                select(Conversation).where(
+                    Conversation.id == conversation_id,
+                    Conversation.user_id == current_user.id
+                )
             )
             conv = result.scalar_one_or_none()
             if not conv:
@@ -42,7 +51,11 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
                     status_code=404, detail=f"Conversation {conversation_id} not found."
                 )
         else:
-            conv = Conversation(id=uuid.uuid4(), title=request.question[:50])
+            conv = Conversation(
+                id=uuid.uuid4(),
+                user_id=current_user.id,
+                title=request.question[:50]
+            )
             db.add(conv)
             await db.flush()
             conversation_id = conv.id
@@ -65,15 +78,17 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
         db.add(user_msg)
         await db.flush()
 
-        # 4. Retrieve relevant chunks from pgvector (Tasks 3 & 4)
-        # retrieve_context returns List[Tuple[Chunk, similarity_score, filename]]
+        # 4. Retrieve relevant chunks from pgvector scoped to current user
         retrieved_items = await retrieve_context(
-            query=request.question, db=db, document_id=request.document_id
+            query=request.question,
+            db=db,
+            document_id=request.document_id,
+            user_id=current_user.id
         )
 
         chunks = [item[0] for item in retrieved_items]
 
-        # 5. Build citations list with real score & filename (Tasks 3 & 4)
+        # 5. Build citations list with real score & filename
         citations = []
         similarity_scores = []
         for chunk, score, filename in retrieved_items:
@@ -98,9 +113,9 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
             else 0.0
         )
 
-        # 6. Generate answer using Google Gemini with chat history (Task 5)
+        # 6. Generate answer using Google Gemini with chat history
         if not chunks:
-            answer = "I couldn't find any relevant information in the uploaded documents to answer your question."
+            answer = "I couldn't find any relevant information in your uploaded documents to answer your question."
         else:
             answer = await generate_answer(
                 query=request.question, chunks=chunks, chat_history=chat_history
@@ -108,7 +123,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
 
         latency_ms = int((time.time() - start_time) * 1000)
 
-        # 7. Save assistant's answer as a Message (Task 5)
+        # 7. Save assistant's answer as a Message
         citation_dicts = [
             {
                 "chunk_id": str(c.chunk_id),
@@ -163,9 +178,13 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/stream")
-async def chat_stream(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+async def chat_stream(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     """
-    Query the knowledge base using RAG with real-time SSE token streaming.
+    Query the knowledge base using RAG with real-time SSE token streaming, scoped to current user.
     """
     start_time = time.time()
 
@@ -173,7 +192,10 @@ async def chat_stream(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     conversation_id = request.conversation_id
     if conversation_id:
         result = await db.execute(
-            select(Conversation).where(Conversation.id == conversation_id)
+            select(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == current_user.id
+            )
         )
         conv = result.scalar_one_or_none()
         if not conv:
@@ -181,7 +203,11 @@ async def chat_stream(request: ChatRequest, db: AsyncSession = Depends(get_db)):
                 status_code=404, detail=f"Conversation {conversation_id} not found."
             )
     else:
-        conv = Conversation(id=uuid.uuid4(), title=request.question[:50])
+        conv = Conversation(
+            id=uuid.uuid4(),
+            user_id=current_user.id,
+            title=request.question[:50]
+        )
         db.add(conv)
         await db.flush()
         conversation_id = conv.id
@@ -204,9 +230,12 @@ async def chat_stream(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     db.add(user_msg)
     await db.flush()
 
-    # 4. Retrieve context chunks
+    # 4. Retrieve context chunks scoped to user
     retrieved_items = await retrieve_context(
-        query=request.question, db=db, document_id=request.document_id
+        query=request.question,
+        db=db,
+        document_id=request.document_id,
+        user_id=current_user.id
     )
     chunks = [item[0] for item in retrieved_items]
 
@@ -258,7 +287,7 @@ async def chat_stream(request: ChatRequest, db: AsyncSession = Depends(get_db)):
             yield f"event: metadata\ndata: {meta_payload}\n\n"
 
             if not chunks:
-                no_info = "I couldn't find any relevant information in the uploaded documents to answer your question."
+                no_info = "I couldn't find any relevant information in your uploaded documents to answer your question."
                 full_answer.append(no_info)
                 token_payload = dumps({"delta": no_info})
                 yield f"event: token\ndata: {token_payload}\n\n"

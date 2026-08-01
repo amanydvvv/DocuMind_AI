@@ -27,20 +27,8 @@ This is a living execution tracker structured around development phases.
 - [x] Implement multi-turn conversation memory (storing history in `messages` DB)
 - [x] Build idempotent automated integration test suite (`tests/test_integration.py`)
 
-## Phase 4: Frontend Development [🟢 COMPLETE]
-
-### Phase 4 Implementation Plan
-- **Framework:** React + Vite (Best fit for SPA client-state architecture, decoupling from the FastAPI backend)
-- **Styling:** Tailwind CSS (Rapid iteration, dynamic design, industry standard)
-- **Component Architecture:**
-  - `DocumentSidebar` -> `UploadPanel` (calls `POST /api/documents/upload`, `GET /api/documents`)
-  - `ChatInterface` -> `MessageBubble`, `ChatInput` (calls `POST /api/chat`)
-  - `CitationViewer` (interactive source chunk display)
-- **State Management:** Local React State (`useState`) + lightweight Context (`ChatContext`) for prop-drilling prevention.
-- **Folder Structure:** Organized by feature domain (`src/components/chat`, `src/components/documents`, `src/components/shared`).
-- **Build Order:** 1) Scaffolding -> 2) Upload/Sidebar -> 3) Chat Interface -> 4) Citation Viewer.
-
-- [x] Choose and initialize frontend framework (React/Vite or Next.js) in `frontend/src`
+## Phase 4: Frontend Development [✅ COMPLETE]
+- [x] Choose and initialize frontend framework (React/Vite) in `frontend/src`
 - [x] Build global layout and navigation structure
 - [x] Implement Document Upload Panel (drag-and-drop, status indicators)
 - [x] Implement Document Management Dashboard (list/delete uploaded files)
@@ -48,16 +36,12 @@ This is a living execution tracker structured around development phases.
 - [x] Create interactive Citation Viewer (clicking citations highlights chunk text)
 - [x] Connect frontend API client to FastAPI backend
 
-### Open Questions & Architecture Notes
-- **Conversation History:** Conversation history will be managed strictly client-side during Phase 4 implementation to allow rapid UI iteration. Backend conversation persistence (un-stubbing `app/routers/conversations.py`) is deferred.
-- **OmniRoute Cleanup:** OmniRoute proxy logic was fully removed across `config.py`, `main.py`, `ingestion.py`, `retrieval.py`, and `generation.py`. The application now connects directly to the Google Gemini API with a live embedding health check, eliminating dormant code paths.
-
-## Phase 5: Analytics & Logging [🟢 COMPLETE]
+## Phase 5: Analytics & Logging [✅ COMPLETE]
 - [x] Flesh out the `app/routers/analytics.py` endpoints (`/queries`, `/summary`, `/documents`)
 - [x] Automatically log queries, latency, and average similarity to `query_logs`
-- [x] Build basic frontend dashboard to visualize RAG performance metrics
+- [x] Build frontend dashboard to visualize RAG performance metrics
 
-## Phase 6: Conversation Persistence & History Navigation [🟢 COMPLETE]
+## Phase 6: Conversation Persistence & History Navigation [✅ COMPLETE]
 - [x] Define SQLAlchemy ORM models (`Conversation` and `Message`) in `backend/app/models/conversation.py`
 - [x] Verify database schema synchronization with PostgreSQL via Alembic
 - [x] Un-stub CRUD endpoints (`GET /api/conversations`, `GET /api/conversations/{id}`, `DELETE /api/conversations/{id}`) in `backend/app/routers/conversations.py`
@@ -66,9 +50,9 @@ This is a living execution tracker structured around development phases.
 - [x] Implement robust rollback handling (`await db.rollback()`) and `RateLimitError` (HTTP 429) mapping for Google API quota bounds
 - [x] Create encapsulated custom hook (`frontend/src/hooks/useConversations.js`) with `AbortController` race condition defense
 - [x] Build history navigation UI (`ConversationSidebar.jsx`, `ConversationItem.jsx`, tabbed `Layout.jsx`) with "+ New Chat" reset and active thread deletion fallbacks
-- [x] Standardize model configuration default to `gemini-3.5-flash` / `gemini-1.5-flash` in `.env` for high free-tier limits (1,500 RPD)
+- [x] Standardize model configuration default to `gemini-3.5-flash` in `.env`
 
-## Phase 7: Real-Time Token Streaming (SSE) [🟢 COMPLETE]
+## Phase 7: Real-Time Token Streaming (SSE) [✅ COMPLETE]
 - [x] Implement `generate_answer_stream()` async generator in `backend/app/services/generation.py` using `chain.astream()`
 - [x] Build `POST /api/chat/stream` endpoint in `backend/app/routers/chat.py` returning `StreamingResponse(media_type="text/event-stream")`
 - [x] Enforce structured SSE event protocol (`metadata` -> `token` -> `done` / `error`)
@@ -76,14 +60,33 @@ This is a living execution tracker structured around development phases.
 - [x] Implement `sendChatMessageStream()` in `frontend/src/services/api.js` using `ReadableStream` reader
 - [x] Update `useConversations.js` hook to progressively append incoming token deltas for typewriter-style UI rendering
 
-## Phase 8: Hybrid Search (BM25 + pgvector) with RRF & Re-Ranking [🟢 COMPLETE]
+## Phase 8: Hybrid Search (BM25 + pgvector) with RRF & Re-Ranking [✅ COMPLETE]
 - [x] Evaluate and select PostgreSQL native Full-Text Search (`tsvector`/`tsquery` with GIN indexing) for unified zero-latency BM25 lexical keyword search
 - [x] Refactor `backend/app/services/retrieval.py` into a two-stage hybrid retrieval pipeline (`_retrieve_vector_candidates`, `_retrieve_lexical_candidates`)
 - [x] Implement Reciprocal Rank Fusion algorithm (`_reciprocal_rank_fusion`) with $k=60$ to merge non-comparable sparse and dense candidate ranks
-- [x] Implement Stage 2 Cross-Scoring Re-Ranker (`_cross_score_rerank`) computing $0.50 \cdot S_{vec} + 0.30 \cdot S_{lex} + 0.20 \cdot S_{cross}$
+- [x] Implement Stage 2 Cross-Scoring Re-Ranker (`_cross_score_rerank`)
 - [x] Add GIN FTS index (`idx_chunks_fts`) to `Chunk` ORM model in `backend/app/models/__init__.py`
-- [x] Add automated test case `test_hybrid_retrieval_exact_keyword` in `backend/tests/test_integration.py` (**7/7 tests passed in 21.45s**)
+- [x] Add automated test cases `test_hybrid_retrieval_exact_keyword`, `test_hybrid_retrieval_semantic_match`, `test_rrf_fused_ranking` in `backend/tests/test_integration.py`
 - [x] Update `docs/STUDY_GUIDE.md` with educational concepts and interview Q&A for Hybrid Search, RRF, and Re-Ranking
 
+## Phase 9: JWT Authentication & Multi-Tenancy [✅ COMPLETE]
+- [x] Create `User` ORM model in `backend/app/models/user.py` (`id`, `email`, `hashed_password`, `created_at`)
+- [x] Add `user_id` foreign key columns with `ondelete="CASCADE"` to `documents`, `conversations`, and `query_logs` tables in `backend/app/models/__init__.py`
+- [x] Generate and execute Alembic migration `e5f67a890123_add_users_table_and_user_id_foreign_keys.py` against PostgreSQL
+- [x] Build `backend/app/core/security.py` featuring PBKDF2-HMAC-SHA256 password hashing, RFC 7519 JWT creation/decoding, and `get_current_user` FastAPI dependency
+- [x] Implement `backend/app/routers/auth.py` with `POST /api/auth/signup`, `POST /api/auth/login`, and `GET /api/auth/me` endpoints
+- [x] Scope all document, conversation, and chat endpoints in `documents.py`, `conversations.py`, and `chat.py` to `current_user.id`
+- [x] Update candidate vector/lexical retrieval in `backend/app/services/retrieval.py` to filter search by `Document.user_id == user_id`
+- [x] Update `frontend/src/services/api.js` to manage JWT tokens in `localStorage` and inject `Authorization: Bearer <token>` into all HTTP requests
+- [x] Build `frontend/src/components/AuthModal.jsx` for Login/Signup modal toggling and update `App.jsx` & `Layout.jsx` with User badge and Logout button
+- [x] Build automated integration test suite `backend/tests/test_auth_multitenancy.py` (**3/3 tests passed in 18.57s**)
 
-
+## Phase 10: Full-Stack Dockerization & Free Cloud Deployment Setup [✅ COMPLETE]
+- [x] Create multi-stage `frontend/Dockerfile` (Node 20 build stage + Nginx Alpine static server)
+- [x] Build `frontend/nginx.conf` handling SPA client-side rewrites (`try_files $uri /index.html`) and `/api/` reverse proxying
+- [x] Add `frontend` service to `docker-compose.yml` mapped to port `3000:80` depending on `api`
+- [x] Create `.github/workflows/ci.yml` with `pgvector:pg16` PostgreSQL container service, running migrations, Pytest suite, and `npm run build`
+- [x] Create infrastructure-as-code blueprint `render.yaml` for Render free Web Service deployment
+- [x] Create `frontend/vercel.json` SPA rewrite rules for Vercel free static hosting
+- [x] Document Supabase (Managed `pgvector` PostgreSQL), Render, and Vercel 100% free cloud deployment steps in `README.md`
+- [x] Outline manual UptimeRobot keep-alive setup instructions (5-minute HTTP keyword check on `/api/health` to prevent Render 15-min sleep and Supabase 7-day auto-pause)

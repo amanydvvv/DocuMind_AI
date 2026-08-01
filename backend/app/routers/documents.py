@@ -1,6 +1,6 @@
 """
 DocuMind AI — Document Management Router
-Upload, list, detail, delete, and reindex documents.
+Upload, list, detail, delete, and reindex documents with user tenant isolation.
 """
 
 import hashlib
@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db
 from app.models import Document, Chunk
+from app.models.user import User
+from app.core.security import get_current_user
 from app.schemas import DocumentResponse, DocumentListResponse
 from app.services.ingestion import ingest_document
 
@@ -40,9 +42,10 @@ async def _compute_hash(content: bytes) -> str:
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Upload a PDF or Markdown file for ingestion."""
+    """Upload a PDF or Markdown file for ingestion scoped to current user."""
     if not file.filename or not _allowed_extension(file.filename):
         raise HTTPException(
             status_code=400,
@@ -60,14 +63,17 @@ async def upload_document(
 
     content_hash = await _compute_hash(content)
 
-    # Check for duplicate
+    # Check for duplicate for this user
     existing = await db.execute(
-        select(Document).where(Document.content_hash == content_hash)
+        select(Document).where(
+            Document.content_hash == content_hash,
+            Document.user_id == current_user.id
+        )
     )
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=409,
-            detail="This document has already been uploaded (identical content hash).",
+            detail="This document has already been uploaded to your workspace.",
         )
 
     # Save file to disk
@@ -81,6 +87,7 @@ async def upload_document(
     # Create document record
     doc = Document(
         id=file_id,
+        user_id=current_user.id,
         filename=file.filename,
         content_hash=content_hash,
         file_type=_file_type(file.filename),
@@ -93,8 +100,7 @@ async def upload_document(
     # Queue background ingestion
     background_tasks.add_task(ingest_document, str(file_id), str(file_path))
 
-    # Get chunk count (0 for newly uploaded)
-    doc_response = DocumentResponse(
+    return DocumentResponse(
         id=doc.id,
         filename=doc.filename,
         file_type=doc.file_type,
@@ -106,13 +112,14 @@ async def upload_document(
         created_at=doc.created_at,
         updated_at=doc.updated_at,
     )
-    return doc_response
 
 
 @router.get("", response_model=DocumentListResponse)
-async def list_documents(db: AsyncSession = Depends(get_db)):
-    """List all documents with their chunk counts."""
-    # Subquery for chunk counts
+async def list_documents(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List all documents owned by current authenticated user."""
     chunk_counts = (
         select(Chunk.document_id, func.count(Chunk.id).label("chunk_count"))
         .group_by(Chunk.document_id)
@@ -122,6 +129,7 @@ async def list_documents(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Document, func.coalesce(chunk_counts.c.chunk_count, 0).label("chunk_count"))
         .outerjoin(chunk_counts, Document.id == chunk_counts.c.document_id)
+        .where(Document.user_id == current_user.id)
         .order_by(Document.created_at.desc())
     )
 
@@ -148,9 +156,15 @@ async def list_documents(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)
-async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    """Get document details including chunk count."""
-    result = await db.execute(select(Document).where(Document.id == document_id))
+async def get_document(
+    document_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get document details if owned by current user."""
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -175,14 +189,19 @@ async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db
 
 
 @router.delete("/{document_id}", status_code=204)
-async def delete_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    """Delete a document and all its associated chunks (cascade)."""
-    result = await db.execute(select(Document).where(Document.id == document_id))
+async def delete_document(
+    document_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a document owned by current user."""
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Delete file from disk
     upload_dir = Path(settings.UPLOAD_DIR)
     ext = doc.file_type if doc.file_type != "markdown" else "md"
     file_path = upload_dir / f"{doc.id}.{ext}"
@@ -196,22 +215,21 @@ async def delete_document(document_id: uuid.UUID, db: AsyncSession = Depends(get
 async def reindex_document(
     document_id: uuid.UUID,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Re-chunk and re-embed a document."""
-    result = await db.execute(select(Document).where(Document.id == document_id))
+    """Re-chunk and re-embed a document owned by current user."""
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Delete existing chunks
     await db.execute(delete(Chunk).where(Chunk.document_id == document_id))
-
-    # Reset status
     doc.status = "pending"
     doc.error_message = None
 
-    # Queue re-ingestion
     background_tasks.add_task(ingest_document, str(document_id))
 
     return DocumentResponse(

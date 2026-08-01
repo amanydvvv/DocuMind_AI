@@ -1,15 +1,31 @@
 # DocuMind AI
 
-> An intelligent, production-grade Retrieval-Augmented Generation (RAG) assistant for natural language querying over technical documentation.
+[![DocuMind AI CI Pipeline](https://github.com/amanc/Proj2/actions/workflows/ci.yml/badge.svg)](https://github.com/amanc/Proj2/actions/workflows/ci.yml)
+
+> An intelligent, production-grade Retrieval-Augmented Generation (RAG) assistant for natural language querying over technical documentation with JWT authentication, multi-tenancy isolation, hybrid search, and real-time SSE token streaming.
+
+---
+
+## 🌐 Live Demo & Cloud Deployment
+
+- **Frontend App (Vercel)**: `https://documind-ai.vercel.app` *(or your assigned Vercel URL)*
+- **Backend API (Render)**: `https://documind-api.onrender.com/api/health`
+- **Database (Supabase)**: Managed PostgreSQL 16 + `pgvector`
+
+> [!NOTE]
+> **First Load Notice**: Render free instances automatically pause after 15 minutes of inactivity. Initial request may take 20–30 seconds to cold-start.
+> Uptime is protected via **UptimeRobot** HTTP keyword monitoring every 5 minutes on `/api/health`, preventing Supabase's 7-day auto-pause and eliminating Render cold starts.
 
 ---
 
 ## 🚀 Features
 
+- **JWT Authentication & Multi-Tenancy**: Secure user signup, login, and workspace resource isolation using RFC 7519 JWT access tokens and PBKDF2-HMAC-SHA256 password hashing.
 - **Document Ingestion & Parsing**: Upload PDF or Markdown files with automated text extraction (via PyMuPDF) and deduplication (SHA-256 content hashing).
-- **Vector Search with pgvector & HNSW**: Efficient semantic similarity search using PostgreSQL's `pgvector` extension with HNSW (`vector_cosine_ops`) indexing for fast retrieval.
-- **Multi-Turn RAG Chat & Session Persistence**: Natural language Q&A powered by Google Gemini (`gemini-3.5-flash` / `gemini-1.5-flash`), maintaining conversation history across turns and persisting sessions to PostgreSQL.
-- **History Sidebar & Navigation**: Interactive sidebar for browsing past chat threads, switching contexts with race-condition protection (`AbortController`), and creating or deleting chat sessions.
+- **Hybrid RAG Search (pgvector HNSW + PostgreSQL FTS)**: Two-stage candidate retrieval combining dense vector similarity search and sparse full-text search fused with Reciprocal Rank Fusion ($k=60$) and phrase-coverage re-ranking.
+- **Real-Time Token Streaming (SSE)**: Server-Sent Events (`text/event-stream`) delivering typewriter-style token streaming to the frontend in real time.
+- **Multi-Turn RAG Chat & Session Persistence**: Natural language Q&A powered by Google Gemini (`gemini-3.5-flash`), maintaining conversation history across turns and persisting sessions to PostgreSQL.
+- **History Sidebar & Navigation**: Interactive sidebar for browsing past chat threads, switching contexts with race-condition protection (`AbortController`), creating "+ New Chat" sessions, or deleting threads.
 - **Source Citation & Interactive Viewer**: Transparent AI responses linked directly to exact source chunks, complete with relevance scores, page numbers, and an interactive popover viewer.
 - **System Resilience & Rate Limit Handling**: Automatic mapping of third-party API rate limits to HTTP 429 status codes with atomic transaction rollbacks (`await db.rollback()`).
 - **RAG Analytics & Performance Tracking**: Real-time monitoring of query volume, average latency, vector similarity metrics, and document retrieval frequencies.
@@ -22,33 +38,23 @@
 | Domain | Technology | Description |
 |---|---|---|
 | **Backend Framework** | [FastAPI](https://fastapi.tiangolo.com/) | Async REST API framework with Pydantic schemas |
-| **Database & Vector Store** | [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) | Relational database with HNSW vector indexing |
-| **ORM & Database Driver** | [SQLAlchemy 2.0](https://www.sqlalchemy.org/) + `asyncpg` | Fully asynchronous database queries and migrations |
-| **LLM & Embeddings** | [Google Gemini](https://ai.google.dev/) + [LangChain](https://www.langchain.com/) | `gemini-embedding-001` (768d) & `gemini-3.5-flash` / `gemini-1.5-flash` |
+| **Database & Vector Store** | [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) | Relational database with HNSW vector indexing & FTS GIN index |
+| **ORM & Database Driver** | [SQLAlchemy 2.0](https://www.sqlalchemy.org/) + `asyncpg` | Fully asynchronous database queries and Alembic migrations |
+| **Authentication** | RFC 7519 JWT + PBKDF2 | Security layer with Bearer token authentication & multi-tenant isolation |
+| **LLM & Embeddings** | [Google Gemini](https://ai.google.dev/) + [LangChain](https://www.langchain.com/) | `gemini-embedding-001` (768d) & `gemini-3.5-flash` |
 | **Document Parsing** | [PyMuPDF](https://pymupdf.readthedocs.io/) | Fast PDF text extraction & page parsing |
-| **Frontend Framework** | [React](https://react.dev/) + [Vite](https://vitejs.dev/) | Single-page application with custom hooks & state machine |
+| **Frontend Framework** | [React](https://react.dev/) + [Vite](https://vitejs.dev/) | Single-page application with custom hooks & Auth modal |
 | **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) | Modern, utility-first CSS design system |
 | **Infrastructure** | [Docker Compose](https://www.docker.com/) | Containerized PostgreSQL/pgvector and API service |
 
 ---
 
-## 📐 Architecture Overview
-
-DocuMind AI implements a fully decoupled Retrieval-Augmented Generation pipeline designed for accuracy and traceability:
-
-1. **Ingestion Pipeline**: Uploaded PDF or Markdown documents are checked for duplicate content hashes (SHA-256). Valid files are parsed into text pages (using PyMuPDF for PDFs), split into overlapping chunks (RecursiveCharacterTextSplitter with chunk size 800 and overlap 200), embedded into 768-dimensional vectors via Google Gemini Embeddings (`gemini-embedding-001`), and persisted to PostgreSQL with an HNSW cosine index (`vector_cosine_ops`).
-2. **Query & Retrieval Pipeline**: When a user submits a question, the backend generates an embedding for the query string and performs a vector cosine distance search (`Chunk.embedding.cosine_distance(vec)`) in PostgreSQL using pgvector.
-3. **Context Injection & Generation**: Top-matching chunks passing the similarity threshold are injected alongside prior conversation turns (windowed to the last 10 messages) into a grounded system prompt. Google Gemini (`gemini-3.5-flash` / `gemini-1.5-flash`) generates a factual answer strictly grounded in the retrieved context.
-4. **Citation Binding & Analytics**: The response is returned to the client alongside structured citations (chunk ID, document ID, filename, page number, relevance score, content preview). Every query transaction logs latency, average similarity, and retrieved chunk IDs to `query_logs` for real-time analytics.
-
----
-
-## 🚦 Getting Started
+## 🚦 Getting Started (Local Run via Docker Compose)
 
 ### Prerequisites
 
 - **Docker & Docker Compose** (for PostgreSQL + pgvector)
-- **Python 3.12+**
+- **Python 3.10+**
 - **Node.js 18+ & npm**
 - **Google Gemini API Key** (from [Google AI Studio](https://aistudio.google.com/))
 
@@ -66,9 +72,9 @@ Edit `backend/.env` and insert your Google API Key:
 GOOGLE_API_KEY=your_actual_gemini_api_key_here
 ```
 
-### 2. Start Database & Backend Services
+### 2. Start Full Stack Containers
 
-Run Docker Compose to launch PostgreSQL (port 5435) and the FastAPI backend (port 8000):
+Run Docker Compose to launch PostgreSQL (port 5435), FastAPI backend (port 8000), and React Frontend (port 3000):
 
 ```bash
 docker-compose up -d --build
@@ -90,17 +96,32 @@ Expected output:
 }
 ```
 
-### 3. Start Frontend Development Server
+### 3. Open Frontend Application
 
-In a new terminal window, navigate to the `frontend/` folder and install dependencies:
+Open your browser to **`http://localhost:3000`** (or `http://localhost:5173` for Vite dev server).
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+---
 
-Open your browser to **`http://localhost:5173`** to access the DocuMind AI Web UI.
+## ☁️ 100% Free Cloud Deployment Guide (Supabase + Render + Vercel)
+
+### Step 1: Database (Supabase)
+1. Create a free account at [Supabase](https://supabase.com) (no credit card required).
+2. Create a new PostgreSQL project and run `CREATE EXTENSION IF NOT EXISTS vector;` in the SQL Editor.
+3. Obtain connection strings:
+   - **Direct Connection (DDL & Migrations)**: `postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres` (set as `DATABASE_URL_SYNC`).
+   - **Transaction Pooler (Async Application)**: `postgresql+asyncpg://postgres.[REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres` (set as `DATABASE_URL`).
+4. Run migrations: `cd backend && DATABASE_URL_SYNC="<Direct Connection>" alembic upgrade head`.
+
+### Step 2: Backend API (Render)
+1. Create a free account at [Render](https://render.com).
+2. Create a new Web Service using Blueprint `render.yaml` or linking your GitHub repo (`backend/Dockerfile`).
+3. Set environment variables: `DATABASE_URL`, `DATABASE_URL_SYNC`, `GOOGLE_API_KEY`, `CORS_ORIGINS`.
+4. Verify `/api/health` returns `status: "healthy"`.
+
+### Step 3: Frontend Web App (Vercel)
+1. Create a free account at [Vercel](https://vercel.com).
+2. Import repository, set root directory to `frontend`, and configure `VITE_API_URL` to your Render API URL.
+3. Deploy and update Render `CORS_ORIGINS` with the assigned Vercel domain.
 
 ---
 
@@ -108,14 +129,18 @@ Open your browser to **`http://localhost:5173`** to access the DocuMind AI Web U
 
 | Method | Endpoint | Description |
 |---|---|---|
+| `POST` | `/api/auth/signup` | Register a new user account and receive JWT access token |
+| `POST` | `/api/auth/login` | Authenticate user credentials and receive JWT access token |
+| `GET` | `/api/auth/me` | Return authenticated user profile details |
 | `GET` | `/api/health` | Live health check for database & Gemini embedding API |
-| `POST` | `/api/documents/upload` | Upload PDF/Markdown document for async ingestion |
-| `GET` | `/api/documents` | List all uploaded documents with chunk counts & status |
+| `POST` | `/api/documents/upload` | Upload PDF/Markdown document for async ingestion (User Scoped) |
+| `GET` | `/api/documents` | List all user documents with chunk counts & status |
 | `GET` | `/api/documents/{id}` | Get status and details for a single document |
-| `DELETE` | `/api/documents/{id}` | Delete document, associated vector chunks, and disk file |
-| `POST` | `/api/chat` | Send natural language query with context retrieval & multi-turn Q&A |
-| `GET` | `/api/conversations` | List past conversation sessions ordered by updated timestamp |
-| `GET` | `/api/conversations/{id}` | Get full conversation thread with chronologically ordered messages |
+| `DELETE` | `/api/documents/{id}` | Delete user document, associated vector chunks, and disk file |
+| `POST` | `/api/chat` | Send natural language query with hybrid retrieval & multi-turn Q&A |
+| `POST` | `/api/chat/stream` | Stream natural language query answer in real-time via Server-Sent Events (SSE) |
+| `GET` | `/api/conversations` | List user conversation sessions ordered by updated timestamp |
+| `GET` | `/api/conversations/{id}` | Get full user conversation thread with messages |
 | `DELETE` | `/api/conversations/{id}` | Delete conversation session and associated message history |
 | `GET` | `/api/analytics/summary` | Aggregate RAG metrics (total queries, avg latency, avg similarity) |
 | `GET` | `/api/analytics/queries` | Paginated query log history |
@@ -123,75 +148,13 @@ Open your browser to **`http://localhost:5173`** to access the DocuMind AI Web U
 
 ---
 
-## 📁 Project Structure
-
-```text
-Proj2/
-├── backend/
-│   ├── app/
-│   │   ├── main.py            # FastAPI entry point & CORS configuration
-│   │   ├── config.py          # Settings validation via pydantic-settings
-│   │   ├── database.py        # SQLAlchemy async engine & session setup
-│   │   ├── models/            # SQLAlchemy ORM models (Document, Chunk, Conversation, Message, QueryLog)
-│   │   ├── schemas/           # Pydantic validation & response schemas
-│   │   ├── services/          # Core RAG logic (ingestion, retrieval, generation)
-│   │   └── routers/           # API router endpoints (documents, chat, conversations, analytics)
-│   ├── tests/                 # Pytest integration & multi-turn verification suites
-│   ├── Dockerfile             # Python 3.12 backend container build
-│   └── requirements.txt       # Backend dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── chat/          # ChatContainer, MessageList, MessageBubble, ChatInput
-│   │   │   ├── documents/     # DocumentSidebar, UploadPanel
-│   │   │   ├── sidebar/       # ConversationSidebar, ConversationItem
-│   │   │   ├── shared/        # CitationViewer modal overlay
-│   │   │   └── layout/        # Main Layout shell with tabbed navigation
-│   │   ├── hooks/             # useConversations state machine hook
-│   │   ├── services/api.js    # Typed API client for backend communication
-│   │   ├── App.jsx            # React root component
-│   │   └── main.jsx           # Entry point
-│   ├── index.html
-│   └── vite.config.js         # Vite configuration with Tailwind CSS v4
-├── docs/
-│   ├── PRD.md                 # Product Requirements Document
-│   ├── PROJECT_CHECKLIST.md   # System build order & phase completion state
-│   └── STUDY_GUIDE.md         # Comprehensive architectural & engineering guide
-├── docker-compose.yml         # Container configuration for DB & API
-└── README.md
-```
-
----
-
 ## 🧪 Testing
 
-The repository includes an integration test suite validating end-to-end RAG retrieval, similarity thresholds, and multi-turn generation.
-
-> [!IMPORTANT]
-> `test_integration.py` makes real HTTP requests against a live server and database. You must ensure Docker Compose (`docker-compose up -d --build`) is running on `http://localhost:8000` before executing tests.
-
-To run the integration tests locally:
-
 ```bash
-# Ensure Docker container & DB are running
+# Run multi-tenancy & JWT auth integration tests
 cd backend
+python -m pytest tests/test_auth_multitenancy.py -v
+
+# Run RAG retrieval, hybrid search, and system integration tests
 python -m pytest tests/test_integration.py -v
 ```
-
----
-
-## 🗺️ Project Status & Roadmap
-
-Per [`docs/PROJECT_CHECKLIST.md`](docs/PROJECT_CHECKLIST.md), **Phases 1 through 6 are complete**:
-
-- [x] **Phase 1: Foundation & DB Setup** (pgvector, async SQLAlchemy, migrations)
-- [x] **Phase 2: Core Ingestion Pipeline** (PyMuPDF parser, chunking, Gemini embeddings)
-- [x] **Phase 3: RAG Retrieval & Q&A Engine** (Cosine similarity search, HNSW index, Gemini generation)
-- [x] **Phase 4: Frontend Development** (React UI, drag-and-drop upload, chat stream, citation modal)
-- [x] **Phase 5: Analytics & Logging** (QueryLog persistence, summary metrics, document retrieval frequency)
-- [x] **Phase 6: Conversation Persistence & History Navigation** (Multi-turn ORM memory, sessions CRUD, custom hook, sidebar drawer)
-
-### Future Enhancements (Roadmap)
-- [ ] **Authentication & Multi-Tenancy**: User accounts and workspace isolation.
-- [ ] **Streaming Responses**: Server-Sent Events (SSE) for token-by-token answer generation.
-- [ ] **Cloud Deployment**: Helm charts / Terraform scripts for Kubernetes deployment.

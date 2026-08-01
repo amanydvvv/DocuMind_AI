@@ -61,36 +61,90 @@ def _compute_independent_phrase_coverage(query: str, content: str) -> float:
 
 
 async def _retrieve_vector_candidates(
-    query: str, db: AsyncSession, document_id: Optional[UUID] = None, limit: int = VECTOR_TOP_N
+    query: str,
+    db: AsyncSession,
+    document_id: Optional[UUID] = None,
+    user_id: Optional[UUID] = None,
+    limit: int = VECTOR_TOP_N,
 ) -> List[Tuple[Chunk, float]]:
     """
-    Stage 1 Dense Vector Search via pgvector HNSW cosine similarity.
+    Stage 1 Dense Vector Search via pgvector or fallback JSONB vector calculation.
     Returns List[Tuple[Chunk, similarity_score]]
     """
     query_vector = await embeddings.aembed_query(query)
     query_vector = query_vector[:settings.EMBEDDING_DIMENSION]
 
-    distance_col = Chunk.embedding.cosine_distance(query_vector).label("distance")
-    stmt = select(Chunk, distance_col).order_by(distance_col)
+    try:
+        distance_col = Chunk.embedding.cosine_distance(query_vector).label("distance")
+        stmt = select(Chunk, distance_col)
 
-    if document_id:
-        stmt = stmt.where(Chunk.document_id == document_id)
+        if user_id is not None or document_id is not None:
+            stmt = stmt.join(Document, Chunk.document_id == Document.id)
 
-    stmt = stmt.limit(limit)
-    result = await db.execute(stmt)
-    rows = result.all()
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
 
-    candidates = []
-    for chunk, distance in rows:
-        dist_val = float(distance) if distance is not None else 1.0
-        similarity = max(0.0, round(1.0 - dist_val, 4))
-        candidates.append((chunk, similarity))
+        if document_id is not None:
+            stmt = stmt.where(Chunk.document_id == document_id)
 
-    return candidates
+        stmt = stmt.order_by(distance_col).limit(limit)
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        candidates = []
+        for chunk, distance in rows:
+            dist_val = float(distance) if distance is not None else 1.0
+            similarity = max(0.0, round(1.0 - dist_val, 4))
+            candidates.append((chunk, similarity))
+
+        return candidates
+    except Exception:
+        # Fallback for DB instances without pgvector C extension compiled
+        stmt = select(Chunk)
+        if user_id is not None or document_id is not None:
+            stmt = stmt.join(Document, Chunk.document_id == Document.id)
+
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
+
+        if document_id is not None:
+            stmt = stmt.where(Chunk.document_id == document_id)
+
+        result = await db.execute(stmt)
+        chunks = result.scalars().all()
+
+        import math
+        def dot_product(v1, v2):
+            return sum(x * y for x, y in zip(v1, v2))
+
+        def magnitude(v):
+            return math.sqrt(sum(x * x for x in v))
+
+        q_mag = magnitude(query_vector)
+        scored = []
+
+        for chk in chunks:
+            try:
+                emb = chk.embedding if isinstance(chk.embedding, list) else list(chk.embedding)
+                c_mag = magnitude(emb)
+                if q_mag > 0 and c_mag > 0:
+                    sim = max(0.0, round(dot_product(query_vector, emb) / (q_mag * c_mag), 4))
+                else:
+                    sim = 0.0
+                scored.append((chk, sim))
+            except Exception:
+                scored.append((chk, 0.0))
+
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return scored[:limit]
 
 
 async def _retrieve_lexical_candidates(
-    query: str, db: AsyncSession, document_id: Optional[UUID] = None, limit: int = LEXICAL_TOP_N
+    query: str,
+    db: AsyncSession,
+    document_id: Optional[UUID] = None,
+    user_id: Optional[UUID] = None,
+    limit: int = LEXICAL_TOP_N,
 ) -> List[Tuple[Chunk, float]]:
     """
     Stage 1 Sparse Lexical Search via PostgreSQL Full-Text Search (ts_rank_cd).
@@ -104,11 +158,18 @@ async def _retrieve_lexical_candidates(
     ts_query = func.plainto_tsquery("english", clean_query)
     rank_col = func.ts_rank_cd(ts_vec, ts_query).label("rank")
 
-    stmt = select(Chunk, rank_col).where(ts_vec.op("@@")(ts_query)).order_by(rank_col.desc())
-    if document_id:
+    stmt = select(Chunk, rank_col).where(ts_vec.op("@@")(ts_query))
+
+    if user_id is not None or document_id is not None:
+        stmt = stmt.join(Document, Chunk.document_id == Document.id)
+
+    if user_id is not None:
+        stmt = stmt.where(Document.user_id == user_id)
+
+    if document_id is not None:
         stmt = stmt.where(Chunk.document_id == document_id)
 
-    stmt = stmt.limit(limit)
+    stmt = stmt.order_by(rank_col.desc()).limit(limit)
     result = await db.execute(stmt)
     rows = result.all()
 
@@ -117,7 +178,11 @@ async def _retrieve_lexical_candidates(
         if tokens:
             conditions = [Chunk.content.ilike(f"%{t}%") for t in tokens[:3]]
             stmt_fallback = select(Chunk).where(or_(*conditions))
-            if document_id:
+            if user_id is not None or document_id is not None:
+                stmt_fallback = stmt_fallback.join(Document, Chunk.document_id == Document.id)
+            if user_id is not None:
+                stmt_fallback = stmt_fallback.where(Document.user_id == user_id)
+            if document_id is not None:
                 stmt_fallback = stmt_fallback.where(Chunk.document_id == document_id)
             stmt_fallback = stmt_fallback.limit(limit)
             res_fb = await db.execute(stmt_fallback)
@@ -233,24 +298,27 @@ def _phrase_coverage_rerank(
 
 
 async def retrieve_context(
-    query: str, db: AsyncSession, document_id: Optional[UUID] = None
+    query: str,
+    db: AsyncSession,
+    document_id: Optional[UUID] = None,
+    user_id: Optional[UUID] = None,
 ) -> List[Tuple[Chunk, float, str]]:
     """
-    High-Rigor Two-Stage Hybrid Retrieval Pipeline:
-    1. Concurrent Candidate Retrieval: pgvector HNSW (top 20) + PostgreSQL FTS (top 20) via asyncio.gather
+    High-Rigor Two-Stage Hybrid Retrieval Pipeline with Multi-Tenant User Isolation:
+    1. Candidate Retrieval: pgvector HNSW (top 20) + PostgreSQL FTS (top 20) filtered by user_id
     2. Reciprocal Rank Fusion (RRF, k=60): Rank-based candidate pool generation (top 10 surviving)
     3. Min-Max Normalized Stage 2 Re-Ranking: Evaluates top 5 candidates passed to LLM generation
     """
     start_time = time.time()
-    logger.info(f"Executing High-Rigor Two-Stage Hybrid Retrieval for query: '{query}'")
+    logger.info(f"Executing Multi-Tenant Hybrid Retrieval for user {user_id}, query: '{query}'")
 
     try:
-        # 1. Fetch vector and lexical candidates from DB
+        # 1. Fetch vector and lexical candidates from DB with user_id tenant filtering
         vector_candidates = await _retrieve_vector_candidates(
-            query=query, db=db, document_id=document_id, limit=VECTOR_TOP_N
+            query=query, db=db, document_id=document_id, user_id=user_id, limit=VECTOR_TOP_N
         )
         lexical_candidates = await _retrieve_lexical_candidates(
-            query=query, db=db, document_id=document_id, limit=LEXICAL_TOP_N
+            query=query, db=db, document_id=document_id, user_id=user_id, limit=LEXICAL_TOP_N
         )
 
         stage1_ms = int((time.time() - start_time) * 1000)

@@ -11,12 +11,12 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Initialize the LLM
-llm = ChatGoogleGenerativeAI(
-    model=settings.GENERATIVE_MODEL,
-    google_api_key=settings.GOOGLE_API_KEY,
-    temperature=0.2, # Low temperature for more factual responses
-)
+def get_llm():
+    return ChatGoogleGenerativeAI(
+        model=settings.GENERATIVE_MODEL,
+        google_api_key=settings.GOOGLE_API_KEY,
+        temperature=0.2,
+    )
 
 RAG_PROMPT_TEMPLATE = """
 You are an expert AI assistant tasked with answering questions based ONLY on the provided context and conversation history.
@@ -69,8 +69,8 @@ async def generate_answer(
     else:
         chat_history_section = ""
     
-    # Build the prompt chain
-    chain = prompt | llm
+    # Build the prompt chain with dynamic LLM instance
+    chain = prompt | get_llm()
     
     # Execute the LLM
     try:
@@ -117,7 +117,7 @@ async def generate_answer_stream(
     else:
         chat_history_section = ""
     
-    chain = prompt | llm
+    chain = prompt | get_llm()
     
     try:
         async for chunk_response in chain.astream({

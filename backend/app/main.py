@@ -16,6 +16,7 @@ from app.routers import (
     chat_router,
     conversations_router,
     analytics_router,
+    auth_router,
 )
 
 settings = get_settings()
@@ -48,6 +49,7 @@ app.add_middleware(
 )
 
 # Register routers
+app.include_router(auth_router)
 app.include_router(documents_router)
 app.include_router(chat_router)
 app.include_router(conversations_router)

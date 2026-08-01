@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -27,14 +28,19 @@ from app.config import get_settings
 settings = get_settings()
 
 
+from app.models.user import User
+
 class Document(Base):
     """Uploaded documents tracked for ingestion status."""
 
     __tablename__ = "documents"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     filename: Mapped[str] = mapped_column(String, nullable=False)
-    content_hash: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    content_hash: Mapped[str] = mapped_column(String, nullable=False)
     file_type: Mapped[str] = mapped_column(String, nullable=False)  # 'pdf' | 'markdown'
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
     page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -79,7 +85,7 @@ class Chunk(Base):
         ),
         Index(
             "idx_chunks_fts",
-            func.to_tsvector('english', content),
+            text("to_tsvector('english', content)"),
             postgresql_using="gin",
         ),
     )
@@ -94,6 +100,9 @@ class QueryLog(Base):
     __tablename__ = "query_logs"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     retrieved_chunks: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
     top_k: Mapped[int] = mapped_column(Integer, nullable=False)

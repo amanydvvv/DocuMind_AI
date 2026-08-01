@@ -1,8 +1,14 @@
+import React, { useState, useEffect } from 'react';
 import Layout from './components/layout/Layout';
 import ChatContainer from './components/chat/ChatContainer';
+import AuthModal from './components/AuthModal';
 import { useConversations } from './hooks/useConversations';
+import { getAuthToken, fetchCurrentUser } from './services/api';
 
 function App() {
+  const [user, setUser] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
   const {
     conversations,
     activeConversationId,
@@ -14,12 +20,56 @@ function App() {
     startNewChat,
     removeConversation,
     sendMessage,
+    loadConversations,
   } = useConversations();
+
+  useEffect(() => {
+    async function initAuth() {
+      const token = getAuthToken();
+      if (!token) {
+        setCheckingAuth(false);
+        return;
+      }
+      try {
+        const u = await fetchCurrentUser();
+        setUser(u);
+        if (loadConversations) loadConversations();
+      } catch (err) {
+        setUser(null);
+      } finally {
+        setCheckingAuth(false);
+      }
+    }
+    initAuth();
+  }, []);
+
+  const handleAuthSuccess = async (authData) => {
+    setUser({ id: authData.user_id, email: authData.email });
+    if (loadConversations) loadConversations();
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+  };
+
+  if (checkingAuth) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white font-medium">
+        Loading DocuMind AI...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthModal onAuthSuccess={handleAuthSuccess} />;
+  }
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
 
   return (
     <Layout
+      user={user}
+      onLogout={handleLogout}
       conversations={conversations}
       activeConversationId={activeConversationId}
       onSelectConversation={selectConversation}

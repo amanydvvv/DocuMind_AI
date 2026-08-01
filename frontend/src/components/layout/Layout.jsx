@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import DocumentSidebar from '../documents/DocumentSidebar';
 import ConversationSidebar from '../sidebar/ConversationSidebar';
+import { removeAuthToken } from '../../services/api';
 
 export default function Layout({
+  user,
+  onLogout,
   conversations,
   activeConversationId,
   onSelectConversation,
@@ -11,6 +14,11 @@ export default function Layout({
   children,
 }) {
   const [activeTab, setActiveTab] = useState('chats'); // 'chats' | 'docs'
+
+  const handleLogout = () => {
+    removeAuthToken();
+    if (onLogout) onLogout();
+  };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
@@ -57,6 +65,24 @@ export default function Layout({
             <DocumentSidebar />
           )}
         </div>
+
+        {/* User Profile & Logout Footer */}
+        {user && (
+          <div className="p-3 border-t border-border bg-gray-50 flex items-center justify-between text-xs text-text-muted">
+            <div className="flex items-center space-x-2 truncate">
+              <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">
+                {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <span className="truncate font-medium text-gray-700">{user.email}</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-2 py-1 bg-gray-200 hover:bg-red-100 hover:text-red-600 rounded text-xs transition-colors font-medium"
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}
