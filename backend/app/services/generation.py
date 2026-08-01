@@ -95,3 +95,50 @@ async def generate_answer(
         logger.error(f"Error during LLM generation: {e}", exc_info=True)
         raise
 
+
+async def generate_answer_stream(
+    query: str, chunks: List[Chunk], chat_history: Optional[List[Message]] = None
+):
+    """
+    Stream answer tokens as they arrive from the LLM provider.
+    """
+    logger.info("Streaming answer tokens from LLM...")
+    
+    context_text = "\n\n---\n\n".join(
+        [f"Document snippet {i+1}:\n{chunk.content}" for i, chunk in enumerate(chunks)]
+    )
+    
+    if chat_history:
+        history_lines = []
+        for msg in chat_history:
+            role = "User" if msg.role == "user" else "Assistant"
+            history_lines.append(f"{role}: {msg.content}")
+        chat_history_section = "Conversation History:\n" + "\n".join(history_lines) + "\n---------------------"
+    else:
+        chat_history_section = ""
+    
+    chain = prompt | llm
+    
+    try:
+        async for chunk_response in chain.astream({
+            "chat_history_section": chat_history_section,
+            "context": context_text,
+            "query": query
+        }):
+            if chunk_response.content:
+                yield chunk_response.content
+    except Exception as e:
+        err_str = str(e)
+        if (
+            "429" in err_str
+            or "Quota exceeded" in err_str
+            or "ResourceExhausted" in err_str
+            or "rate limit" in err_str.lower()
+        ):
+            logger.warning(f"LLM Rate Limit Exceeded during stream: {e}")
+            raise RateLimitError(
+                "The AI service is currently at capacity or quota limits have been reached. Please try again in a moment."
+            )
+        logger.error(f"Error during LLM token streaming: {e}", exc_info=True)
+        raise
+

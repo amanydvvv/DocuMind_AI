@@ -95,34 +95,54 @@ export function useConversations() {
       setMessages((prev) => [...prev, userMsg]);
       setIsGenerating(true);
 
-      try {
-        const response = await sendChatMessage({
-          question,
-          document_id: documentId,
-          conversation_id: activeConversationId,
-        });
+      let assistantCreated = false;
 
-        const assistantMsg = {
-          role: 'assistant',
-          content: response.answer,
-          citations: response.citations,
-        };
-
-        setMessages((prev) => [...prev, assistantMsg]);
-
-        if (response.conversation_id && response.conversation_id !== activeConversationId) {
-          setActiveConversationId(response.conversation_id);
-        }
-
-        // Silently refresh conversation list to show new title/timestamp
-        loadConversationList();
-      } catch (err) {
-        setError(err.message || 'Failed to send message');
-        // Rollback optimistic user message
-        setMessages((prev) => prev.slice(0, -1));
-      } finally {
-        setIsGenerating(false);
-      }
+      await sendChatMessageStream({
+        question,
+        document_id: documentId,
+        conversation_id: activeConversationId,
+        onMetadata: (metadata) => {
+          if (metadata.conversation_id && metadata.conversation_id !== activeConversationId) {
+            setActiveConversationId(metadata.conversation_id);
+          }
+          if (!assistantCreated) {
+            assistantCreated = true;
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: '',
+                citations: metadata.citations || [],
+              },
+            ]);
+          }
+        },
+        onToken: (tokenDelta) => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: updated[lastIdx].content + tokenDelta,
+              };
+            }
+            return updated;
+          });
+        },
+        onError: (errDetail) => {
+          setError(errDetail || 'Failed to generate response');
+          if (!assistantCreated) {
+            // Rollback optimistic user message if stream failed before metadata
+            setMessages((prev) => prev.slice(0, -1));
+          }
+          setIsGenerating(false);
+        },
+        onDone: () => {
+          setIsGenerating(false);
+          loadConversationList();
+        },
+      });
     },
     [activeConversationId, isGenerating, loadConversationList]
   );

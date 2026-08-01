@@ -68,3 +68,12 @@ This is a living execution tracker structured around development phases.
 - [x] Build history navigation UI (`ConversationSidebar.jsx`, `ConversationItem.jsx`, tabbed `Layout.jsx`) with "+ New Chat" reset and active thread deletion fallbacks
 - [x] Standardize model configuration default to `gemini-3.5-flash` / `gemini-1.5-flash` in `.env` for high free-tier limits (1,500 RPD)
 
+## Phase 7: Real-Time Token Streaming (SSE) [🟢 COMPLETE]
+- [x] Implement `generate_answer_stream()` async generator in `backend/app/services/generation.py` using `chain.astream()`
+- [x] Build `POST /api/chat/stream` endpoint in `backend/app/routers/chat.py` returning `StreamingResponse(media_type="text/event-stream")`
+- [x] Enforce structured SSE event protocol (`metadata` -> `token` -> `done` / `error`)
+- [x] Maintain atomic database transaction commits (`await db.commit()`) post-stream completion with clean `await db.rollback()` on exceptions
+- [x] Implement `sendChatMessageStream()` in `frontend/src/services/api.js` using `ReadableStream` reader
+- [x] Update `useConversations.js` hook to progressively append incoming token deltas for typewriter-style UI rendering
+
+
