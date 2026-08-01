@@ -76,4 +76,14 @@ This is a living execution tracker structured around development phases.
 - [x] Implement `sendChatMessageStream()` in `frontend/src/services/api.js` using `ReadableStream` reader
 - [x] Update `useConversations.js` hook to progressively append incoming token deltas for typewriter-style UI rendering
 
+## Phase 8: Hybrid Search (BM25 + pgvector) with RRF & Re-Ranking [🟢 COMPLETE]
+- [x] Evaluate and select PostgreSQL native Full-Text Search (`tsvector`/`tsquery` with GIN indexing) for unified zero-latency BM25 lexical keyword search
+- [x] Refactor `backend/app/services/retrieval.py` into a two-stage hybrid retrieval pipeline (`_retrieve_vector_candidates`, `_retrieve_lexical_candidates`)
+- [x] Implement Reciprocal Rank Fusion algorithm (`_reciprocal_rank_fusion`) with $k=60$ to merge non-comparable sparse and dense candidate ranks
+- [x] Implement Stage 2 Cross-Scoring Re-Ranker (`_cross_score_rerank`) computing $0.50 \cdot S_{vec} + 0.30 \cdot S_{lex} + 0.20 \cdot S_{cross}$
+- [x] Add GIN FTS index (`idx_chunks_fts`) to `Chunk` ORM model in `backend/app/models/__init__.py`
+- [x] Add automated test case `test_hybrid_retrieval_exact_keyword` in `backend/tests/test_integration.py` (**7/7 tests passed in 21.45s**)
+- [x] Update `docs/STUDY_GUIDE.md` with educational concepts and interview Q&A for Hybrid Search, RRF, and Re-Ranking
+
+
 

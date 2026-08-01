@@ -84,3 +84,15 @@ def test_chat_nonsense():
     
     assert "answer" in data
     assert "citations" in data
+
+def test_hybrid_retrieval_exact_keyword():
+    payload = {"question": "propulsion system Samantha Carter"}
+    response = requests.post(f"{BASE_URL}/api/chat", json=payload)
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    data = response.json()
+    
+    assert len(data.get("citations", [])) > 0, "Hybrid retrieval failed to return citations for keyword query"
+    first_citation = data["citations"][0]
+    assert "content_preview" in first_citation
+    assert "score" in first_citation
+    assert first_citation["score"] > 0.0, "Citation score should be positive after hybrid re-ranking"
