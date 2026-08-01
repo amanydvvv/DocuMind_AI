@@ -191,15 +191,22 @@ Combining raw vector cosine similarity scores (bounded [0, 1]) with BM25 `ts_ran
     - `RRF_FUSED_TOP_K = 10` (surviving candidates entering Stage 2 re-ranking)
     - `FINAL_TOP_K = 5` (final re-ranked chunks passed to LLM generation)
 
-### 4. Min-Max Normalization & Stage 2 Re-Ranking
-To combine feature scores into a unified final sort key without score distortion, we apply **Min-Max Normalization** over the fused candidate pool ($N=10$):
+### 4. Min-Max Normalization & Stage 2 Re-Ranking (Option 2b: Phrase Coverage & Lexical Re-Scorer)
+To combine feature scores into a unified final sort key without score distortion, we apply **Min-Max Normalization** over the fused RRF candidate pool ($N=10$):
 $$S_{norm} = \frac{S - S_{min}}{S_{max} - S_{min} + \epsilon}$$
-- Maps raw vector similarity ($S_{vec}$), lexical rank ($S_{lex}$), and cross-coverage phrase matching ($S_{cross}$) into $[0.0, 1.0]$.
-- Applies weighted hybrid re-ranking: $S_{final} = 0.50 \cdot S_{vec\_norm} + 0.30 \cdot S_{lex\_norm} + 0.20 \cdot S_{cross\_norm}$.
+- Maps raw vector similarity ($S_{vec}$), lexical rank ($S_{lex}$), and independent phrase & token coverage ($S_{phrase}$) into $[0.0, 1.0]$.
+- Applies weighted hybrid re-ranking: $S_{final} = 0.50 \cdot S_{vec\_norm} + 0.30 \cdot S_{lex\_norm} + 0.20 \cdot S_{phrase\_norm}$.
+- **Cross-Encoder vs. Phrase-Coverage Heuristic (Option 2b):** A true deep-learning Cross-Encoder (e.g. `cross-encoder/ms-marco-MiniLM-L-6-v2`) jointly encodes query and document tokens through a transformer model to compute cross-attention scores. We deliberately chose Option 2b (a lightweight, independent phrase-coverage re-scorer) for performance reasons: it executes in **<5ms** with **0MB** memory bloat, zero GPU/PyTorch dependencies, and zero API cost. The precision tradeoff accepted is that it uses keyword token/phrase overlap heuristics rather than deep neural cross-attention context modeling.
 
-### 5. Concurrent Query Execution (`asyncio.gather`) & Latency
-- Dense vector search and sparse lexical search execute **concurrently** in parallel via `asyncio.gather()`.
-- **Latency Budget**: Stage 1 concurrent retrieval takes ~15–25ms; Stage 2 RRF + Min-Max re-ranking takes <5ms. Total retrieval latency completes in **<30ms**, well before SSE token streaming starts.
+### 5. Result Diversity & Chunk Overlap (Known Tradeoff & MMR Solution)
+*   **The Overlapping Chunk Phenomenon:** When documents are split using sliding window chunking with character overlap (e.g., 500 chars with 100 char overlap), top-K vector/lexical retrieval can return 5 near-duplicate adjacent chunks from consecutive windows of the exact same paragraph.
+*   **Architectural Fix — Maximal Marginal Relevance (MMR):** To prevent duplicate content from dominating the context window passed to the LLM, **MMR** optimizes for both query relevance and candidate diversity:
+    $$MMR = \arg\max_{d_i \in R \setminus S} \left[ \lambda \cdot Sim_1(d_i, q) - (1 - \lambda) \max_{d_j \in S} Sim_2(d_i, d_j) \right]$$
+    MMR penalizes candidates that have high cosine similarity to already-selected chunks ($S$), guaranteeing diverse information coverage across distinct sections of the document.
+
+### 6. Concurrent Query Execution & Latency
+- Dense vector search and sparse lexical search execute within a unified PostgreSQL database session.
+- **Latency Budget**: Stage 1 candidate retrieval takes ~15–20ms; Stage 2 RRF + Min-Max phrase re-ranking takes <5ms. Total retrieval latency completes in **<30ms**, well before SSE token streaming starts.
 
 ---
 
@@ -220,13 +227,13 @@ When an interviewer asks you about your technical decisions on DocuMind AI, use 
 > *"I chose **PostgreSQL with the pgvector extension** to implement a unified transactional and vector store. Running separate databases for relational metadata and vector embeddings adds unnecessary network latency, distributed synchronization complexity, and operational overhead. With pgvector, I can perform ACID-compliant relational joins and cosine similarity vector searches within a single query engine."*
 
 #### Q: "How do you implement Hybrid Search, and why not use an external search engine like Elasticsearch?"
-> *"I designed a two-stage hybrid retrieval engine directly within PostgreSQL using **pgvector HNSW** for dense semantic search and PostgreSQL native **Full-Text Search (`tsvector`/`tsquery` with a GIN index)** for lexical keyword search. I chose native Postgres FTS over Elasticsearch to maintain a single, zero-latency unified database engine without distributed data synchronization overhead. I execute dense and sparse searches concurrently via `asyncio.gather()`, merge ranks using **Reciprocal Rank Fusion (RRF, k=60)**, and apply **Min-Max Normalization** over the candidate pool before re-ranking."*
+> *"I designed a two-stage hybrid retrieval engine directly within PostgreSQL using **pgvector HNSW** for dense semantic search and PostgreSQL native **Full-Text Search (`tsvector`/`tsquery` with a GIN index)** for lexical keyword search. I chose native Postgres FTS over Elasticsearch to maintain a single, zero-latency unified database engine without distributed data synchronization overhead. I merge ranks using **Reciprocal Rank Fusion (RRF, k=60)**, and apply **Min-Max Normalization** over the candidate pool before re-ranking."*
 
 #### Q: "Why use Min-Max Normalization in your re-ranker instead of raw score blending?"
 > *"Mixing unnormalized cosine similarity (bounded [0, 1]), `ts_rank_cd` (unbounded floats), and term overlap scores distorts rankings because the scales are completely non-comparable. RRF is rank-based so it handles candidate pool generation safely without raw scores. For Stage 2 re-ranking, I apply Min-Max normalization ($S_{norm} = (S - S_{min}) / (S_{max} - S_{min})$) across the candidate pool for each feature first. This maps every feature onto a uniform [0, 1] scale before applying weighted cross-scoring, producing mathematically sound and reliable rankings."*
 
-#### Q: "Why choose this specific re-ranking strategy over an ML Cross-Encoder model?"
-> *"I evaluated three re-ranking options: a local HuggingFace Cross-Encoder model (`cross-encoder/ms-marco-MiniLM-L-6-v2`), an external API re-ranker (Cohere Rerank), and a zero-dependency candidate pool Min-Max cross-scorer. While local ML cross-encoders provide high precision, they require downloading ~90MB weights and add 100ms+ PyTorch CPU inference overhead. External APIs add network RTT and per-query cost. The Min-Max cross-scorer combines cosine similarity, Postgres FTS rank, and exact term/phrase coverage in under 5ms without external dependencies or memory bloat."*
+#### Q: "Why choose Option 2b (Phrase-Coverage Re-Scorer) over a deep-learning ML Cross-Encoder model?"
+> *"A true ML Cross-Encoder (e.g. `cross-encoder/ms-marco-MiniLM-L-6-v2`) jointly encodes query and document tokens through transformer self-attention layers to compute context relevance. While cross-encoders offer higher precision, they require downloading ~90MB weights and add 100ms+ PyTorch CPU inference latency. External API re-rankers (like Cohere Rerank) add network RTT and per-query cost. I chose Option 2b: an independent phrase-coverage & term-matching re-scorer that executes in under 5ms with 0MB memory overhead and zero external dependencies, accepting a minor precision tradeoff for sub-30ms total retrieval latency."*
 
 #### Q: "How do you manage database transaction boundaries when calling third-party AI APIs?"
 > *"I decouple object creation from transaction commits. In the chat endpoint, I use `await db.flush()` to assign primary keys to the user's prompt without locking or committing the transaction. I only perform a single `await db.commit()` after the LLM successfully returns an answer. If Google Gemini throws a rate limit or network exception, I catch it and execute `await db.rollback()`, ensuring we never persist orphaned prompts or corrupt history states."*

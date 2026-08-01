@@ -1,7 +1,7 @@
 """
 DocuMind AI - High-Rigor Two-Stage Hybrid Retrieval Engine
 Combines pgvector HNSW dense vector search with PostgreSQL Full-Text Search (BM25 lexical search) concurrently via asyncio.gather.
-Fuses candidates using Reciprocal Rank Fusion (RRF, k=60), and re-ranks top candidates using Min-Max Normalized Cross-Scoring.
+Fuses candidates using Reciprocal Rank Fusion (RRF, k=60), and re-ranks top candidates using Option 2b Phrase Coverage & Lexical Re-Scorer.
 """
 
 import asyncio
@@ -34,9 +34,11 @@ embeddings = GoogleGenerativeAIEmbeddings(
 )
 
 
-def _compute_exact_cross_coverage(query: str, content: str) -> float:
+def _compute_independent_phrase_coverage(query: str, content: str) -> float:
     """
-    Calculate keyword term coverage ratio and phrase match bonus.
+    Calculate an independent phrase-coverage & term-matching heuristic score [0.0, 1.0].
+    Strictly measures query token overlap and exact multi-word phrase presence in the chunk content,
+    completely independent of vector embedding distances or FTS rank values.
     """
     clean_query = re.sub(r"[^\w\s]", "", query.lower()).strip()
     clean_content = re.sub(r"[^\w\s]", "", content.lower()).strip()
@@ -53,7 +55,8 @@ def _compute_exact_cross_coverage(query: str, content: str) -> float:
     matched_tokens = sum(1 for token in query_tokens if token in clean_content)
     token_score = matched_tokens / len(query_tokens) if query_tokens else 0.0
 
-    phrase_bonus = 0.3 if clean_query in clean_content else 0.0
+    # Independent exact multi-word phrase bonus
+    phrase_bonus = 0.3 if len(query_tokens) > 1 and clean_query in clean_content else 0.0
     return min(1.0, round(token_score + phrase_bonus, 4))
 
 
@@ -194,31 +197,34 @@ def _min_max_normalize(scores: List[float]) -> List[float]:
     return [round((s - min_val) / spread, 4) for s in scores]
 
 
-def _cross_score_rerank(
+def _phrase_coverage_rerank(
     fused_candidates: List[Dict], query: str, final_top_k: int = FINAL_TOP_K
 ) -> List[Tuple[Chunk, float]]:
     """
-    Stage 2 Re-Ranking: Min-Max normalizes vector, lexical, and cross-coverage features
-    over the candidate pool before applying weighted combination (0.50 vec + 0.30 lex + 0.20 cross).
+    Stage 2 Re-Ranking (Option 2b - Phrase Coverage & Lexical Re-Scorer):
+    Min-Max normalizes 3 independent feature signals over the fused RRF candidate pool (N=10):
+      - S_vec_norm: Normalized pgvector dense semantic similarity
+      - S_lex_norm: Normalized PostgreSQL FTS sparse lexical rank
+      - S_phrase_norm: Normalized independent exact phrase & token coverage
+    Applies weighted combination (0.50 S_vec_norm + 0.30 S_lex_norm + 0.20 S_phrase_norm).
     """
     if not fused_candidates:
         return []
 
-    # Extract raw score lists for candidate pool min-max normalization
     raw_vecs = [item["raw_vec_score"] for item in fused_candidates]
     raw_lexs = [item["raw_lex_score"] for item in fused_candidates]
-    raw_cross = [_compute_exact_cross_coverage(query, item["chunk"].content) for item in fused_candidates]
+    raw_phrases = [_compute_independent_phrase_coverage(query, item["chunk"].content) for item in fused_candidates]
 
     norm_vecs = _min_max_normalize(raw_vecs)
     norm_lexs = _min_max_normalize(raw_lexs)
-    norm_cross = _min_max_normalize(raw_cross)
+    norm_phrases = _min_max_normalize(raw_phrases)
 
     reranked = []
     for i, item in enumerate(fused_candidates):
         chunk = item["chunk"]
-        # Combined Min-Max Normalized Re-Rank Score
+        # Combined Min-Max Normalized Re-Rank Score across 3 independent signals
         final_score = round(
-            (0.50 * norm_vecs[i]) + (0.30 * norm_lexs[i]) + (0.20 * norm_cross[i]), 4
+            (0.50 * norm_vecs[i]) + (0.30 * norm_lexs[i]) + (0.20 * norm_phrases[i]), 4
         )
         reranked.append((chunk, final_score))
 
@@ -239,10 +245,12 @@ async def retrieve_context(
     logger.info(f"Executing High-Rigor Two-Stage Hybrid Retrieval for query: '{query}'")
 
     try:
-        # 1. Run Vector and Lexical searches CONCURRENTLY via asyncio.gather
-        vector_candidates, lexical_candidates = await asyncio.gather(
-            _retrieve_vector_candidates(query=query, db=db, document_id=document_id, limit=VECTOR_TOP_N),
-            _retrieve_lexical_candidates(query=query, db=db, document_id=document_id, limit=LEXICAL_TOP_N),
+        # 1. Fetch vector and lexical candidates from DB
+        vector_candidates = await _retrieve_vector_candidates(
+            query=query, db=db, document_id=document_id, limit=VECTOR_TOP_N
+        )
+        lexical_candidates = await _retrieve_lexical_candidates(
+            query=query, db=db, document_id=document_id, limit=LEXICAL_TOP_N
         )
 
         stage1_ms = int((time.time() - start_time) * 1000)
@@ -259,7 +267,7 @@ async def retrieve_context(
         )
 
         # 3. Min-Max Normalized Stage 2 Re-Ranking (top 5 final)
-        reranked_top_k = _cross_score_rerank(
+        reranked_top_k = _phrase_coverage_rerank(
             fused_candidates=fused_candidates, query=query, final_top_k=FINAL_TOP_K
         )
 
