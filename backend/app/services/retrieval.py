@@ -31,6 +31,7 @@ FINAL_TOP_K = 5         # Final re-ranked candidates passed to generation.py
 embeddings = GoogleGenerativeAIEmbeddings(
     model=f"models/{settings.EMBEDDING_MODEL}",
     google_api_key=settings.GOOGLE_API_KEY,
+    request_timeout=30.0,
 )
 
 

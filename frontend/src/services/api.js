@@ -165,10 +165,14 @@ export async function sendChatMessageStream({
   onError,
   onDone,
 }) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 35000);
+
   try {
     const response = await fetch(`${API_URL}/api/chat/stream`, {
       method: 'POST',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      signal: controller.signal,
       body: JSON.stringify({
         question,
         document_id,
@@ -176,6 +180,7 @@ export async function sendChatMessageStream({
         top_k,
       }),
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       let errorMsg = 'Failed to stream response';

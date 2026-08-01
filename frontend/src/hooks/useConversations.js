@@ -97,52 +97,55 @@ export function useConversations() {
 
       let assistantCreated = false;
 
-      await sendChatMessageStream({
-        question,
-        document_id: documentId,
-        conversation_id: activeConversationId,
-        onMetadata: (metadata) => {
-          if (metadata.conversation_id && metadata.conversation_id !== activeConversationId) {
-            setActiveConversationId(metadata.conversation_id);
-          }
-          if (!assistantCreated) {
-            assistantCreated = true;
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: 'assistant',
-                content: '',
-                citations: metadata.citations || [],
-              },
-            ]);
-          }
-        },
-        onToken: (tokenDelta) => {
-          setMessages((prev) => {
-            const updated = [...prev];
-            const lastIdx = updated.length - 1;
-            if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
-              updated[lastIdx] = {
-                ...updated[lastIdx],
-                content: updated[lastIdx].content + tokenDelta,
-              };
+      try {
+        await sendChatMessageStream({
+          question,
+          document_id: documentId,
+          conversation_id: activeConversationId,
+          onMetadata: (metadata) => {
+            if (metadata.conversation_id && metadata.conversation_id !== activeConversationId) {
+              setActiveConversationId(metadata.conversation_id);
             }
-            return updated;
-          });
-        },
-        onError: (errDetail) => {
-          setError(errDetail || 'Failed to generate response');
-          if (!assistantCreated) {
-            // Rollback optimistic user message if stream failed before metadata
-            setMessages((prev) => prev.slice(0, -1));
-          }
-          setIsGenerating(false);
-        },
-        onDone: () => {
-          setIsGenerating(false);
-          loadConversationList();
-        },
-      });
+            if (!assistantCreated) {
+              assistantCreated = true;
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: '',
+                  citations: metadata.citations || [],
+                },
+              ]);
+            }
+          },
+          onToken: (tokenDelta) => {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const lastIdx = updated.length - 1;
+              if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  content: updated[lastIdx].content + tokenDelta,
+                };
+              }
+              return updated;
+            });
+          },
+          onError: (errDetail) => {
+            setError(errDetail || 'Failed to generate response');
+            if (!assistantCreated) {
+              setMessages((prev) => prev.slice(0, -1));
+            }
+          },
+          onDone: () => {
+            loadConversationList();
+          },
+        });
+      } catch (err) {
+        setError(err.message || 'Error sending message');
+      } finally {
+        setIsGenerating(false);
+      }
     },
     [activeConversationId, isGenerating, loadConversationList]
   );
