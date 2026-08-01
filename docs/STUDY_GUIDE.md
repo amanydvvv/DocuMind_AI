@@ -198,11 +198,11 @@ $$S_{norm} = \frac{S - S_{min}}{S_{max} - S_{min} + \epsilon}$$
 - Applies weighted hybrid re-ranking: $S_{final} = 0.50 \cdot S_{vec\_norm} + 0.30 \cdot S_{lex\_norm} + 0.20 \cdot S_{phrase\_norm}$.
 - **Cross-Encoder vs. Phrase-Coverage Heuristic (Option 2b):** A true deep-learning Cross-Encoder (e.g. `cross-encoder/ms-marco-MiniLM-L-6-v2`) jointly encodes query and document tokens through a transformer model to compute cross-attention scores. We deliberately chose Option 2b (a lightweight, independent phrase-coverage re-scorer) for performance reasons: it executes in **<5ms** with **0MB** memory bloat, zero GPU/PyTorch dependencies, and zero API cost. The precision tradeoff accepted is that it uses keyword token/phrase overlap heuristics rather than deep neural cross-attention context modeling.
 
-### 5. Result Diversity & Chunk Overlap (Known Tradeoff & MMR Solution)
-*   **The Overlapping Chunk Phenomenon:** When documents are split using sliding window chunking with character overlap (e.g., 500 chars with 100 char overlap), top-K vector/lexical retrieval can return 5 near-duplicate adjacent chunks from consecutive windows of the exact same paragraph.
-*   **Architectural Fix — Maximal Marginal Relevance (MMR):** To prevent duplicate content from dominating the context window passed to the LLM, **MMR** optimizes for both query relevance and candidate diversity:
+### 5. Result Diversity & Chunk Overlap (Confirmed Tradeoff & MMR Solution)
+*   **The Overlapping Chunk & Duplicate Document Phenomenon (Empirically Confirmed):** In multi-topic test runs against a corpus containing overlapping sliding-window chunks or duplicate document uploads, `retrieve_context()` correctly scores the top matching chunk at **1.0000**, cleanly separating it from unrelated documents (~0.05). However, ranks 2–5 are frequently dominated by near-duplicate chunks from adjacent windows of the same document or identical duplicate uploads.
+*   **Architectural Fix — Maximal Marginal Relevance (MMR) & Document Deduplication:** To prevent redundant content from dominating the context window passed to the LLM:
     $$MMR = \arg\max_{d_i \in R \setminus S} \left[ \lambda \cdot Sim_1(d_i, q) - (1 - \lambda) \max_{d_j \in S} Sim_2(d_i, d_j) \right]$$
-    MMR penalizes candidates that have high cosine similarity to already-selected chunks ($S$), guaranteeing diverse information coverage across distinct sections of the document.
+    MMR penalizes candidates that have high cosine similarity to already-selected chunks ($S$). Combining MMR with post-retrieval document-ID deduplication is the planned architectural enhancement for future phases.
 
 ### 6. Concurrent Query Execution & Latency
 - Dense vector search and sparse lexical search execute within a unified PostgreSQL database session.
