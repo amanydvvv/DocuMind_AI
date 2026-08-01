@@ -57,6 +57,7 @@ def test_ingestion_completes():
     pytest.fail(f"Ingestion timed out after {timeout} seconds")
 
 def test_chat_clear_match():
+    time.sleep(1.5)
     payload = {"question": "Who is the lead engineer for Project Xyzzy?"}
     response = requests.post(f"{BASE_URL}/api/chat", json=payload)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
@@ -68,6 +69,7 @@ def test_chat_clear_match():
     assert len(data["citations"]) > 0, "Citations list is empty"
 
 def test_chat_not_in_document():
+    time.sleep(1.5)
     payload = {"question": "What is the budget for Project Xyzzy?"}
     response = requests.post(f"{BASE_URL}/api/chat", json=payload)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
@@ -77,6 +79,7 @@ def test_chat_not_in_document():
     assert any(x in answer_lower for x in ["not find", "couldn't find", "don't have enough", "not mentioned", "not provided", "no information", "cannot answer"]), f"Fabricated answer detected: {data['answer']}"
 
 def test_chat_nonsense():
+    time.sleep(1.5)
     payload = {"question": "asdf qwerty!@#$"}
     response = requests.post(f"{BASE_URL}/api/chat", json=payload)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
@@ -86,6 +89,7 @@ def test_chat_nonsense():
     assert "citations" in data
 
 def test_hybrid_retrieval_exact_keyword():
+    time.sleep(1.5)
     payload = {"question": "propulsion system Samantha Carter"}
     response = requests.post(f"{BASE_URL}/api/chat", json=payload)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"

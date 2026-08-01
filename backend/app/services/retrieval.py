@@ -1,11 +1,13 @@
 """
-DocuMind AI - Hybrid Retrieval Service
-Combines pgvector HNSW dense vector search with PostgreSQL Full-Text Search (BM25 lexical search),
-fuses candidates using Reciprocal Rank Fusion (RRF), and re-ranks results via cross-scoring.
+DocuMind AI - High-Rigor Two-Stage Hybrid Retrieval Engine
+Combines pgvector HNSW dense vector search with PostgreSQL Full-Text Search (BM25 lexical search) concurrently via asyncio.gather.
+Fuses candidates using Reciprocal Rank Fusion (RRF, k=60), and re-ranks top candidates using Min-Max Normalized Cross-Scoring.
 """
 
+import asyncio
 import logging
 import re
+import time
 from typing import List, Optional, Tuple, Dict
 from uuid import UUID
 
@@ -18,6 +20,12 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# Candidate Pool Configuration Constants
+VECTOR_TOP_N = 20       # Top candidates from pgvector HNSW dense search
+LEXICAL_TOP_N = 20      # Top candidates from PostgreSQL FTS lexical search
+RRF_FUSED_TOP_K = 10    # Top candidates surviving RRF rank fusion into Stage 2
+FINAL_TOP_K = 5         # Final re-ranked candidates passed to generation.py
 
 # Initialize embedding model
 embeddings = GoogleGenerativeAIEmbeddings(
@@ -36,7 +44,6 @@ def _compute_exact_cross_coverage(query: str, content: str) -> float:
     if not clean_query or not clean_content:
         return 0.0
 
-    # Stopwords filter for trivial terms
     stopwords = {"a", "an", "the", "is", "are", "was", "were", "of", "for", "in", "to", "on", "with", "and", "or", "what", "who", "where", "how", "why"}
     query_tokens = [t for t in clean_query.split() if t not in stopwords and len(t) > 1]
 
@@ -46,17 +53,15 @@ def _compute_exact_cross_coverage(query: str, content: str) -> float:
     matched_tokens = sum(1 for token in query_tokens if token in clean_content)
     token_score = matched_tokens / len(query_tokens) if query_tokens else 0.0
 
-    # Exact phrase bonus
     phrase_bonus = 0.3 if clean_query in clean_content else 0.0
-
     return min(1.0, round(token_score + phrase_bonus, 4))
 
 
 async def _retrieve_vector_candidates(
-    query: str, db: AsyncSession, document_id: Optional[UUID] = None, candidate_limit: int = 15
+    query: str, db: AsyncSession, document_id: Optional[UUID] = None, limit: int = VECTOR_TOP_N
 ) -> List[Tuple[Chunk, float]]:
     """
-    Retrieve top candidates using pgvector HNSW cosine similarity.
+    Stage 1 Dense Vector Search via pgvector HNSW cosine similarity.
     Returns List[Tuple[Chunk, similarity_score]]
     """
     query_vector = await embeddings.aembed_query(query)
@@ -68,7 +73,7 @@ async def _retrieve_vector_candidates(
     if document_id:
         stmt = stmt.where(Chunk.document_id == document_id)
 
-    stmt = stmt.limit(candidate_limit)
+    stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     rows = result.all()
 
@@ -82,17 +87,16 @@ async def _retrieve_vector_candidates(
 
 
 async def _retrieve_lexical_candidates(
-    query: str, db: AsyncSession, document_id: Optional[UUID] = None, candidate_limit: int = 15
+    query: str, db: AsyncSession, document_id: Optional[UUID] = None, limit: int = LEXICAL_TOP_N
 ) -> List[Tuple[Chunk, float]]:
     """
-    Retrieve top candidates using PostgreSQL Full-Text Search (ts_rank_cd) with ILIKE fallback.
+    Stage 1 Sparse Lexical Search via PostgreSQL Full-Text Search (ts_rank_cd).
     Returns List[Tuple[Chunk, fts_rank_score]]
     """
     clean_query = re.sub(r"[^\w\s]", " ", query).strip()
     if not clean_query:
         return []
 
-    # 1. Try PostgreSQL Full-Text Search
     ts_vec = func.to_tsvector("english", Chunk.content)
     ts_query = func.plainto_tsquery("english", clean_query)
     rank_col = func.ts_rank_cd(ts_vec, ts_query).label("rank")
@@ -101,11 +105,10 @@ async def _retrieve_lexical_candidates(
     if document_id:
         stmt = stmt.where(Chunk.document_id == document_id)
 
-    stmt = stmt.limit(candidate_limit)
+    stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     rows = result.all()
 
-    # 2. Fallback to ILIKE query if FTS returns no matches
     if not rows:
         tokens = [t for t in clean_query.split() if len(t) > 2]
         if tokens:
@@ -113,7 +116,7 @@ async def _retrieve_lexical_candidates(
             stmt_fallback = select(Chunk).where(or_(*conditions))
             if document_id:
                 stmt_fallback = stmt_fallback.where(Chunk.document_id == document_id)
-            stmt_fallback = stmt_fallback.limit(candidate_limit)
+            stmt_fallback = stmt_fallback.limit(limit)
             res_fb = await db.execute(stmt_fallback)
             fb_chunks = res_fb.scalars().all()
             return [(chunk, 0.5) for chunk in fb_chunks]
@@ -122,9 +125,7 @@ async def _retrieve_lexical_candidates(
     candidates = []
     for chunk, rank in rows:
         rank_val = float(rank) if rank is not None else 0.0
-        # Normalize rank score to 0-1 range
-        norm_rank = min(1.0, round(rank_val / (rank_val + 1.0), 4))
-        candidates.append((chunk, norm_rank))
+        candidates.append((chunk, rank_val))
 
     return candidates
 
@@ -133,44 +134,43 @@ def _reciprocal_rank_fusion(
     vector_candidates: List[Tuple[Chunk, float]],
     lexical_candidates: List[Tuple[Chunk, float]],
     k: int = 60,
-) -> Dict[UUID, Dict]:
+    top_fused_limit: int = RRF_FUSED_TOP_K,
+) -> List[Dict]:
     """
-    Combine vector and lexical candidates using Reciprocal Rank Fusion (RRF).
-    RRF_Score(doc) = 1/(k + rank_vector) + 1/(k + rank_lexical)
+    Reciprocal Rank Fusion (RRF): Pure rank-based candidate pool generation.
+    RRF_Score(d) = 1/(k + rank_vector) + 1/(k + rank_lexical)
+    Returns sorted list of fused candidate dicts.
     """
-    fused_scores: Dict[UUID, Dict] = {}
+    fused_map: Dict[UUID, Dict] = {}
 
-    # Index vector candidates
     for rank_idx, (chunk, vec_score) in enumerate(vector_candidates, start=1):
         c_id = chunk.id
-        if c_id not in fused_scores:
-            fused_scores[c_id] = {
+        if c_id not in fused_map:
+            fused_map[c_id] = {
                 "chunk": chunk,
-                "vec_score": vec_score,
-                "lex_score": 0.0,
+                "raw_vec_score": vec_score,
+                "raw_lex_score": 0.0,
                 "vec_rank": rank_idx,
                 "lex_rank": None,
                 "rrf_score": 0.0,
             }
 
-    # Index lexical candidates
     for rank_idx, (chunk, lex_score) in enumerate(lexical_candidates, start=1):
         c_id = chunk.id
-        if c_id not in fused_scores:
-            fused_scores[c_id] = {
+        if c_id not in fused_map:
+            fused_map[c_id] = {
                 "chunk": chunk,
-                "vec_score": 0.0,
-                "lex_score": lex_score,
+                "raw_vec_score": 0.0,
+                "raw_lex_score": lex_score,
                 "vec_rank": None,
                 "lex_rank": rank_idx,
                 "rrf_score": 0.0,
             }
         else:
-            fused_scores[c_id]["lex_score"] = lex_score
-            fused_scores[c_id]["lex_rank"] = rank_idx
+            fused_map[c_id]["raw_lex_score"] = lex_score
+            fused_map[c_id]["lex_rank"] = rank_idx
 
-    # Calculate RRF scores
-    for item in fused_scores.values():
+    for item in fused_map.values():
         rrf = 0.0
         if item["vec_rank"] is not None:
             rrf += 1.0 / (k + item["vec_rank"])
@@ -178,72 +178,92 @@ def _reciprocal_rank_fusion(
             rrf += 1.0 / (k + item["lex_rank"])
         item["rrf_score"] = rrf
 
-    return fused_scores
+    fused_list = list(fused_map.values())
+    fused_list.sort(key=lambda x: x["rrf_score"], reverse=True)
+    return fused_list[:top_fused_limit]
+
+
+def _min_max_normalize(scores: List[float]) -> List[float]:
+    """Min-Max normalize scores to [0.0, 1.0] range over the candidate pool."""
+    if not scores:
+        return []
+    min_val, max_val = min(scores), max(scores)
+    spread = max_val - min_val
+    if spread < 1e-6:
+        return [1.0 if s > 0 else 0.0 for s in scores]
+    return [round((s - min_val) / spread, 4) for s in scores]
 
 
 def _cross_score_rerank(
-    fused_candidates: Dict[UUID, Dict], query: str, top_k: int
+    fused_candidates: List[Dict], query: str, final_top_k: int = FINAL_TOP_K
 ) -> List[Tuple[Chunk, float]]:
     """
-    Stage 2 Re-Ranking: Compute multi-feature cross score combining
-    vector similarity (50%), lexical rank (30%), and exact term coverage (20%).
+    Stage 2 Re-Ranking: Min-Max normalizes vector, lexical, and cross-coverage features
+    over the candidate pool before applying weighted combination (0.50 vec + 0.30 lex + 0.20 cross).
     """
-    scored_candidates = []
+    if not fused_candidates:
+        return []
 
-    for item in fused_candidates.values():
+    # Extract raw score lists for candidate pool min-max normalization
+    raw_vecs = [item["raw_vec_score"] for item in fused_candidates]
+    raw_lexs = [item["raw_lex_score"] for item in fused_candidates]
+    raw_cross = [_compute_exact_cross_coverage(query, item["chunk"].content) for item in fused_candidates]
+
+    norm_vecs = _min_max_normalize(raw_vecs)
+    norm_lexs = _min_max_normalize(raw_lexs)
+    norm_cross = _min_max_normalize(raw_cross)
+
+    reranked = []
+    for i, item in enumerate(fused_candidates):
         chunk = item["chunk"]
-        vec_score = item["vec_score"]
-        lex_score = item["lex_score"]
-        cross_coverage = _compute_exact_cross_coverage(query, chunk.content)
-
-        # Weighted hybrid re-rank score
+        # Combined Min-Max Normalized Re-Rank Score
         final_score = round(
-            (0.50 * vec_score) + (0.30 * lex_score) + (0.20 * cross_coverage), 4
+            (0.50 * norm_vecs[i]) + (0.30 * norm_lexs[i]) + (0.20 * norm_cross[i]), 4
         )
-        scored_candidates.append((chunk, final_score))
+        reranked.append((chunk, final_score))
 
-    # Sort descending by re-rank score
-    scored_candidates.sort(key=lambda x: x[1], reverse=True)
-    return scored_candidates[:top_k]
+    reranked.sort(key=lambda x: x[1], reverse=True)
+    return reranked[:final_top_k]
 
 
 async def retrieve_context(
     query: str, db: AsyncSession, document_id: Optional[UUID] = None
 ) -> List[Tuple[Chunk, float, str]]:
     """
-    Two-Stage Hybrid Retrieval Pipeline:
-    1. Candidate Retrieval: Vector Search (HNSW) + Lexical Search (PostgreSQL FTS)
-    2. Reciprocal Rank Fusion (RRF) candidate merging
-    3. Cross-Encoder / Cross-Scoring Re-Ranking
+    High-Rigor Two-Stage Hybrid Retrieval Pipeline:
+    1. Concurrent Candidate Retrieval: pgvector HNSW (top 20) + PostgreSQL FTS (top 20) via asyncio.gather
+    2. Reciprocal Rank Fusion (RRF, k=60): Rank-based candidate pool generation (top 10 surviving)
+    3. Min-Max Normalized Stage 2 Re-Ranking: Evaluates top 5 candidates passed to LLM generation
     """
-    logger.info(f"Executing Two-Stage Hybrid Retrieval for query: '{query}'")
+    start_time = time.time()
+    logger.info(f"Executing High-Rigor Two-Stage Hybrid Retrieval for query: '{query}'")
 
     try:
-        candidate_limit = max(15, settings.TOP_K * 2)
-
-        # 1. Fetch vector and lexical candidates in parallel
-        vector_candidates = await _retrieve_vector_candidates(
-            query=query, db=db, document_id=document_id, candidate_limit=candidate_limit
-        )
-        lexical_candidates = await _retrieve_lexical_candidates(
-            query=query, db=db, document_id=document_id, candidate_limit=candidate_limit
+        # 1. Run Vector and Lexical searches CONCURRENTLY via asyncio.gather
+        vector_candidates, lexical_candidates = await asyncio.gather(
+            _retrieve_vector_candidates(query=query, db=db, document_id=document_id, limit=VECTOR_TOP_N),
+            _retrieve_lexical_candidates(query=query, db=db, document_id=document_id, limit=LEXICAL_TOP_N),
         )
 
+        stage1_ms = int((time.time() - start_time) * 1000)
         logger.info(
-            f"Retrieved {len(vector_candidates)} vector candidates and {len(lexical_candidates)} lexical candidates."
+            f"Stage 1 Concurrent Retrieval: {len(vector_candidates)} vector & {len(lexical_candidates)} lexical candidates in {stage1_ms}ms."
         )
 
-        # 2. Reciprocal Rank Fusion (RRF)
+        # 2. Reciprocal Rank Fusion (RRF) candidate selection (top 10 surviving)
         fused_candidates = _reciprocal_rank_fusion(
             vector_candidates=vector_candidates,
             lexical_candidates=lexical_candidates,
             k=60,
+            top_fused_limit=RRF_FUSED_TOP_K,
         )
 
-        # 3. Cross-Scoring Re-Ranking
+        # 3. Min-Max Normalized Stage 2 Re-Ranking (top 5 final)
         reranked_top_k = _cross_score_rerank(
-            fused_candidates=fused_candidates, query=query, top_k=settings.TOP_K
+            fused_candidates=fused_candidates, query=query, final_top_k=FINAL_TOP_K
         )
+
+        total_retrieval_ms = int((time.time() - start_time) * 1000)
 
         # 4. Resolve source document filenames
         doc_ids = {chunk.document_id for chunk, _ in reranked_top_k}
@@ -261,7 +281,9 @@ async def retrieve_context(
             )
             retrieved.append((chunk, score, filename))
 
-        logger.info(f"Hybrid retrieval pipeline completed. Returning {len(retrieved)} re-ranked chunks.")
+        logger.info(
+            f"Hybrid retrieval pipeline completed in {total_retrieval_ms}ms (Stage 1: {stage1_ms}ms, Stage 2 Re-Rank: {total_retrieval_ms - stage1_ms}ms). Returning {len(retrieved)} chunks."
+        )
         return retrieved
 
     except Exception as e:
