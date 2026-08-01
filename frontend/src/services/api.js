@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://documind-ai-97t5.onrender.com';
 
 export function getAuthToken() {
   return localStorage.getItem('documind_token');

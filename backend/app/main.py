@@ -70,7 +70,8 @@ async def health_check():
         async with async_session() as session:
             await session.execute(text("SELECT 1"))
             db_status = "healthy"
-    except Exception:
+    except Exception as e:
+        print("DB HEALTH ERROR:", type(e), e)
         db_status = "unhealthy"
 
     # LLM Provider live check via embedding test
