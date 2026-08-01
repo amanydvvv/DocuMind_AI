@@ -32,12 +32,23 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
+import uuid
+from fastapi import Request
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="AI-powered technical documentation assistant with RAG",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def add_correlation_id(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 # CORS
 origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["*"]

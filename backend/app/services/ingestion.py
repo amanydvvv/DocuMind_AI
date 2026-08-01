@@ -35,7 +35,8 @@ async def _ocr_pdf_page(page) -> str:
     try:
         pix = page.get_pixmap(dpi=150)
         img_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GENERATIVE_MODEL}:generateContent?key={settings.GOOGLE_API_KEY}"
+        model = settings.GENERATIVE_MODEL if "gemini" in settings.GENERATIVE_MODEL.lower() else "gemini-1.5-flash"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={settings.GOOGLE_API_KEY}"
         payload = {
             "contents": [{
                 "parts": [
