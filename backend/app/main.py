@@ -43,8 +43,8 @@ app = FastAPI(
 origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if "*" in origins else origins + ["https://documind-ai.vercel.app"],
-    allow_origin_regex=r"https://documind-ai(-[a-z0-9-]+)?\.vercel\.app",
+    allow_origins=origins if "*" in origins else origins + ["https://documind-ai.vercel.app", "https://docu-mind-ai.vercel.app"],
+    allow_origin_regex=r"https://docu-?mind-?ai(-[a-z0-9-]+)?\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
