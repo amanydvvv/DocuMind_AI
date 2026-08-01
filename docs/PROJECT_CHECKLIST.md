@@ -90,3 +90,12 @@ This is a living execution tracker structured around development phases.
 - [x] Create `frontend/vercel.json` SPA rewrite rules for Vercel free static hosting
 - [x] Document Supabase (Managed `pgvector` PostgreSQL), Render, and Vercel 100% free cloud deployment steps in `README.md`
 - [x] Outline manual UptimeRobot keep-alive setup instructions (5-minute HTTP keyword check on `/api/health` to prevent Render 15-min sleep and Supabase 7-day auto-pause)
+
+## Phase 11: Production Hardening, Gemini Vision OCR & UI Resiliency [✅ COMPLETE]
+- [x] **Supabase PgBouncer & Asyncpg Fix**: Configured Port 5432 Session Mode and added `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` in `backend/app/database.py` to eliminate `DuplicatePreparedStatementError` across connection pools.
+- [x] **CORS Multi-Tenant Domain Matching**: Updated `CORSMiddleware` in `backend/app/main.py` with `allow_origin_regex=r"https://docu-?mind-?ai(-[a-z0-9-]+)?\.vercel\.app"` supporting Vercel production and preview deploys with hyphens.
+- [x] **Scanned PDF Gemini Multimodal Vision OCR**: Integrated Gemini Flash (`gemini-3.5-flash`) vision fallback in `backend/app/services/ingestion.py` for scanned image-based PDFs (e.g. income certificates) when text vector layer returns 0 characters.
+- [x] **Client-Side Timeout & Guaranteed State Cleanup**: Added 35s `AbortController` timeout to `sendChatMessageStream` in `frontend/src/services/api.js` and wrapped `sendMessage` in `try...finally` block in `frontend/src/hooks/useConversations.js` to guarantee `isGenerating` resets to `false`, preventing UI spinner hangs.
+- [x] **LLM & Vector Embedding Request Timeouts**: Configured `request_timeout=30.0` on `ChatGoogleGenerativeAI` and `GoogleGenerativeAIEmbeddings` to prevent silent backend socket stalls.
+- [x] **Security Hardening**: Standardized `.env` local configuration with rotated Supabase credentials and updated `.gitignore` rules.
+
