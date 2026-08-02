@@ -3,8 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 venv/
+backend/venv/
 .env
 backend/.env
+frontend/.env
 
 # Node / React
 node_modules/
@@ -31,3 +33,4 @@ frontend/*.png
 frontend/qa_artifacts/
 frontend/qa_fixture_applicant_2026.pdf
 security-audit/
+claude-skills/
