@@ -4,6 +4,7 @@ import {
   fetchConversationDetails,
   deleteConversation,
   sendChatMessage,
+  sendChatMessageStream,
 } from '../services/api';
 
 export function useConversations() {
