@@ -3,7 +3,7 @@ import Layout from './components/layout/Layout';
 import ChatContainer from './components/chat/ChatContainer';
 import AuthModal from './components/AuthModal';
 import { useConversations } from './hooks/useConversations';
-import { getAuthToken, fetchCurrentUser } from './services/api';
+import { getAuthToken, removeAuthToken, fetchCurrentUser } from './services/api';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -20,7 +20,7 @@ function App() {
     startNewChat,
     removeConversation,
     sendMessage,
-    loadConversations,
+    loadConversationList,
   } = useConversations();
 
   useEffect(() => {
@@ -33,7 +33,7 @@ function App() {
       try {
         const u = await fetchCurrentUser();
         setUser(u);
-        if (loadConversations) loadConversations();
+        if (loadConversationList) loadConversationList();
       } catch (err) {
         setUser(null);
       } finally {
@@ -41,14 +41,19 @@ function App() {
       }
     }
     initAuth();
+
+    const handleAuthExpired = () => setUser(null);
+    window.addEventListener('auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('auth-expired', handleAuthExpired);
   }, []);
 
   const handleAuthSuccess = async (authData) => {
     setUser({ id: authData.user_id, email: authData.email });
-    if (loadConversations) loadConversations();
+    if (loadConversationList) loadConversationList();
   };
 
   const handleLogout = () => {
+    removeAuthToken();
     setUser(null);
   };
 

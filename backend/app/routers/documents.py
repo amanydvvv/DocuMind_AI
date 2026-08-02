@@ -209,6 +209,7 @@ async def delete_document(
         os.remove(file_path)
 
     await db.delete(doc)
+    await db.commit()
 
 
 @router.post("/{document_id}/reindex", response_model=DocumentResponse)
@@ -229,6 +230,7 @@ async def reindex_document(
     await db.execute(delete(Chunk).where(Chunk.document_id == document_id))
     doc.status = "pending"
     doc.error_message = None
+    await db.commit()
 
     background_tasks.add_task(ingest_document, str(document_id))
 

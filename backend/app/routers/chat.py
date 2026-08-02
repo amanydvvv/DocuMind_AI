@@ -3,11 +3,12 @@ DocuMind AI - Chat Router
 RAG Q&A engine endpoint for natural language document querying with multi-turn memory and user tenant isolation.
 """
 
+import logging
 import time
 import uuid
 from json import dumps
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,17 +16,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Conversation, Message, QueryLog
 from app.models.user import User
+from app.core.ratelimit import limiter
 from app.core.security import get_current_user
 from app.schemas import ChatRequest, ChatResponse, Citation
 from app.services.retrieval import retrieve_context
 from app.services.generation import generate_answer, generate_answer_stream, RateLimitError
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
 @router.post("", response_model=ChatResponse)
+@limiter.limit("10/minute")
 async def chat(
-    request: ChatRequest,
+    request: Request,
+    request_body: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -37,7 +42,7 @@ async def chat(
 
     try:
         # 1. Session Management
-        conversation_id = request.conversation_id
+        conversation_id = request_body.conversation_id
         if conversation_id:
             result = await db.execute(
                 select(Conversation).where(
@@ -54,7 +59,7 @@ async def chat(
             conv = Conversation(
                 id=uuid.uuid4(),
                 user_id=current_user.id,
-                title=request.question[:50]
+                title=request_body.question[:50]
             )
             db.add(conv)
             await db.flush()
@@ -64,25 +69,26 @@ async def chat(
         hist_result = await db.execute(
             select(Message)
             .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at.desc())
+            .limit(10)
         )
-        chat_history = list(hist_result.scalars().all())[-10:]
+        chat_history = list(reversed(hist_result.scalars().all()))
 
         # 3. Save user's question as a Message
         user_msg = Message(
             id=uuid.uuid4(),
             conversation_id=conversation_id,
             role="user",
-            content=request.question,
+            content=request_body.question,
         )
         db.add(user_msg)
         await db.flush()
 
         # 4. Retrieve relevant chunks from pgvector scoped to current user
         retrieved_items = await retrieve_context(
-            query=request.question,
+            query=request_body.question,
             db=db,
-            document_id=request.document_id,
+            document_id=request_body.document_id,
             user_id=current_user.id
         )
 
@@ -118,7 +124,7 @@ async def chat(
             answer = "I couldn't find any relevant information in your uploaded documents to answer your question."
         else:
             answer = await generate_answer(
-                query=request.question, chunks=chunks, chat_history=chat_history
+                query=request_body.question, chunks=chunks, chat_history=chat_history
             )
 
         latency_ms = int((time.time() - start_time) * 1000)
@@ -149,9 +155,10 @@ async def chat(
         # 8. Persist QueryLog for analytics
         query_log = QueryLog(
             id=uuid.uuid4(),
-            question=request.question,
+            user_id=current_user.id,
+            question=request_body.question,
             retrieved_chunks=citation_dicts,
-            top_k=request.top_k,
+            top_k=request_body.top_k,
             avg_similarity=avg_similarity,
             latency_ms=latency_ms,
         )
@@ -174,12 +181,15 @@ async def chat(
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"RAG engine failed: {str(e)}")
+        logger.error(f"Chat endpoint failed for user {current_user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred while processing your request.")
 
 
 @router.post("/stream")
+@limiter.limit("10/minute")
 async def chat_stream(
-    request: ChatRequest,
+    request: Request,
+    request_body: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -189,7 +199,7 @@ async def chat_stream(
     start_time = time.time()
 
     # 1. Session Management
-    conversation_id = request.conversation_id
+    conversation_id = request_body.conversation_id
     if conversation_id:
         result = await db.execute(
             select(Conversation).where(
@@ -206,35 +216,36 @@ async def chat_stream(
         conv = Conversation(
             id=uuid.uuid4(),
             user_id=current_user.id,
-            title=request.question[:50]
+            title=request_body.question[:50]
         )
         db.add(conv)
         await db.flush()
         conversation_id = conv.id
 
-    # 2. Fetch past history
+    # 2. Fetch past history (up to last 10 messages)
     hist_result = await db.execute(
         select(Message)
         .where(Message.conversation_id == conversation_id)
-        .order_by(Message.created_at.asc())
+        .order_by(Message.created_at.desc())
+        .limit(10)
     )
-    chat_history = list(hist_result.scalars().all())[-10:]
+    chat_history = list(reversed(hist_result.scalars().all()))
 
     # 3. Save user's question
     user_msg = Message(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
         role="user",
-        content=request.question,
+        content=request_body.question,
     )
     db.add(user_msg)
     await db.flush()
 
     # 4. Retrieve context chunks scoped to user
     retrieved_items = await retrieve_context(
-        query=request.question,
+        query=request_body.question,
         db=db,
-        document_id=request.document_id,
+        document_id=request_body.document_id,
         user_id=current_user.id
     )
     chunks = [item[0] for item in retrieved_items]
@@ -293,7 +304,7 @@ async def chat_stream(
                 yield f"event: token\ndata: {token_payload}\n\n"
             else:
                 async for token in generate_answer_stream(
-                    query=request.question, chunks=chunks, chat_history=chat_history
+                    query=request_body.question, chunks=chunks, chat_history=chat_history
                 ):
                     full_answer.append(token)
                     token_payload = dumps({"delta": token})
@@ -315,9 +326,10 @@ async def chat_stream(
 
             query_log = QueryLog(
                 id=uuid.uuid4(),
-                question=request.question,
+                user_id=current_user.id,
+                question=request_body.question,
                 retrieved_chunks=citation_dicts,
-                top_k=request.top_k,
+                top_k=request_body.top_k,
                 avg_similarity=avg_similarity,
                 latency_ms=latency_ms,
             )
@@ -329,7 +341,7 @@ async def chat_stream(
 
         except Exception as e:
             await db.rollback()
-            err_payload = dumps({"detail": str(e)})
+            err_payload = dumps({"detail": "An internal error occurred during generation."})
             yield f"event: error\ndata: {err_payload}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

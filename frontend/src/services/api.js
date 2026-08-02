@@ -14,15 +14,57 @@ export function setAuthToken(token) {
 
 export function removeAuthToken() {
   localStorage.removeItem('documind_token');
+  localStorage.removeItem('documind_refresh_token');
 }
 
-function getAuthHeaders(customHeaders = {}) {
-  const token = getAuthToken();
-  const headers = { ...customHeaders };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+export function setAuthData(data) {
+  if (data.access_token) setAuthToken(data.access_token);
+  if (data.refresh_token) {
+    localStorage.setItem('documind_refresh_token', data.refresh_token);
+  } else {
+    localStorage.removeItem('documind_refresh_token');
   }
-  return headers;
+}
+
+export async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem('documind_refresh_token');
+  if (!refreshToken) throw new Error('No refresh token');
+
+  const response = await fetch(`${API_URL}/api/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  if (!response.ok) {
+    removeAuthToken();
+    throw new Error('Session expired. Please log in again.');
+  }
+
+  const data = await response.json();
+  setAuthData(data);
+  return data.access_token;
+}
+
+async function authedFetch(url, options = {}, retry = true) {
+  const headers = { ...(options.headers || {}) };
+  const token = getAuthToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401 && retry) {
+    try {
+      const newToken = await refreshAccessToken();
+      headers['Authorization'] = `Bearer ${newToken}`;
+      response = await fetch(url, { ...options, headers });
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('auth-expired'));
+      throw e;
+    }
+  }
+
+  return response;
 }
 
 export async function loginUser(email, password) {
@@ -42,7 +84,7 @@ export async function loginUser(email, password) {
   }
 
   const data = await response.json();
-  setAuthToken(data.access_token);
+  setAuthData(data);
   return data;
 }
 
@@ -63,14 +105,12 @@ export async function signupUser(email, password) {
   }
 
   const data = await response.json();
-  setAuthToken(data.access_token);
+  setAuthData(data);
   return data;
 }
 
 export async function fetchCurrentUser() {
-  const response = await fetch(`${API_URL}/api/auth/me`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await authedFetch(`${API_URL}/api/auth/me`);
   if (!response.ok) {
     removeAuthToken();
     throw new Error('Unauthorized');
@@ -79,9 +119,7 @@ export async function fetchCurrentUser() {
 }
 
 export async function fetchDocuments() {
-  const response = await fetch(`${API_URL}/api/documents`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await authedFetch(`${API_URL}/api/documents`);
   if (!response.ok) {
     throw new Error('Failed to fetch documents');
   }
@@ -89,9 +127,7 @@ export async function fetchDocuments() {
 }
 
 export async function getDocument(documentId) {
-  const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await authedFetch(`${API_URL}/api/documents/${documentId}`);
   if (!response.ok) {
     throw new Error('Failed to fetch document status');
   }
@@ -102,9 +138,8 @@ export async function uploadDocument(file) {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(`${API_URL}/api/documents/upload`, {
+  const response = await authedFetch(`${API_URL}/api/documents/upload`, {
     method: 'POST',
-    headers: getAuthHeaders(),
     body: formData,
   });
 
@@ -121,9 +156,8 @@ export async function uploadDocument(file) {
 }
 
 export async function deleteDocument(documentId) {
-  const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
+  const response = await authedFetch(`${API_URL}/api/documents/${documentId}`, {
     method: 'DELETE',
-    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -132,9 +166,9 @@ export async function deleteDocument(documentId) {
 }
 
 export async function sendChatMessage({ question, document_id = null, conversation_id = null, top_k = 5 }) {
-  const response = await fetch(`${API_URL}/api/chat`, {
+  const response = await authedFetch(`${API_URL}/api/chat`, {
     method: 'POST',
-    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       question,
       document_id,
@@ -169,9 +203,9 @@ export async function sendChatMessageStream({
   const timeoutId = setTimeout(() => controller.abort(), 35000);
 
   try {
-    const response = await fetch(`${API_URL}/api/chat/stream`, {
+    const response = await authedFetch(`${API_URL}/api/chat/stream`, {
       method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
         question,
@@ -243,9 +277,7 @@ export async function sendChatMessageStream({
 }
 
 export async function fetchConversations() {
-  const response = await fetch(`${API_URL}/api/conversations`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await authedFetch(`${API_URL}/api/conversations`);
   if (!response.ok) {
     throw new Error('Failed to fetch conversation sessions');
   }
@@ -254,9 +286,8 @@ export async function fetchConversations() {
 }
 
 export async function fetchConversationDetails(conversationId, signal = null) {
-  const response = await fetch(`${API_URL}/api/conversations/${conversationId}`, {
+  const response = await authedFetch(`${API_URL}/api/conversations/${conversationId}`, {
     signal,
-    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     throw new Error('Failed to fetch conversation history');
@@ -265,9 +296,8 @@ export async function fetchConversationDetails(conversationId, signal = null) {
 }
 
 export async function deleteConversation(conversationId) {
-  const response = await fetch(`${API_URL}/api/conversations/${conversationId}`, {
+  const response = await authedFetch(`${API_URL}/api/conversations/${conversationId}`, {
     method: 'DELETE',
-    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {

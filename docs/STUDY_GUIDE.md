@@ -1,4 +1,4 @@
-﻿# DocuMind AI â€” Personal Study Guide & Interview Notes
+# DocuMind AI â€” Personal Study Guide & Interview Notes
 
 > **Purpose:** This document is a living study guide and technical cheat sheet for **DocuMind AI**. It captures every architectural decision, bug fix, and theoretical concept learned during development. Use this to review core engineering concepts and prepare for technical interviews.
 
@@ -263,3 +263,13 @@ When an interviewer asks you about your technical decisions on DocuMind AI, use 
 #### Q: "How do you prevent UI loading spinners from hanging when third-party AI APIs or network connections stall?"
 > *"I implemented a multi-layered timeout and state management strategy. On the backend, I configured `request_timeout=30.0` on both LLM generation and embedding client objects. On the frontend, I added an `AbortController` with a 35-second timeout to `fetch()` streaming calls, and wrapped custom state hooks in `try ... finally` blocks. By placing `setIsGenerating(false)` inside the `finally` block, the UI spinner is guaranteed to reset regardless of whether the request succeeds, times out, or encounters a network error."*
 
+#### Q: "How do you prevent IDOR (Insecure Direct Object Reference) vulnerabilities in multi-tenant RAG systems?"
+> *"In a multi-tenant application, every API endpoint—including background analytics and history aggregation—must enforce tenant scoping at both the route dependency level (`get_current_user`) and the database query boundary (`where(QueryLog.user_id == current_user.id)`). Without strict query filtering, an authenticated tenant could inspect aggregate search logs, document frequencies, or vector chunks belonging to other tenants."*
+
+#### Q: "How do you ensure zero-downtime database migration safety in Docker containers?"
+> *"In production container environments, running database schema migrations before starting the application server prevents schema-code mismatch errors. By prepending `alembic upgrade head &&` to the container's boot `CMD` in `Dockerfile`, migrations execute automatically during deployment before Uvicorn binds to the incoming HTTP port."*
+
+
+
+#### Q: "How do you implement refresh-token rotation securely?"
+> *"I issue a short-lived access token (24h) plus a longer-lived refresh token (7d) carrying a unique 'jti'. The jti is stored on the user row, and each POST /api/auth/refresh call validates the signature and type claim, checks the jti matches the stored value, then issues a fresh pair with a new jti. If an old refresh token is replayed, the stored jti no longer matches, so the session is treated as stolen and forced to re-login. Access-token-only endpoints also reject tokens whose 'type' claim is not 'access', so a leaked refresh token cannot be used as a bearer credential."*

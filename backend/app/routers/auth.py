@@ -1,18 +1,26 @@
 """
 DocuMind AI — Auth Router
-Authentication endpoints for user signup, login, and user profile management.
+Authentication endpoints for user signup, login, token refresh, and user profile management.
 """
 
+import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
-from app.core.security import hash_password, verify_password, create_access_token, get_current_user
+from app.core.ratelimit import limiter
+from app.core.security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    decode_access_token,
+    get_current_user,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
@@ -22,8 +30,18 @@ class UserSignupRequest(BaseModel):
     password: str
 
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class AuthTokenResponse(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
     user_id: str
     email: str
@@ -35,14 +53,31 @@ class UserResponse(BaseModel):
     created_at: str
 
 
+async def _issue_tokens(db: AsyncSession, user: User) -> AuthTokenResponse:
+    """Issue a new access token plus a rotated refresh token, persisting its jti."""
+    access_token = create_access_token({"sub": str(user.id), "email": user.email})
+    jti = str(uuid.uuid4())
+    refresh_token = create_refresh_token(str(user.id), jti)
+    user.refresh_token_jti = jti
+    await db.commit()
+    return AuthTokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        user_id=str(user.id),
+        email=user.email,
+    )
+
+
 @router.post("/signup", response_model=AuthTokenResponse, status_code=status.HTTP_201_CREATED)
-async def signup(body: UserSignupRequest, db: AsyncSession = Depends(get_db)):
-    """Register a new user account and issue an access token."""
+@limiter.limit("5/minute")
+async def signup(request: Request, body: UserSignupRequest, db: AsyncSession = Depends(get_db)):
+    """Register a new user account and issue an access + refresh token pair."""
     email_clean = body.email.strip().lower()
     if not email_clean or "@" not in email_clean:
         raise HTTPException(status_code=400, detail="Invalid email address format.")
-    if len(body.password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long.")
+    if len(body.password) < 12:
+        raise HTTPException(status_code=400, detail="Password must be at least 12 characters long.")
 
     # Check existing user
     res = await db.execute(select(User).where(User.email == email_clean))
@@ -52,47 +87,17 @@ async def signup(body: UserSignupRequest, db: AsyncSession = Depends(get_db)):
     hashed_pw = hash_password(body.password)
     user = User(email=email_clean, hashed_password=hashed_pw)
     db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    await db.flush()
 
-    token = create_access_token({"sub": str(user.id), "email": user.email})
-    return AuthTokenResponse(
-        access_token=token,
-        token_type="bearer",
-        user_id=str(user.id),
-        email=user.email,
-    )
+    return await _issue_tokens(db, user)
 
 
 @router.post("/login", response_model=AuthTokenResponse)
-async def login(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    """Authenticate user credentials via JSON body or Form data and issue an access token."""
-    email_clean = ""
-    password_plain = ""
-
-    content_type = request.headers.get("content-type", "").lower()
-    if "application/json" in content_type:
-        try:
-            data = await request.json()
-            email_clean = (data.get("email") or data.get("username") or "").strip().lower()
-            password_plain = data.get("password") or ""
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid JSON payload.")
-    elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
-        form = await request.form()
-        email_clean = (form.get("username") or form.get("email") or "").strip().lower()
-        password_plain = form.get("password") or ""
-    else:
-        # Default try parsing JSON
-        try:
-            data = await request.json()
-            email_clean = (data.get("email") or data.get("username") or "").strip().lower()
-            password_plain = data.get("password") or ""
-        except Exception:
-            raise HTTPException(status_code=400, detail="Unsupported Content-Type for authentication.")
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """Authenticate user credentials via JSON body and issue an access + refresh token pair."""
+    email_clean = body.email.strip().lower()
+    password_plain = body.password
 
     if not email_clean or not password_plain:
         raise HTTPException(status_code=400, detail="Email and password are required.")
@@ -103,13 +108,42 @@ async def login(
     if not user or not verify_password(password_plain, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password.")
 
-    token = create_access_token({"sub": str(user.id), "email": user.email})
-    return AuthTokenResponse(
-        access_token=token,
-        token_type="bearer",
-        user_id=str(user.id),
-        email=user.email,
-    )
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="This account has been deactivated.")
+
+    return await _issue_tokens(db, user)
+
+
+@router.post("/refresh", response_model=AuthTokenResponse)
+@limiter.limit("10/minute")
+async def refresh(request: Request, body: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    """Rotate a valid refresh token: validate jti, revoke the old token, issue a new pair."""
+    try:
+        payload = decode_access_token(body.refresh_token)
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token.")
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Token is not a refresh token.")
+
+    user_id = payload.get("sub")
+    jti = payload.get("jti")
+    if not user_id or not jti:
+        raise HTTPException(status_code=401, detail="Invalid refresh token payload.")
+
+    res = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    user = res.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User account is no longer active.")
+
+    if user.refresh_token_jti != jti:
+        # Token reuse or rotation already consumed this jti — force re-login.
+        user.refresh_token_jti = None
+        await db.commit()
+        raise HTTPException(status_code=401, detail="Refresh token has already been used. Please log in again.")
+
+    return await _issue_tokens(db, user)
 
 
 @router.get("/me", response_model=UserResponse)

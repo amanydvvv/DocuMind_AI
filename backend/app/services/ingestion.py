@@ -19,6 +19,7 @@ settings = get_settings()
 embeddings = GoogleGenerativeAIEmbeddings(
     model=f"models/{settings.EMBEDDING_MODEL}",
     google_api_key=settings.GOOGLE_API_KEY,
+    request_timeout=30.0,
 )
 
 
@@ -26,6 +27,38 @@ from typing import Optional
 
 import base64
 import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+_RATE_LIMIT_ERR_MARKERS = ("429", "Quota exceeded", "ResourceExhausted", "rate limit")
+
+
+def _is_rate_limit(exc: Exception) -> bool:
+    err_str = str(exc)
+    return any(marker.lower() in err_str.lower() for marker in _RATE_LIMIT_ERR_MARKERS)
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_exception_type(Exception),
+    reraise=True,
+)
+async def _embed_texts(texts: list[str]):
+    """Embed a batch of texts with retry on transient rate limits/network errors."""
+    try:
+        return await embeddings.aembed_documents(texts)
+    except Exception as exc:
+        logger.warning(f"Embedding batch failed ({len(texts)} texts): {exc}")
+        raise
+
+
+def _normalize_embedding(vector: list, dimension: int) -> list:
+    """Ensure the embedding vector matches the configured dimension."""
+    if len(vector) != dimension:
+        logger.warning(f"Embedding dimension mismatch: got {len(vector)}, expected {dimension}. Adjusting.")
+    if len(vector) > dimension:
+        return vector[:dimension]
+    return vector + [0.0] * (dimension - len(vector))
 
 
 async def _ocr_pdf_page(page) -> str:
@@ -166,8 +199,8 @@ async def ingest_document(document_id: str, file_path: Optional[str] = None):
                     batch_chunks = chunks_data[i:i + batch_size]
                     texts = [c["text"] for c in batch_chunks]
                     
-                    # Generate embeddings (wrapped in try/except for rate limiting robustness)
-                    vectors = await embeddings.aembed_documents(texts)
+                    # Generate embeddings (retried on transient rate limits/network errors)
+                    vectors = await _embed_texts(texts)
                     
                     # Insert chunks
                     for data, vector in zip(batch_chunks, vectors):
@@ -176,7 +209,7 @@ async def ingest_document(document_id: str, file_path: Optional[str] = None):
                             chunk_index=data["index"],
                             content=data["text"],
                             metadata_=data["metadata"],
-                            embedding=vector[:settings.EMBEDDING_DIMENSION],
+                            embedding=_normalize_embedding(vector, settings.EMBEDDING_DIMENSION),
                             token_count=len(data["text"]) // 4  # Rough token estimation
                         )
                         db.add(db_chunk)

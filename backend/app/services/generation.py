@@ -16,6 +16,7 @@ def get_llm():
         model=settings.GENERATIVE_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=0.2,
+        max_output_tokens=1024,
         request_timeout=30.0,
     )
 

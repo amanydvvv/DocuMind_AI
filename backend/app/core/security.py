@@ -24,9 +24,10 @@ from app.config import get_settings
 
 settings = get_settings()
 
-SECRET_KEY = getattr(settings, "JWT_SECRET_KEY", "documind-super-secret-jwt-key-2026-production")
+SECRET_KEY = settings.JWT_SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
@@ -65,14 +66,32 @@ def _base64url_decode(s: str) -> bytes:
 
 def create_access_token(data: dict, expires_delta: Optional[int] = None) -> str:
     """Create a signed RFC 7519 HMAC-SHA256 JWT access token."""
-    header = {"alg": ALGORITHM, "typ": "JWT"}
     payload = data.copy()
+    payload["type"] = "access"
 
     now = int(time.time())
     expire_seconds = expires_delta or (ACCESS_TOKEN_EXPIRE_MINUTES * 60)
     payload["iat"] = now
     payload["exp"] = now + expire_seconds
 
+    return _encode_jwt(payload)
+
+
+def create_refresh_token(user_id: str, jti: str) -> str:
+    """Create a signed refresh token with a unique jti for rotation/revocation."""
+    now = int(time.time())
+    payload = {
+        "sub": user_id,
+        "type": "refresh",
+        "jti": jti,
+        "iat": now,
+        "exp": now + REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+    }
+    return _encode_jwt(payload)
+
+
+def _encode_jwt(payload: dict) -> str:
+    header = {"alg": ALGORITHM, "typ": "JWT"}
     header_b64 = _base64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
     payload_b64 = _base64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
 
@@ -147,6 +166,12 @@ async def get_current_user(
         )
 
     payload = decode_access_token(token)
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token type for this endpoint",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     user_id_str = payload.get("sub")
     if not user_id_str:
         raise HTTPException(

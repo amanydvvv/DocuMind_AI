@@ -81,7 +81,7 @@ export function useConversations() {
           startNewChat();
         }
       } catch (err) {
-        alert('Failed to delete conversation: ' + err.message);
+        setError('Failed to delete conversation: ' + err.message);
       }
     },
     [activeConversationId, startNewChat]

@@ -29,7 +29,9 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 800
     CHUNK_OVERLAP: int = 200
     TOP_K: int = 5
-    SIMILARITY_THRESHOLD: float = 0.3
+
+    # Auth
+    JWT_SECRET_KEY: str = "documind-dev-insecure-secret-do-not-use-in-prod"
 
     # Upload
     MAX_FILE_SIZE_MB: int = 50

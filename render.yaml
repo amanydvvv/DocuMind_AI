@@ -12,6 +12,8 @@ services:
         sync: false
       - key: GOOGLE_API_KEY
         sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
       - key: GENERATIVE_MODEL
         value: gemini-2.5-flash
       - key: CORS_ORIGINS

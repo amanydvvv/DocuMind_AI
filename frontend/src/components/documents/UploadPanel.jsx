@@ -7,6 +7,8 @@ export default function UploadPanel({ onUploadComplete }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [currentFile, setCurrentFile] = useState(null);
   const fileInputRef = useRef(null);
+  const pollAttemptsRef = useRef(0);
+  const MAX_POLL_ATTEMPTS = 90; // ~3 minutes at 2s intervals
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -52,6 +54,7 @@ export default function UploadPanel({ onUploadComplete }) {
       
       // Polling
       setUploadState('polling');
+      pollAttemptsRef.current = 0;
       pollDocumentStatus(doc.id);
     } catch (err) {
       setUploadState('error');
@@ -60,6 +63,7 @@ export default function UploadPanel({ onUploadComplete }) {
   };
 
   const pollDocumentStatus = async (documentId) => {
+    pollAttemptsRef.current += 1;
     try {
       const doc = await getDocument(documentId);
       if (doc.status === 'completed') {
@@ -69,6 +73,9 @@ export default function UploadPanel({ onUploadComplete }) {
       } else if (doc.status === 'error') {
         setUploadState('error');
         setErrorMessage(doc.error_message || 'Ingestion failed');
+      } else if (pollAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
+        setUploadState('error');
+        setErrorMessage('Timed out waiting for processing. Check the document list and retry if needed.');
       } else {
         // Still pending/processing
         setTimeout(() => pollDocumentStatus(documentId), 2000);

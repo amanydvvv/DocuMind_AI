@@ -54,12 +54,24 @@ async def add_correlation_id(request: Request, call_next):
 origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if "*" in origins else origins + ["https://documind-ai.vercel.app", "https://docu-mind-ai.vercel.app"],
-    allow_origin_regex=r"https://docu-?mind-?ai(-[a-z0-9-]+)?\.vercel\.app",
+    allow_origins=origins if "*" in origins else origins,
+    allow_origin_regex=r"^https://docu-mind-ai(-[a-z0-9-]+)?\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from starlette.responses import JSONResponse
+from app.core.ratelimit import limiter
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, lambda request, exc: JSONResponse(
+    status_code=429, content={"detail": "Too many requests. Please slow down and try again later."}
+))
+app.add_middleware(SlowAPIMiddleware)
 
 # Register routers
 app.include_router(auth_router)

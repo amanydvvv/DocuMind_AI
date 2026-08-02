@@ -22,3 +22,12 @@ Thumbs.db
 .vscode/
 .idea/
 .pytest_cache/
+
+# QA / audit artifacts
+frontend/*.cjs
+frontend/*.cjs.py
+frontend/record_har.js
+frontend/*.png
+frontend/qa_artifacts/
+frontend/qa_fixture_applicant_2026.pdf
+security-audit/

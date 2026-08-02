@@ -1,4 +1,4 @@
-﻿# DocuMind AI â€” Project Checklist
+# DocuMind AI â€” Project Checklist
 
 This is a living execution tracker structured around development phases.
 
@@ -97,5 +97,24 @@ This is a living execution tracker structured around development phases.
 - [x] **Scanned PDF Gemini Multimodal Vision OCR**: Integrated Gemini Flash (`gemini-2.5-flash`) vision fallback in `backend/app/services/ingestion.py` for scanned image-based PDFs (e.g. income certificates) when text vector layer returns 0 characters.
 - [x] **Client-Side Timeout & Guaranteed State Cleanup**: Added 35s `AbortController` timeout to `sendChatMessageStream` in `frontend/src/services/api.js` and wrapped `sendMessage` in `try...finally` block in `frontend/src/hooks/useConversations.js` to guarantee `isGenerating` resets to `false`, preventing UI spinner hangs.
 - [x] **LLM & Vector Embedding Request Timeouts**: Configured `request_timeout=30.0` on `ChatGoogleGenerativeAI` and `GoogleGenerativeAIEmbeddings` to prevent silent backend socket stalls.
-- [x] **Security Hardening**: Standardized `.env` local configuration with rotated Supabase credentials and updated `.gitignore` rules.
+## Phase 12: Enterprise Production-Readiness Audit & Hardening [✅ COMPLETE]
+- [x] **G1 DDL & Database Schema Hardening**: Added `is_active` and `is_verified` to `User` model, `ck_messages_role` check constraint, and composite index `idx_messages_conv_created` with Alembic migration `f1a2b3c4d5e6`.
+- [x] **G2 Strict CORS Origin Regex**: Enforced strict origin regex `^https://docu-mind-ai(-[a-z0-9-]+)?\.vercel\.app$` and purged unrelated third-party domains.
+- [x] **G3 Production Docker Deployment**: Configured auto-migration boot command (`alembic upgrade head && uvicorn`) and created `backend/.dockerignore` to block credential leaks.
+- [x] **G4 Authentication Hardening**: Enforced 12-character minimum password policy, strict JWT secret validation, and token destruction on logout.
+- [x] **Critical IDOR Prevention**: Secured `/api/analytics/*` endpoints with `get_current_user` dependency and `user_id` tenant scoping.
+- [x] **Database Transaction Integrity**: Added explicit `await db.commit()` calls in `delete_document` and `reindex_document` routes.
+- [x] **RAG & LLM Reliability**: Added `max_output_tokens=1024` LLM cap, sanitized SSE stream error responses, and added batch embedding retries with vector dimension validation.
+- [x] **Frontend Hook & Auth Lifecycle**: Corrected `loadConversationList()` destructuring in `App.jsx`, wired stream cancellation signals, and replaced blocking `alert()` popups with React error banners.
+- [x] **Refresh-Token Rotation Flow**: Added `POST /api/auth/refresh` with single-use JTI rotation (revoked on reuse), `refresh_token_jti` column + migration, and `refresh_token` issuance on signup/login; frontend `authedFetch` wrapper silently refreshes on 401.
+- [x] **JSON-Only Login**: Removed form/multipart parsing from `/api/auth/login`; credentials accepted only as JSON via `LoginRequest` schema.
+- [x] **JWT Secret Strictness**: Replaced hardcoded fallback secret with required `JWT_SECRET_KEY` setting (dev default documented, Render `sync: false` env var added); access tokens carry a `type=access` claim rejected by refresh flow.
+- [x] **Account Lifecycle Enforcement**: `login` and `refresh` reject `is_active == False` accounts (403/401).
+- [x] **API Rate Limiting**: Added slowapi limiter keyed by `X-Forwarded-For` (Render proxy) — 5/min signup, 10/min login/refresh, 10/min chat endpoints — with 429 JSON handler.
+- [x] **Chat Query Efficiency & Error Hygiene**: History now uses `ORDER BY created_at DESC LIMIT 10` (was full-table load + `[-10:]`), and non-stream 500s no longer leak `str(e)` to clients (logged server-side).
+- [x] **Dead Config Removal**: Removed unused `SIMILARITY_THRESHOLD` setting (never consumed by retrieval).
+- [x] **Ingestion Resilience**: `request_timeout=30.0` on embeddings, tenacity exponential-backoff retry on rate-limited/transient embedding failures, and `_normalize_embedding` pad/truncate to `EMBEDDING_DIMENSION` with mismatch logging.
+- [x] **CORS Allow-Origins Cleanup**: Dropped hardcoded prod origin append; `allow_origins` now reflects `CORS_ORIGINS` only, regex covers Vercel domains.
+- [x] **Frontend Test Enablement**: Added `vitest` + `@testing-library/react` + `jsdom` and `npm test` script; 3/3 hook state-resiliency tests pass; production build passes; oxlint has 0 errors.
+
 
