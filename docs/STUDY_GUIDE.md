@@ -1,10 +1,10 @@
-# DocuMind AI — Personal Study Guide & Interview Notes
+﻿# DocuMind AI â€” Personal Study Guide & Interview Notes
 
 > **Purpose:** This document is a living study guide and technical cheat sheet for **DocuMind AI**. It captures every architectural decision, bug fix, and theoretical concept learned during development. Use this to review core engineering concepts and prepare for technical interviews.
 
 ---
 
-## 📚 Table of Contents
+## ðŸ“š Table of Contents
 1. [Phase 1: Foundation & Architecture Concepts](#phase-1-foundation--architecture-concepts)
    - [Why Python (FastAPI) vs. Java (Spring Boot)?](#1-why-python-fastapi-vs-java-spring-boot)
    - [What is Docker & Container Isolation? (The Port Remapping Lesson)](#2-what-is-docker--container-isolation-the-port-remapping-lesson)
@@ -13,7 +13,7 @@
    - [Pydantic Schemas vs. ORM Models](#5-pydantic-schemas-vs-orm-models)
 2. [Phase 2: Ingestion Pipeline Concepts](#phase-2-ingestion-pipeline-concepts)
 3. [Phase 3: RAG Retrieval & LLM Generation](#phase-3-rag-retrieval--llm-generation)
-4. [💡 Master Interview Cheat Sheet](#-master-interview-cheat-sheet)
+4. [ðŸ’¡ Master Interview Cheat Sheet](#-master-interview-cheat-sheet)
 
 ---
 
@@ -23,7 +23,7 @@
 In general software engineering, **Java (Spring Boot)** is an enterprise giant used heavily in banking and legacy microservices. However, for modern **AI, LLM, and RAG applications**, **Python** is the industry standard.
 
 #### The 3 Core Reasons:
-1. **The Day-1 Ecosystem Advantage:** Almost every major AI research lab (OpenAI, Google DeepMind, Anthropic, Meta) releases their official SDKs in Python first. Crucial RAG libraries like **LangChain**, **LlamaIndex**, and **PyMuPDF** are Python-native. Java wrappers (like `Spring AI`) are often 6–12 months behind.
+1. **The Day-1 Ecosystem Advantage:** Almost every major AI research lab (OpenAI, Google DeepMind, Anthropic, Meta) releases their official SDKs in Python first. Crucial RAG libraries like **LangChain**, **LlamaIndex**, and **PyMuPDF** are Python-native. Java wrappers (like `Spring AI`) are often 6â€“12 months behind.
 2. **Data & Vector Manipulation:** RAG pipelines require heavy unstructured data processing (stripping PDF text, chunking paragraphs, matrix math for embeddings). Python accomplishes in 15 readable lines what takes 50+ lines of stream boilerplate in Java.
 3. **FastAPI Modern Design:** FastAPI provides native asynchronous I/O (`async/await`) out of the box, automatic Swagger/OpenAPI documentation generation, and Pydantic validation that handles messy LLM JSON payloads effortlessly.
 
@@ -129,7 +129,7 @@ During Phase 3, we hit a critical bug where multi-turn queries returned `0` cont
 ### Phase 3 Verification & Testing
 
 #### Test Idempotency
-An integration test that uploads static content will pass once, then fail on every subsequent run — not because the app broke, but because the app correctly detected a duplicate via content hashing. The fix was to generate unique content per test run (embedding a fresh UUID) rather than reusing a static file. Lesson: a failing test can mean either "the feature broke" or "the test itself isn't idempotent" — distinguishing these is a core debugging skill, and the fix belongs in the test, not the app, when the app's behavior is actually correct.
+An integration test that uploads static content will pass once, then fail on every subsequent run â€” not because the app broke, but because the app correctly detected a duplicate via content hashing. The fix was to generate unique content per test run (embedding a fresh UUID) rather than reusing a static file. Lesson: a failing test can mean either "the feature broke" or "the test itself isn't idempotent" â€” distinguishing these is a core debugging skill, and the fix belongs in the test, not the app, when the app's behavior is actually correct.
 
 ---
 
@@ -154,7 +154,7 @@ In an asynchronous API route handling external service calls, managing database 
 ### 3. Third-Party API Quotas & HTTP 429 Exception Mapping
 *   **HTTP 500 vs. HTTP 429:** A third-party rate limit (Google Gemini `ResourceExhausted` / 429) is an operational constraint, not an internal application crash. Returning an HTTP 500 server error hides root causes from clients and degrades UX.
 *   **Resilience Pattern:** We created a custom `RateLimitError` exception in `backend/app/services/generation.py` that catches Google API quota violations (`ResourceExhausted` / "Quota exceeded") and translates them into an **HTTP 429 (Too Many Requests)** status code. The frontend renders a clean, actionable warning banner rather than breaking.
-*   **Model Selection for Free Tier Limits:** Frontier preview models (e.g. `gemini-3.6-flash`) enforce strict Free Tier daily caps (e.g. 20 requests/day). Standard production models like `gemini-3.5-flash` or `gemini-1.5-flash` provide higher operational limits (15 RPM / 1,500 RPD), making them ideal for high-throughput testing and development.
+*   **Model Selection for Free Tier Limits:** Frontier preview models (e.g. `gemini-2.5-flash`) enforce strict Free Tier daily caps (e.g. 20 requests/day). Standard production models like `gemini-2.5-flash` or `gemini-2.5-flash` provide higher operational limits (15 RPM / 1,500 RPD), making them ideal for high-throughput testing and development.
 
 ### 4. Frontend Race Condition Prevention (`AbortController`)
 When users switch rapidly between chat threads in a SPA sidebar, asynchronous network fetches (`GET /api/conversations/{id}`) can return out of order.
@@ -199,23 +199,23 @@ $$S_{norm} = \frac{S - S_{min}}{S_{max} - S_{min} + \epsilon}$$
 - **Cross-Encoder vs. Phrase-Coverage Heuristic (Option 2b):** A true deep-learning Cross-Encoder (e.g. `cross-encoder/ms-marco-MiniLM-L-6-v2`) jointly encodes query and document tokens through a transformer model to compute cross-attention scores. We deliberately chose Option 2b (a lightweight, independent phrase-coverage re-scorer) for performance reasons: it executes in **<5ms** with **0MB** memory bloat, zero GPU/PyTorch dependencies, and zero API cost. The precision tradeoff accepted is that it uses keyword token/phrase overlap heuristics rather than deep neural cross-attention context modeling.
 
 ### 5. Result Diversity & Chunk Overlap (Confirmed Tradeoff & MMR Solution)
-*   **The Overlapping Chunk & Duplicate Document Phenomenon (Empirically Confirmed):** In multi-topic test runs against a corpus containing overlapping sliding-window chunks or duplicate document uploads, `retrieve_context()` correctly scores the top matching chunk at **1.0000**, cleanly separating it from unrelated documents (~0.05). However, ranks 2–5 are frequently dominated by near-duplicate chunks from adjacent windows of the same document or identical duplicate uploads.
-*   **Architectural Fix — Maximal Marginal Relevance (MMR) & Document Deduplication:** To prevent redundant content from dominating the context window passed to the LLM:
+*   **The Overlapping Chunk & Duplicate Document Phenomenon (Empirically Confirmed):** In multi-topic test runs against a corpus containing overlapping sliding-window chunks or duplicate document uploads, `retrieve_context()` correctly scores the top matching chunk at **1.0000**, cleanly separating it from unrelated documents (~0.05). However, ranks 2â€“5 are frequently dominated by near-duplicate chunks from adjacent windows of the same document or identical duplicate uploads.
+*   **Architectural Fix â€” Maximal Marginal Relevance (MMR) & Document Deduplication:** To prevent redundant content from dominating the context window passed to the LLM:
     $$MMR = \arg\max_{d_i \in R \setminus S} \left[ \lambda \cdot Sim_1(d_i, q) - (1 - \lambda) \max_{d_j \in S} Sim_2(d_i, d_j) \right]$$
     MMR penalizes candidates that have high cosine similarity to already-selected chunks ($S$). Combining MMR with post-retrieval document-ID deduplication is the planned architectural enhancement for future phases.
 
 ### 6. Concurrent Query Execution & Latency
 - Dense vector search and sparse lexical search execute within a unified PostgreSQL database session.
-- **Latency Budget**: Stage 1 candidate retrieval takes ~15–20ms; Stage 2 RRF + Min-Max phrase re-ranking takes <5ms. Total retrieval latency completes in **<30ms**, well before SSE token streaming starts.
+- **Latency Budget**: Stage 1 candidate retrieval takes ~15â€“20ms; Stage 2 RRF + Min-Max phrase re-ranking takes <5ms. Total retrieval latency completes in **<30ms**, well before SSE token streaming starts.
 
 ---
 
-## 💡 Master Interview Cheat Sheet
+## ðŸ’¡ Master Interview Cheat Sheet
 
 When an interviewer asks you about your technical decisions on DocuMind AI, use these exact, high-impact responses:
 
 #### Q: "Why did you build this backend in Python instead of Java/Spring Boot?"
-> *"I evaluate languages based on the specific workload. For heavy enterprise CRUD transaction engines, Java and Spring Boot are fantastic for their strict OOP contracts. However, for an AI/RAG application, Python is the industry standard. Building DocuMind AI in Python allowed me to leverage native LangChain orchestration, direct vector embedding manipulation, and FastAPI's asynchronous I/O and Pydantic validation—giving me production-grade AI capabilities that would require unnecessary boilerplate in Java."*
+> *"I evaluate languages based on the specific workload. For heavy enterprise CRUD transaction engines, Java and Spring Boot are fantastic for their strict OOP contracts. However, for an AI/RAG application, Python is the industry standard. Building DocuMind AI in Python allowed me to leverage native LangChain orchestration, direct vector embedding manipulation, and FastAPI's asynchronous I/O and Pydantic validationâ€”giving me production-grade AI capabilities that would require unnecessary boilerplate in Java."*
 
 #### Q: "How did you handle database connectivity and scaling in your backend?"
 > *"I implemented a non-blocking, asynchronous database access layer using **FastAPI**, **SQLAlchemy 2.0 Async ORM**, and the **asyncpg** driver. By utilizing asynchronous execution, server threads aren't blocked waiting for network I/O from the database, allowing the backend to handle high-concurrency RAG queries efficiently without thread exhaustion."*
@@ -239,7 +239,7 @@ When an interviewer asks you about your technical decisions on DocuMind AI, use 
 > *"I decouple object creation from transaction commits. In the chat endpoint, I use `await db.flush()` to assign primary keys to the user's prompt without locking or committing the transaction. I only perform a single `await db.commit()` after the LLM successfully returns an answer. If Google Gemini throws a rate limit or network exception, I catch it and execute `await db.rollback()`, ensuring we never persist orphaned prompts or corrupt history states."*
 
 #### Q: "How do you prevent third-party rate limits from crashing your application?"
-> *"I implement custom exception mapping and model fallback strategies. In our generation service, I catch Google's `ResourceExhausted` exceptions and map them to an HTTP 429 (Too Many Requests) response rather than allowing a raw HTTP 500 error to bubble up. Additionally, I configure defaults to high-quota production models (`gemini-3.5-flash` / `gemini-1.5-flash`), providing 1,500 requests per day on free tier accounts."*
+> *"I implement custom exception mapping and model fallback strategies. In our generation service, I catch Google's `ResourceExhausted` exceptions and map them to an HTTP 429 (Too Many Requests) response rather than allowing a raw HTTP 500 error to bubble up. Additionally, I configure defaults to high-quota production models (`gemini-2.5-flash` / `gemini-2.5-flash`), providing 1,500 requests per day on free tier accounts."*
 
 #### Q: "How do you handle race conditions in React when fetching historical threads?"
 > *"In my `useConversations` custom hook, I use the browser's `AbortController` API inside `selectConversation(id)`. When a user rapidly clicks between historical threads in the sidebar, any in-flight HTTP request from a previous click is immediately aborted. This guarantees that stale asynchronous responses never overwrite active React state."*
@@ -249,7 +249,7 @@ When an interviewer asks you about your technical decisions on DocuMind AI, use 
 > *"I use a combination of Pydantic for API validation and SQLAlchemy 2.0's `Mapped` syntax for ORM models. By explicitly typing model attributes with `Mapped[str] = mapped_column(...)`, I ensure full compatibility with static type checkers like Pyright. This eliminates runtime assignment errors and keeps the codebase incredibly robust."*
 
 #### Q: "How do you manage environment configurations and secrets?"
-> *"I utilized `pydantic-settings` to dynamically load environment variables from `.env` files. This enforces strict schema validation at startup—if a required key is missing or an invalid key is present, the application fails fast rather than crashing mid-execution. It also allowed me to seamlessly hot-swap between a local OmniRoute mock server and a live Google API endpoint without altering business logic."*
+> *"I utilized `pydantic-settings` to dynamically load environment variables from `.env` files. This enforces strict schema validation at startupâ€”if a required key is missing or an invalid key is present, the application fails fast rather than crashing mid-execution. It also allowed me to seamlessly hot-swap between a local OmniRoute mock server and a live Google API endpoint without altering business logic."*
 
 #### Q: "Tell me about a time you solved a complex production database bug."
 > *"While implementing multi-turn RAG retrieval, I encountered a bug where vector searches inconsistently returned zero rows on subsequent queries. I traced the issue to how PostgreSQL's query planner interacts with `asyncpg` prepared statement caching and the `ivfflat` vector index. Because `ivfflat` relies on Voronoi partitioning, small datasets often lead to probing empty partitions, which was exacerbated by cached execution plans. I solved this by migrating the embedding index to `HNSW` (Hierarchical Navigable Small World), which uses graph-based traversal, perfectly bypassing the empty-probe limitation on small datasets while maintaining high retrieval performance at scale. I verified the fix directly in the DB using `EXPLAIN ANALYZE`."*
@@ -258,7 +258,7 @@ When an interviewer asks you about your technical decisions on DocuMind AI, use 
 > *"When deploying PostgreSQL with PgBouncer (e.g. Supabase connection pooler), asyncpg attempts to prepare statements by default, throwing `DuplicatePreparedStatementError` because PgBouncer routes queries across different backend connections. I solved this by configuring SQLAlchemy's async engine with `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` and connecting via PgBouncer Session Mode (Port 5432). This completely disables prepared statement caching while preserving non-blocking async database connections."*
 
 #### Q: "How did you solve the problem of scanned image-based PDFs returning 0 chunks during RAG ingestion?"
-> *"Standard PDF text extractors (like PyMuPDF `get_text()`) only extract embedded vector text layers. When a user uploads a scanned document (like an income certificate), `get_text()` returns an empty string, creating 0 chunks in the database. I implemented an automatic **Gemini Multimodal Vision (`gemini-3.5-flash`) OCR fallback**: when PyMuPDF detects 0 selectable text on a page, it renders the page to a 150 DPI PNG image and calls Gemini's vision API to transcribe all text directly from image pixels before chunking and embedding."*
+> *"Standard PDF text extractors (like PyMuPDF `get_text()`) only extract embedded vector text layers. When a user uploads a scanned document (like an income certificate), `get_text()` returns an empty string, creating 0 chunks in the database. I implemented an automatic **Gemini Multimodal Vision (`gemini-2.5-flash`) OCR fallback**: when PyMuPDF detects 0 selectable text on a page, it renders the page to a 150 DPI PNG image and calls Gemini's vision API to transcribe all text directly from image pixels before chunking and embedding."*
 
 #### Q: "How do you prevent UI loading spinners from hanging when third-party AI APIs or network connections stall?"
 > *"I implemented a multi-layered timeout and state management strategy. On the backend, I configured `request_timeout=30.0` on both LLM generation and embedding client objects. On the frontend, I added an `AbortController` with a 35-second timeout to `fetch()` streaming calls, and wrapped custom state hooks in `try ... finally` blocks. By placing `setIsGenerating(false)` inside the `finally` block, the UI spinner is guaranteed to reset regardless of whether the request succeeds, times out, or encounters a network error."*
