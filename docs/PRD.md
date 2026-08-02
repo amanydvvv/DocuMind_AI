@@ -1,4 +1,4 @@
-﻿# DocuMind AI â€” Product Requirements Document (PRD)
+# DocuMind AI — Product Requirements Document (PRD)
 
 ## 1. Overview & Problem Statement
 **DocuMind AI** is an AI-powered technical documentation assistant leveraging Retrieval-Augmented Generation (RAG). 
@@ -25,14 +25,14 @@
 ## 3. Core Features
 | Feature | Description | Current Status | Relevant Files |
 |---|---|---|---|
-| **Document Ingestion & Gemini OCR** | Upload files, hash duplicate detection, chunk text, batch embed, and store in pgvector. Uses **Gemini Multimodal Vision (`gemini-2.5-flash`)** for scanned image-based PDFs when text vector layer is empty. | âœ… Done | `app/routers/documents.py`, `app/services/ingestion.py` |
-| **Hybrid RAG Retrieval & RRF** | Two-stage candidate retrieval (pgvector HNSW + PostgreSQL FTS) fused with Reciprocal Rank Fusion ($k=60$) and Stage 2 re-ranking. Includes 30s timeout guards. | âœ… Done | `app/routers/chat.py`, `app/services/retrieval.py` |
-| **Multi-Turn Conversation Memory** | Store chat history in DB, retrieve prior messages (last 10 turns), and inject into LLM context for seamless follow-ups. | âœ… Done | `app/routers/chat.py`, `app/services/generation.py` |
-| **Real-Time Token Streaming (SSE)** | Stream LLM responses token-by-token using Server-Sent Events (`text/event-stream`) for typewriter-style rendering with client-side 35s `AbortController` timeout. | âœ… Done | `app/routers/chat.py`, `app/services/generation.py`, `frontend/src/services/api.js` |
-| **Conversation Management** | List, retrieve, and delete historical chat sessions with thread switching protection and guaranteed `finally` state cleanup. | âœ… Done | `app/routers/conversations.py`, `frontend/src/hooks/useConversations.js` |
-| **JWT Auth & Multi-Tenancy** | PBKDF2 password hashing, RFC 7519 JWT issuance/verification, user signup/login, and strict user workspace resource isolation. | âœ… Done | `app/core/security.py`, `app/routers/auth.py`, `app/models/user.py`, `frontend/src/components/AuthModal.jsx` |
-| **Analytics & Logging** | Track query similarity scores, latency, and document retrieval frequencies. | âœ… Done | `app/routers/analytics.py` |
-| **Frontend UI** | Modern React/Vite interface with drag-and-drop uploads, tabbed sidebar, auth modal, and interactive citation popovers. | âœ… Done | `frontend/src/*` |
+| **Document Ingestion & Gemini OCR** | Upload files, hash duplicate detection, chunk text, batch embed, and store in pgvector. Uses **Gemini Multimodal Vision (`gemini-3.6-flash`)** for scanned image-based PDFs when text vector layer is empty. | ✅ Done | `app/routers/documents.py`, `app/services/ingestion.py` |
+| **Hybrid RAG Retrieval & RRF** | Two-stage candidate retrieval (pgvector HNSW + PostgreSQL FTS) fused with Reciprocal Rank Fusion ($k=60$) and Stage 2 re-ranking. Includes 30s timeout guards. | ✅ Done | `app/routers/chat.py`, `app/services/retrieval.py` |
+| **Multi-Turn Conversation Memory** | Store chat history in DB, retrieve prior messages (last 10 turns), and inject into LLM context for seamless follow-ups. | ✅ Done | `app/routers/chat.py`, `app/services/generation.py` |
+| **Real-Time Token Streaming (SSE)** | Stream LLM responses token-by-token using Server-Sent Events (`text/event-stream`) for typewriter-style rendering with client-side 35s `AbortController` timeout. | ✅ Done | `app/routers/chat.py`, `app/services/generation.py`, `frontend/src/services/api.js` |
+| **Conversation Management** | List, retrieve, and delete historical chat sessions with thread switching protection and guaranteed `finally` state cleanup. | ✅ Done | `app/routers/conversations.py`, `frontend/src/hooks/useConversations.js` |
+| **JWT Auth & Multi-Tenancy** | PBKDF2 password hashing, RFC 7519 JWT issuance/verification, user signup/login, and strict user workspace resource isolation. | ✅ Done | `app/core/security.py`, `app/routers/auth.py`, `app/models/user.py`, `frontend/src/components/AuthModal.jsx` |
+| **Analytics & Logging** | Track query similarity scores, latency, and document retrieval frequencies. | ✅ Done | `app/routers/analytics.py` |
+| **Frontend UI** | Modern React/Vite interface with drag-and-drop uploads, tabbed sidebar, auth modal, and interactive citation popovers. | ✅ Done | `frontend/src/*` |
 
 ## 4. Tech Stack & Architecture Decisions
 | Layer | Choice | Reasoning (from STUDY_GUIDE.md) |
@@ -42,7 +42,7 @@
 | **Connection Pooling** | Supabase PgBouncer (Port 5432) | Session mode connection pooling with `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` to prevent prepared statement cache collisions. |
 | **Vector Index** | `HNSW` | Graph-based traversal perfectly bypasses "empty-probe" Voronoi limitations of `ivfflat` on small datasets. |
 | **ORM & Driver** | SQLAlchemy 2.0 + `asyncpg` | Non-blocking execution prevents thread exhaustion under high concurrency. |
-| **LLM & OCR Engine** | LangChain + Gemini Flash | Seamlessly chains text/vision prompts to Google's embeddings (`gemini-embedding-001`) and generation/OCR APIs (`gemini-2.5-flash`). |
+| **LLM & OCR Engine** | LangChain + Gemini Flash | Seamlessly chains text/vision prompts to Google's embeddings (`gemini-embedding-001`) and generation/OCR APIs (`gemini-3.6-flash`). |
 | **Authentication** | PyJWT / Standard Library + PBKDF2 | Lightweight, dependency-free JWT issuance/decoding and secure password hashing. |
 
 ## 5. Data Model
