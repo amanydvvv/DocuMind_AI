@@ -2,7 +2,6 @@
 DocuMind AI — FastAPI Application Entry Point
 """
 
-import httpx
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -26,81 +25,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-async def _validate_generative_model():
-    """
-    Startup guard: confirm GENERATIVE_MODEL actually exists, supports
-    generateContent, and responds to a real (minimal) generation call.
-
-    Google's model metadata can claim generateContent support even when the
-    model 404s on actual invocation for newer API keys (e.g. gemini-2.5-flash).
-    A lightweight smoke-test catches that case.
-
-    Logs CRITICAL on failure (does not crash) so the health-check can still
-    respond and ops can diagnose remotely.
-    """
-    model_name = settings.GENERATIVE_MODEL
-    api_key = settings.GOOGLE_API_KEY
-    if not api_key:
-        logger.warning("GOOGLE_API_KEY is not set — skipping model validation.")
-        return
-
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            # Step 1: Check model exists and declares generateContent support
-            meta_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}?key={api_key}"
-            resp = await client.get(meta_url)
-            if resp.status_code == 404:
-                logger.critical(
-                    f"GENERATIVE_MODEL '{model_name}' returned HTTP 404 from Google API. "
-                    f"This model does not exist or is no longer available. "
-                    f"Chat will fail until this is fixed. "
-                    f"Run: curl 'https://generativelanguage.googleapis.com/v1beta/models?key=<KEY>' "
-                    f"to list valid models."
-                )
-                return
-            data = resp.json()
-            supported = data.get("supportedGenerationMethods", [])
-            if "generateContent" not in supported:
-                logger.critical(
-                    f"GENERATIVE_MODEL '{model_name}' exists but does NOT support "
-                    f"'generateContent'. Supported methods: {supported}. "
-                    f"Chat generation will fail."
-                )
-                return
-
-            # Step 2: Smoke-test a real generateContent call (minimal tokens)
-            gen_url = (
-                f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{model_name}:generateContent?key={api_key}"
-            )
-            smoke_payload = {
-                "contents": [{"parts": [{"text": "Say OK"}]}],
-                "generationConfig": {"maxOutputTokens": 4},
-            }
-            gen_resp = await client.post(gen_url, json=smoke_payload)
-            if gen_resp.status_code != 200:
-                body = gen_resp.text[:200]
-                logger.critical(
-                    f"GENERATIVE_MODEL '{model_name}' metadata says generateContent "
-                    f"is supported, but actual call returned HTTP {gen_resp.status_code}: "
-                    f"{body}. Chat will fail for users."
-                )
-                return
-
-            logger.info(
-                f"Model validation passed: '{model_name}' supports generateContent "
-                f"(metadata + smoke-test OK)."
-            )
-    except Exception as e:
-        logger.warning(f"Model validation check failed (non-fatal): {e}")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle hooks."""
     # Startup
     await init_db()
-    await _validate_generative_model()
     yield
     # Shutdown
     await close_db()
