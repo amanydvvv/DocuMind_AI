@@ -7,6 +7,7 @@ from typing import Optional
 import pymupdf
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from openai import AsyncOpenAI
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,16 +18,21 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Initialize the embedding model
+# Initialize the embedding model (Groq has no embedding API — Gemini stays)
 embeddings = GoogleGenerativeAIEmbeddings(
     model=f"models/{settings.EMBEDDING_MODEL}",
     google_api_key=settings.GOOGLE_API_KEY,
     timeout=30.0,
 )
 
+# OpenAI-compatible client pointed at Groq Cloud
+groq_client = AsyncOpenAI(
+    api_key=os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY,
+    base_url="https://api.groq.com/openai/v1",
+)
+
 
 import base64
-import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 _RATE_LIMIT_ERR_MARKERS = ("429", "Quota exceeded", "ResourceExhausted", "rate limit")
@@ -62,28 +68,25 @@ def _normalize_embedding(vector: list, dimension: int) -> list:
 
 
 async def _ocr_pdf_page(page) -> str:
-    """Fallback OCR for scanned PDF pages using Gemini Vision REST API."""
-    if not settings.GOOGLE_API_KEY:
+    """Fallback OCR for scanned PDF pages using Groq vision model."""
+    if not settings.GROQ_API_KEY:
         return ""
     try:
         pix = page.get_pixmap(dpi=150)
         img_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
-        model = settings.GENERATIVE_MODEL if "gemini" in settings.GENERATIVE_MODEL.lower() else "gemini-3.6-flash"
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={settings.GOOGLE_API_KEY}"
-        payload = {
-            "contents": [{
-                "parts": [
-                    {"text": "Extract and transcribe all text from this scanned document image accurately. Return only the extracted text."},
-                    {"inline_data": {"mime_type": "image/png", "data": img_b64}}
-                ]
-            }]
-        }
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            resp = await client.post(url, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
-                return text.strip()
+        data_url = f"data:image/png;base64,{img_b64}"
+        resp = await groq_client.chat.completions.create(
+            model="llama-3.2-11b-vision-preview",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Extract and transcribe all text from this scanned document image accurately. Return only the extracted text."},
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            }],
+            max_tokens=2000,
+        )
+        return resp.choices[0].message.content.strip()
     except Exception as e:
         logger.warning(f"OCR fallback failed for page: {e}")
     return ""
@@ -119,7 +122,7 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
             for i, page in enumerate(pdf):
                 text = page.get_text()
                 if not text or not text.strip():
-                    logger.info(f"Page {i+1} has no vector text, running Gemini OCR fallback...")
+                    logger.info(f"Page {i+1} has no vector text, running Groq OCR fallback...")
                     text = await _ocr_pdf_page(page)
 
                 if text and text.strip():

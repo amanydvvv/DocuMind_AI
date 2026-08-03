@@ -1,5 +1,6 @@
 
 import logging
+import os
 from typing import List, Optional
 
 from langchain_groq import ChatGroq
@@ -36,11 +37,9 @@ def build_token_budgeted_history(messages: List[Message]) -> List[Message]:
 
 def get_llm():
     return ChatGroq(
-        model_name=settings.GENERATIVE_MODEL,
-        api_key=settings.GROQ_API_KEY,
+        api_key=os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY,
+        model_name="llama-3.1-8b-instant",
         temperature=0.3,
-        max_retries=2,
-        timeout=30.0,
     )
 
 RAG_PROMPT_TEMPLATE = """

@@ -124,7 +124,7 @@ async def chat(
             else 0.0
         )
 
-        # 6. Generate answer using Google Gemini with chat history
+        # 6. Generate answer using Groq (Llama 3.1) with chat history
         if not chunks:
             answer = "I couldn't find any relevant information in your uploaded documents to answer your question."
         else:
