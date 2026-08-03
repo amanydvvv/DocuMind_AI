@@ -1,4 +1,54 @@
-const API_URL = import.meta.env.VITE_API_URL || 'https://documind-ai-97t5.onrender.com';
+const DEFAULT_API_URL = 'https://documind-ai-97t5.onrender.com';
+const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
+
+function redactHeaders(headers) {
+  const out = {};
+  for (const [key, value] of Object.entries(headers || {})) {
+    if (/authorization/i.test(key)) {
+      out[key] = `Bearer <redacted:${String(value).length} chars>`;
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+export function friendlyNetworkMessage(err, url) {
+  const isNetworkFailure =
+    err instanceof TypeError ||
+    /failed to fetch|fetch failed|networkerror|load failed/i.test(String((err && err.message) || err));
+  if (isNetworkFailure) {
+    return (
+      `Could not reach the server at ${url || API_URL}. ` +
+      `If the backend is waking up from a free-tier cold start, it can take up to a minute ` +
+      `— please wait a moment and try again.`
+    );
+  }
+  return (err && err.message) || 'Unexpected network error';
+}
+
+async function fetchWithDiagnostics(url, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const headers = redactHeaders(options.headers || {});
+  const signalInfo = options.signal ? { aborted: options.signal.aborted } : undefined;
+
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      console.error(
+        `[API] Non-OK response for ${method} ${url}`,
+        { status: response.status, statusText: response.statusText, headers, signalInfo }
+      );
+    }
+    return response;
+  } catch (err) {
+    console.error(
+      `[API] Network request failed for ${method} ${url}`,
+      { headers, signalInfo, error: err }
+    );
+    throw err;
+  }
+}
 
 export function getAuthToken() {
   return localStorage.getItem('documind_token');
@@ -30,11 +80,16 @@ export async function refreshAccessToken() {
   const refreshToken = localStorage.getItem('documind_refresh_token');
   if (!refreshToken) throw new Error('No refresh token');
 
-  const response = await fetch(`${API_URL}/api/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
+  let response;
+  try {
+    response = await fetchWithDiagnostics(`${API_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+  } catch (err) {
+    throw new Error(friendlyNetworkMessage(err, `${API_URL}/api/auth/refresh`));
+  }
 
   if (!response.ok) {
     removeAuthToken();
@@ -51,13 +106,18 @@ async function authedFetch(url, options = {}, retry = true) {
   const token = getAuthToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  let response = await fetch(url, { ...options, headers });
+  let response;
+  try {
+    response = await fetchWithDiagnostics(url, { ...options, headers });
+  } catch (err) {
+    throw new Error(friendlyNetworkMessage(err, url));
+  }
 
   if (response.status === 401 && retry) {
     try {
       const newToken = await refreshAccessToken();
       headers['Authorization'] = `Bearer ${newToken}`;
-      response = await fetch(url, { ...options, headers });
+      response = await fetchWithDiagnostics(url, { ...options, headers });
     } catch (e) {
       window.dispatchEvent(new CustomEvent('auth-expired'));
       throw e;
@@ -68,11 +128,16 @@ async function authedFetch(url, options = {}, retry = true) {
 }
 
 export async function loginUser(email, password) {
-  const response = await fetch(`${API_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
+  let response;
+  try {
+    response = await fetchWithDiagnostics(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch (err) {
+    throw new Error(friendlyNetworkMessage(err, `${API_URL}/api/auth/login`));
+  }
 
   if (!response.ok) {
     let errorMsg = 'Login failed';
@@ -89,11 +154,16 @@ export async function loginUser(email, password) {
 }
 
 export async function signupUser(email, password) {
-  const response = await fetch(`${API_URL}/api/auth/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
+  let response;
+  try {
+    response = await fetchWithDiagnostics(`${API_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch (err) {
+    throw new Error(friendlyNetworkMessage(err, `${API_URL}/api/auth/signup`));
+  }
 
   if (!response.ok) {
     let errorMsg = 'Signup failed';
@@ -272,7 +342,8 @@ export async function sendChatMessageStream({
       }
     }
   } catch (err) {
-    if (onError) onError(err.message || 'Network streaming failure');
+    console.error('[API] Chat stream failed:', { url: `${API_URL}/api/chat/stream`, error: err });
+    if (onError) onError(friendlyNetworkMessage(err, `${API_URL}/api/chat/stream`));
   }
 }
 
