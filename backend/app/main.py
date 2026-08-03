@@ -102,7 +102,7 @@ async def health_check():
 
     # LLM Provider live check via embedding test
     llm_status = "unhealthy"
-    if settings.GOOGLE_API_KEY:
+    if settings.GEMINI_API_KEY:
         try:
             import asyncio
             from app.services.retrieval import embeddings

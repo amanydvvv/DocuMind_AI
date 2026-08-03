@@ -31,7 +31,7 @@ class Settings(BaseSettings):
         return v
 
     # LLM & Embeddings
-    GOOGLE_API_KEY: str | None = None
+    GEMINI_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
     EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_DIMENSION: int = 768

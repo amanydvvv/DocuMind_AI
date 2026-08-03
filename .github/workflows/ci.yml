@@ -54,7 +54,8 @@ jobs:
         env:
           DATABASE_URL_SYNC: postgresql://documind:documind_dev@localhost:5432/documind
           DATABASE_URL: postgresql+asyncpg://documind:documind_dev@localhost:5432/documind
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           cd backend
           pytest tests/test_auth_multitenancy.py tests/test_integration.py -v

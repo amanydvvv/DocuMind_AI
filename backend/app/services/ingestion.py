@@ -21,7 +21,7 @@ settings = get_settings()
 # Initialize the embedding model (Groq has no embedding API — Gemini stays)
 embeddings = GoogleGenerativeAIEmbeddings(
     model=f"models/{settings.EMBEDDING_MODEL}",
-    google_api_key=settings.GOOGLE_API_KEY,
+    google_api_key=settings.GEMINI_API_KEY,
     timeout=30.0,
 )
 

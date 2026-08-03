@@ -67,7 +67,8 @@ cp backend/.env.example backend/.env
 Edit `backend/.env` and insert your credentials:
 
 ```env
-GOOGLE_API_KEY=your_actual_gemini_api_key_here
+GEMINI_API_KEY=your_actual_gemini_api_key_here
+GROQ_API_KEY=your_actual_groq_api_key_here
 DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/documind
 DATABASE_URL_SYNC=postgresql://postgres:password@localhost:5432/documind
 ```
