@@ -50,7 +50,11 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://docu-mind-ai-git-main-docmind2.vercel.app"
+    ]
 
     model_config = {
         "env_file": ".env",
