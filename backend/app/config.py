@@ -7,6 +7,8 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
+from pydantic import field_validator
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -18,6 +20,15 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://documind:documind_dev@localhost:5435/documind"
     DATABASE_URL_SYNC: str = "postgresql://documind:documind_dev@localhost:5435/documind"
+    
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def sanitize_database_url(cls, v: str) -> str:
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif v.startswith("postgresql://") and not v.startswith("postgresql+asyncpg://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     # LLM & Embeddings
     GOOGLE_API_KEY: str | None = None
