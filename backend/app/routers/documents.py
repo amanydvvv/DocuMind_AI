@@ -5,6 +5,7 @@ Upload, list, detail, delete, and reindex documents with user tenant isolation.
 
 import hashlib
 import os
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -22,6 +23,9 @@ from app.services.ingestion import ingest_document
 
 settings = get_settings()
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+
+# OS-native, universally writable temp directory (survives non-root containers).
+UPLOAD_DIR = Path(tempfile.gettempdir()) / "documind_uploads"
 
 
 def _allowed_extension(filename: str) -> bool:
@@ -76,12 +80,11 @@ async def upload_document(
             detail="This document has already been uploaded to your workspace.",
         )
 
-    # Save file to disk
-    upload_dir = Path(settings.UPLOAD_DIR)
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    # Save file to the OS-level temporary directory
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     file_id = uuid.uuid4()
     ext = file.filename.rsplit(".", 1)[-1].lower()
-    file_path = upload_dir / f"{file_id}.{ext}"
+    file_path = UPLOAD_DIR / f"{file_id}.{ext}"
     file_path.write_bytes(content)
 
     # Create document record
@@ -97,7 +100,7 @@ async def upload_document(
     db.add(doc)
     await db.flush()
 
-    # Queue background ingestion
+    # Queue background ingestion with the absolute on-disk path
     background_tasks.add_task(ingest_document, str(file_id), str(file_path))
 
     return DocumentResponse(
@@ -202,9 +205,8 @@ async def delete_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    upload_dir = Path(settings.UPLOAD_DIR)
     ext = doc.file_type if doc.file_type != "markdown" else "md"
-    file_path = upload_dir / f"{doc.id}.{ext}"
+    file_path = UPLOAD_DIR / f"{doc.id}.{ext}"
     if file_path.exists():
         os.remove(file_path)
 
@@ -232,7 +234,10 @@ async def reindex_document(
     doc.error_message = None
     await db.commit()
 
-    background_tasks.add_task(ingest_document, str(document_id))
+    # Pass the absolute path so ingestion does not re-derive it from a local dir
+    ext = doc.file_type if doc.file_type != "markdown" else "md"
+    file_path = UPLOAD_DIR / f"{doc.id}.{ext}"
+    background_tasks.add_task(ingest_document, str(document_id), str(file_path))
 
     return DocumentResponse(
         id=doc.id,
