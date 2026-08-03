@@ -7,7 +7,7 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -20,6 +20,7 @@ from app.core.security import (
     create_refresh_token,
     decode_access_token,
     get_current_user,
+    rotate_refresh_token,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
@@ -53,10 +54,13 @@ class UserResponse(BaseModel):
     created_at: str
 
 
-async def _issue_tokens(db: AsyncSession, user: User) -> AuthTokenResponse:
+async def _issue_tokens(
+    db: AsyncSession, user: User, jti: Optional[str] = None
+) -> AuthTokenResponse:
     """Issue a new access token plus a rotated refresh token, persisting its jti."""
     access_token = create_access_token({"sub": str(user.id), "email": user.email})
-    jti = str(uuid.uuid4())
+    if jti is None:
+        jti = str(uuid.uuid4())
     refresh_token = create_refresh_token(str(user.id), jti)
     user.refresh_token_jti = jti
     await db.commit()
@@ -117,7 +121,7 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
 @router.post("/refresh", response_model=AuthTokenResponse)
 @limiter.limit("10/minute")
 async def refresh(request: Request, body: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    """Rotate a valid refresh token: validate jti, revoke the old token, issue a new pair."""
+    """Rotate a refresh token via atomic compare-and-swap (no TOCTOU window)."""
     try:
         payload = decode_access_token(body.refresh_token)
     except HTTPException:
@@ -127,23 +131,28 @@ async def refresh(request: Request, body: RefreshRequest, db: AsyncSession = Dep
         raise HTTPException(status_code=401, detail="Token is not a refresh token.")
 
     user_id = payload.get("sub")
-    jti = payload.get("jti")
-    if not user_id or not jti:
+    old_jti = payload.get("jti")
+    if not user_id or not old_jti:
         raise HTTPException(status_code=401, detail="Invalid refresh token payload.")
 
-    res = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
-    user = res.scalar_one_or_none()
+    new_jti = str(uuid.uuid4())
+    swapped = await rotate_refresh_token(db, uuid.UUID(user_id), old_jti, new_jti)
+    if not swapped:
+        # Token already rotated by a concurrent request, account deactivated,
+        # or user missing — reject without any further writes.
+        await db.rollback()
+        raise HTTPException(
+            status_code=401,
+            detail="Refresh token has already been used. Please log in again.",
+        )
 
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="User account is no longer active.")
+    # Post-CAS lookup is race-free: the jti swap has already been applied atomically.
+    user = await db.get(User, uuid.UUID(user_id))
+    if user is None:
+        await db.rollback()
+        raise HTTPException(status_code=401, detail="User account no longer exists.")
 
-    if user.refresh_token_jti != jti:
-        # Token reuse or rotation already consumed this jti — force re-login.
-        user.refresh_token_jti = None
-        await db.commit()
-        raise HTTPException(status_code=401, detail="Refresh token has already been used. Please log in again.")
-
-    return await _issue_tokens(db, user)
+    return await _issue_tokens(db, user, jti=new_jti)
 
 
 @router.get("/me", response_model=UserResponse)

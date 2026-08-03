@@ -75,13 +75,13 @@ async def test_multi_tenant_document_and_conversation_isolation(async_client: As
     """
     # 1. Create User A
     email_a = f"usera_{uuid.uuid4().hex[:6]}@example.com"
-    res_a = await async_client.post("/api/auth/signup", json={"email": email_a, "password": "password123"})
+    res_a = await async_client.post("/api/auth/signup", json={"email": email_a, "password": "password1234"})
     token_a = res_a.json()["access_token"]
     headers_a = {"Authorization": f"Bearer {token_a}"}
 
     # 2. Create User B
     email_b = f"userb_{uuid.uuid4().hex[:6]}@example.com"
-    res_b = await async_client.post("/api/auth/signup", json={"email": email_b, "password": "password123"})
+    res_b = await async_client.post("/api/auth/signup", json={"email": email_b, "password": "password1234"})
     token_b = res_b.json()["access_token"]
     headers_b = {"Authorization": f"Bearer {token_b}"}
 

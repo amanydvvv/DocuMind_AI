@@ -15,7 +15,7 @@ from typing import Optional, Dict, Any
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
+from sqlalchemy import select, update, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -149,6 +149,36 @@ def decode_access_token(token: str) -> Dict[str, Any]:
         )
 
     return payload
+
+
+async def rotate_refresh_token(
+    db: AsyncSession, user_id: uuid.UUID, old_jti: str, new_jti: str
+) -> bool:
+    """
+    Compare-and-swap refresh token jti in a single atomic UPDATE.
+
+    Executes: UPDATE users SET refresh_token_jti = :new_jti
+              WHERE id = :user_id AND refresh_token_jti = :old_jti AND is_active = TRUE
+              RETURNING id
+
+    Relies entirely on PostgreSQL ACID guarantees — no prior SELECT, no
+    read-then-write window. Returns True iff exactly one row matched
+    (token valid, account active, and not yet rotated by a concurrent request).
+    """
+    stmt = (
+        update(User)
+        .where(
+            and_(
+                User.id == user_id,
+                User.refresh_token_jti == old_jti,
+                User.is_active.is_(True),
+            )
+        )
+        .values(refresh_token_jti=new_jti)
+        .returning(User.id)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none() is not None
 
 
 # --- FASTAPI DEPENDENCY ---

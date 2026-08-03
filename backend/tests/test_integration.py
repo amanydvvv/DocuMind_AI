@@ -19,7 +19,7 @@ async def test_full_rag_integration_pipeline():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # 1. User Auth Signup
         email = f"testuser_{uuid.uuid4().hex[:6]}@example.com"
-        password = "password123"
+        password = "password1234"
         res = await client.post("/api/auth/signup", json={"email": email, "password": password})
         assert res.status_code == 201, f"Signup failed: {res.text}"
         token = res.json()["access_token"]
