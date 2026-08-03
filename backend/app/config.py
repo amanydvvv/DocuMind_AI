@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str | None = None
     EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_DIMENSION: int = 768
-    GENERATIVE_MODEL: str = "gemini-flash-latest"
+    GENERATIVE_MODEL: str = "gemini-3.6-flash"
 
     # RAG Settings
     CHUNK_SIZE: int = 800

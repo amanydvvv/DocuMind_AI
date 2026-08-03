@@ -17,7 +17,7 @@ def get_llm():
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=0.2,
         max_output_tokens=1024,
-        request_timeout=30.0,
+        timeout=30.0,
     )
 
 RAG_PROMPT_TEMPLATE = """
