@@ -20,7 +20,12 @@ from app.core.ratelimit import limiter
 from app.core.security import get_current_user
 from app.schemas import ChatRequest, ChatResponse, Citation
 from app.services.retrieval import retrieve_context
-from app.services.generation import generate_answer, generate_answer_stream, RateLimitError
+from app.services.generation import (
+    generate_answer,
+    generate_answer_stream,
+    build_token_budgeted_history,
+    RateLimitError,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -65,14 +70,13 @@ async def chat(
             await db.flush()
             conversation_id = conv.id
 
-        # 2. Fetch past conversation history (up to last 10 messages)
+        # 2. Fetch past conversation history (newest first; token budget applied below)
         hist_result = await db.execute(
             select(Message)
             .where(Message.conversation_id == conversation_id)
             .order_by(Message.created_at.desc())
-            .limit(10)
         )
-        chat_history = list(reversed(hist_result.scalars().all()))
+        chat_history = build_token_budgeted_history(hist_result.scalars().all())
 
         # 3. Save user's question as a Message
         user_msg = Message(
@@ -89,7 +93,8 @@ async def chat(
             query=request_body.question,
             db=db,
             document_id=request_body.document_id,
-            user_id=current_user.id
+            user_id=current_user.id,
+            top_k=request_body.top_k,
         )
 
         chunks = [item[0] for item in retrieved_items]
@@ -222,14 +227,13 @@ async def chat_stream(
         await db.flush()
         conversation_id = conv.id
 
-    # 2. Fetch past history (up to last 10 messages)
+    # 2. Fetch past history (newest first; token budget applied below)
     hist_result = await db.execute(
         select(Message)
         .where(Message.conversation_id == conversation_id)
         .order_by(Message.created_at.desc())
-        .limit(10)
     )
-    chat_history = list(reversed(hist_result.scalars().all()))
+    chat_history = build_token_budgeted_history(hist_result.scalars().all())
 
     # 3. Save user's question
     user_msg = Message(
@@ -246,7 +250,8 @@ async def chat_stream(
         query=request_body.question,
         db=db,
         document_id=request_body.document_id,
-        user_id=current_user.id
+        user_id=current_user.id,
+        top_k=request_body.top_k,
     )
     chunks = [item[0] for item in retrieved_items]
 

@@ -11,6 +11,29 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+MAX_HISTORY_TOKENS = 3000
+
+
+def build_token_budgeted_history(messages: List[Message]) -> List[Message]:
+    """
+    Sliding context window for conversation history based on a token budget.
+
+    Expects `messages` sorted newest-first, and returns the newest messages
+    that fit within MAX_HISTORY_TOKENS, re-ordered chronologically (oldest
+    first) for the prompt template. Older messages are discarded the moment
+    the budget is exceeded.
+    """
+    selected = []
+    accumulated_tokens = 0
+    for msg in messages:
+        accumulated_tokens += max(1, len(msg.content) // 4)
+        if accumulated_tokens > MAX_HISTORY_TOKENS:
+            break
+        selected.append(msg)
+    selected.reverse()
+    return selected
+
+
 def get_llm():
     return ChatGoogleGenerativeAI(
         model=settings.GENERATIVE_MODEL,
