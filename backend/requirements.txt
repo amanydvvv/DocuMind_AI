@@ -16,6 +16,7 @@ pydantic-settings==2.9.1
 
 # LLM / RAG
 langchain-google-genai==2.1.4
+langchain-groq
 langchain-text-splitters==0.3.8
 
 # Document parsing
