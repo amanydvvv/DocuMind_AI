@@ -19,7 +19,7 @@ settings = get_settings()
 embeddings = GoogleGenerativeAIEmbeddings(
     model=f"models/{settings.EMBEDDING_MODEL}",
     google_api_key=settings.GOOGLE_API_KEY,
-    request_timeout=30.0,
+    timeout=30.0,
 )
 
 
