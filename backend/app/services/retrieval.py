@@ -303,12 +303,13 @@ async def retrieve_context(
     db: AsyncSession,
     document_id: Optional[UUID] = None,
     user_id: Optional[UUID] = None,
+    top_k: int = FINAL_TOP_K,
 ) -> List[Tuple[Chunk, float, str]]:
     """
     High-Rigor Two-Stage Hybrid Retrieval Pipeline with Multi-Tenant User Isolation:
     1. Candidate Retrieval: pgvector HNSW (top 20) + PostgreSQL FTS (top 20) filtered by user_id
     2. Reciprocal Rank Fusion (RRF, k=60): Rank-based candidate pool generation (top 10 surviving)
-    3. Min-Max Normalized Stage 2 Re-Ranking: Evaluates top 5 candidates passed to LLM generation
+    3. Min-Max Normalized Stage 2 Re-Ranking: Returns top `top_k` candidates (default 5) for LLM generation
     """
     start_time = time.time()
     logger.info(f"Executing Multi-Tenant Hybrid Retrieval for user {user_id}, query: '{query}'")
@@ -335,9 +336,9 @@ async def retrieve_context(
             top_fused_limit=RRF_FUSED_TOP_K,
         )
 
-        # 3. Min-Max Normalized Stage 2 Re-Ranking (top 5 final)
+        # 3. Min-Max Normalized Stage 2 Re-Ranking (dynamic top_k from ChatRequest)
         reranked_top_k = _phrase_coverage_rerank(
-            fused_candidates=fused_candidates, query=query, final_top_k=FINAL_TOP_K
+            fused_candidates=fused_candidates, query=query, final_top_k=top_k
         )
 
         total_retrieval_ms = int((time.time() - start_time) * 1000)
