@@ -4,7 +4,7 @@ Endpoints for managing multi-turn conversation sessions and viewing historical m
 """
 
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,9 +24,11 @@ router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 @router.get("", response_model=ConversationListResponse)
 async def list_conversations(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, le=100),
 ):
-    """List all conversation sessions owned by the authenticated user."""
+    """List conversation sessions owned by the authenticated user, paginated."""
     total_res = await db.execute(
         select(func.count(Conversation.id)).where(Conversation.user_id == current_user.id)
     )
@@ -36,6 +38,8 @@ async def list_conversations(
         select(Conversation)
         .where(Conversation.user_id == current_user.id)
         .order_by(Conversation.updated_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
     convs = result.scalars().all()
 
