@@ -26,13 +26,15 @@ embeddings = GoogleGenerativeAIEmbeddings(
     timeout=30.0,
 )
 
-# OpenAI-compatible client pointed at Groq Cloud. Tight timeout (30s) so a
-# hung OCR/vision call degrades to the guardrail instead of stalling the
-# ingestion worker for the openai default of 600s.
+# OpenAI-compatible client pointed at Groq Cloud. Tight timeout (30s) and a
+# single retry so a hung OCR/vision call degrades to the guardrail within
+# ~60s worst case (30s attempt + 30s retry) instead of stalling the
+# ingestion worker for the openai default of 600s and multiple retries.
 groq_client = AsyncOpenAI(
     api_key=os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1",
     timeout=30.0,
+    max_retries=1,
 )
 
 
