@@ -5,7 +5,7 @@ Loads settings from environment variables with sensible defaults.
 
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-
+import secrets
 
 from pydantic import field_validator, model_validator
 
@@ -43,8 +43,12 @@ class Settings(BaseSettings):
     CHUNK_OVERLAP: int = 200
     TOP_K: int = 5
 
+    # Environment: "development" auto-generates a JWT secret; anything else
+    # (default "production") requires JWT_SECRET_KEY to be explicitly set.
+    ENVIRONMENT: str = "production"
+
     # Auth
-    JWT_SECRET_KEY: str = "documind-dev-insecure-secret-do-not-use-in-prod"
+    JWT_SECRET_KEY: str | None = None
 
     # Upload
     MAX_FILE_SIZE_MB: int = 50
@@ -57,6 +61,24 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "https://docu-mind-ai-git-main-docmind2.vercel.app"
     ]
+
+    @model_validator(mode="after")
+    def enforce_jwt_secret(self) -> "Settings":
+        # Never fall back to a fixed, predictable secret. In production (any
+        # non-development environment) an unset JWT_SECRET_KEY is a hard startup
+        # error so the app fails loudly instead of silently signing tokens with
+        # an insecure default. Only explicit ENVIRONMENT=development may
+        # auto-generate a random secret for local convenience.
+        if not self.JWT_SECRET_KEY:
+            if self.ENVIRONMENT.lower() == "development":
+                self.JWT_SECRET_KEY = secrets.token_hex(32)
+            else:
+                raise ValueError(
+                    "JWT_SECRET_KEY must be set. Export a random value (e.g. "
+                    "`python -c \"import secrets; print(secrets.token_hex(32))\"`) "
+                    "or set ENVIRONMENT=development to auto-generate one for local dev."
+                )
+        return self
 
     @model_validator(mode="after")
     def backfill_gemini_key(self) -> "Settings":
