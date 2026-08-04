@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { loginUser, signupUser } from '../services/api';
 
 export default function AuthModal({ onAuthSuccess }) {
@@ -7,9 +7,12 @@ export default function AuthModal({ onAuthSuccess }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const submitInFlight = useRef(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitInFlight.current) return;
+    submitInFlight.current = true;
     setError('');
     setLoading(true);
 
@@ -24,6 +27,7 @@ export default function AuthModal({ onAuthSuccess }) {
     } catch (err) {
       setError(err.message || 'Authentication failed');
     } finally {
+      submitInFlight.current = false;
       setLoading(false);
     }
   };
