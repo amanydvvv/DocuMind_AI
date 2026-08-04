@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     # LLM & Embeddings
     GEMINI_API_KEY: str | None = None
+    GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
     EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_DIMENSION: int = 768
@@ -57,10 +58,20 @@ class Settings(BaseSettings):
         "https://docu-mind-ai-git-main-docmind2.vercel.app"
     ]
 
+    @model_validator(mode="after")
+    def backfill_gemini_key(self) -> "Settings":
+        # Accept legacy GOOGLE_API_KEY as the Gemini key when GEMINI_API_KEY
+        # is absent, so one, both, or neither can be supplied without crashing.
+        if not self.GEMINI_API_KEY and self.GOOGLE_API_KEY:
+            self.GEMINI_API_KEY = self.GOOGLE_API_KEY
+        return self
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
+        # Ignore unknown/legacy env vars instead of crashing startup.
+        "extra": "ignore",
     }
 
 
