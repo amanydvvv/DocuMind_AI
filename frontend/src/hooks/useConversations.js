@@ -3,7 +3,6 @@ import {
   fetchConversations,
   fetchConversationDetails,
   deleteConversation,
-  sendChatMessage,
   sendChatMessageStream,
 } from '../services/api';
 

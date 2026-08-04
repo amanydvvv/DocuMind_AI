@@ -344,7 +344,7 @@ async def chat_stream(
             done_payload = dumps({"latency_ms": latency_ms})
             yield f"event: done\ndata: {done_payload}\n\n"
 
-        except Exception as e:
+        except Exception:
             await db.rollback()
             err_payload = dumps({"detail": "An internal error occurred during generation."})
             yield f"event: error\ndata: {err_payload}\n\n"

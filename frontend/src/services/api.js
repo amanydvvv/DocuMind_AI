@@ -150,7 +150,7 @@ export async function loginUser(email, password) {
     try {
       const errorData = await response.json();
       errorMsg = errorData.detail || errorMsg;
-    } catch (e) {}
+    } catch {}
     throw new Error(errorMsg);
   }
 
@@ -176,7 +176,7 @@ export async function signupUser(email, password) {
     try {
       const errorData = await response.json();
       errorMsg = errorData.detail || errorMsg;
-    } catch (e) {}
+    } catch {}
     throw new Error(errorMsg);
   }
 
@@ -224,7 +224,7 @@ export async function uploadDocument(file) {
     try {
       const errorData = await response.json();
       errorMsg = errorData.detail || errorMsg;
-    } catch (e) {}
+    } catch {}
     throw new Error(errorMsg);
   }
 
@@ -258,7 +258,7 @@ export async function sendChatMessage({ question, document_id = null, conversati
     try {
       const errorData = await response.json();
       errorMsg = errorData.detail || errorMsg;
-    } catch (e) {}
+    } catch {}
     throw new Error(errorMsg);
   }
 
@@ -297,7 +297,7 @@ export async function sendChatMessageStream({
       try {
         const errorData = await response.json();
         errorMsg = errorData.detail || errorMsg;
-      } catch (e) {}
+      } catch {}
       if (onError) onError(errorMsg);
       return;
     }

@@ -15,7 +15,6 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
-    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
