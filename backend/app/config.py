@@ -60,10 +60,13 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = str(Path(tempfile.gettempdir()) / "documind_uploads")
 
     # CORS
+    # Explicit allowlist. Dynamic Vercel preview origins are additionally
+    # covered by allow_origin_regex in main.py; this list carries the stable
+    # origins (local dev + production frontend).
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://docu-mind-ai-git-main-docmind2.vercel.app"
+        "https://docu-mind-ai-iota.vercel.app"
     ]
 
     @model_validator(mode="after")
