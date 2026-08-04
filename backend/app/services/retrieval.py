@@ -77,7 +77,6 @@ async def _retrieve_vector_candidates(
         query,
         output_dimensionality=settings.EMBEDDING_DIMENSION,
     )
-    query_vector = query_vector[:settings.EMBEDDING_DIMENSION]
 
     try:
         distance_col = Chunk.embedding.cosine_distance(query_vector).label("distance")
