@@ -5,7 +5,6 @@ Upload, list, detail, delete, and reindex documents with user tenant isolation.
 
 import hashlib
 import os
-import tempfile
 import uuid
 from pathlib import Path
 
@@ -24,8 +23,9 @@ from app.services.ingestion import ingest_document
 settings = get_settings()
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
-# OS-native, universally writable temp directory (survives non-root containers).
-UPLOAD_DIR = Path(tempfile.gettempdir()) / "documind_uploads"
+# Upload directory — single source of truth is settings.UPLOAD_DIR (config.py),
+# which resolves to the OS-native temp dir + documind_uploads.
+UPLOAD_DIR = Path(settings.UPLOAD_DIR)
 
 
 def _allowed_extension(filename: str) -> bool:

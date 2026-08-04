@@ -6,6 +6,8 @@ Loads settings from environment variables with sensible defaults.
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import secrets
+import tempfile
+from pathlib import Path
 
 from pydantic import field_validator, model_validator
 
@@ -53,7 +55,9 @@ class Settings(BaseSettings):
     # Upload
     MAX_FILE_SIZE_MB: int = 50
     ALLOWED_EXTENSIONS: list[str] = ["pdf", "md"]
-    UPLOAD_DIR: str = "./uploads"
+    # Single source of truth for the upload directory. OS-native temp dir
+    # (survives non-root containers on Render and varies safely by platform).
+    UPLOAD_DIR: str = str(Path(tempfile.gettempdir()) / "documind_uploads")
 
     # CORS
     CORS_ORIGINS: list[str] = [
