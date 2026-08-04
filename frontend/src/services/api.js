@@ -1,6 +1,12 @@
 const DEFAULT_API_URL = 'https://documind-ai-97t5.onrender.com';
 const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
 
+if (!/^https?:\/\//.test(API_URL)) {
+  throw new Error(
+    `Invalid VITE_API_URL: must be an absolute URL starting with http:// or https://, got: ${API_URL}`
+  );
+}
+
 function redactHeaders(headers) {
   const out = {};
   for (const [key, value] of Object.entries(headers || {})) {
