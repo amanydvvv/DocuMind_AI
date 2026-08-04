@@ -85,7 +85,7 @@ export function useConversations() {
       } catch (err) {
         // Rollback state on error
         setConversations(snapshot);
-        setError('Failed to delete conversation: ' + err.message);
+        setError(err.message || 'Failed to delete conversation');
       }
     },
     [conversations, activeConversationId, startNewChat]

@@ -378,11 +378,8 @@ export async function deleteConversation(conversationId) {
   });
 
   if (!response.ok) {
-    let errorMsg = 'Failed to delete conversation';
-    try {
-      const errorData = await response.json();
-      errorMsg = errorData.detail || errorMsg;
-    } catch (e) {}
-    throw new Error(errorMsg);
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.detail || 'Conversation not found or could not be deleted.';
+    throw new Error(errorMessage);
   }
 }
