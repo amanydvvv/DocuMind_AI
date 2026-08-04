@@ -10,11 +10,11 @@ from json import dumps
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Conversation, Message, QueryLog
+from app.models import Conversation, Message, QueryLog, Document
 from app.models.user import User
 from app.core.ratelimit import limiter
 from app.core.security import get_current_user
@@ -29,6 +29,41 @@ from app.services.generation import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+async def _build_corpus_metadata(db: AsyncSession, user_id) -> str:
+    """Query the user's actual document count and filenames (ground truth for the LLM)."""
+    count_result = await db.execute(
+        select(func.count(Document.id)).where(
+            Document.user_id == user_id,
+            Document.status == "completed",
+        )
+    )
+    doc_count = count_result.scalar_one()
+
+    name_result = await db.execute(
+        select(Document.filename).where(
+            Document.user_id == user_id,
+            Document.status == "completed",
+        ).distinct()
+    )
+    filenames = [row[0] for row in name_result.all()]
+
+    return (
+        f"CORPUS METADATA (ground truth — use this for any question about how many "
+        f"documents exist or what documents exist, do NOT count retrieved chunks as "
+        f"documents): You have {doc_count} document(s): {', '.join(filenames)}"
+    )
+
+
+def _deduplicate_citations(citations: list) -> list:
+    """Keep one citation per document_id (the highest scored chunk)."""
+    seen = {}
+    for cit in citations:
+        doc_id = str(cit.document_id)
+        if doc_id not in seen or cit.score > seen[doc_id].score:
+            seen[doc_id] = cit
+    return list(seen.values())
 
 
 @router.post("", response_model=ChatResponse)
@@ -88,7 +123,10 @@ async def chat(
         db.add(user_msg)
         await db.flush()
 
-        # 4. Retrieve relevant chunks from pgvector scoped to current user
+        # 4. Query corpus metadata (ground truth for the LLM)
+        corpus_metadata = await _build_corpus_metadata(db, current_user.id)
+
+        # 5. Retrieve relevant chunks from pgvector scoped to current user
         retrieved_items = await retrieve_context(
             query=request_body.question,
             db=db,
@@ -99,7 +137,7 @@ async def chat(
 
         chunks = [item[0] for item in retrieved_items]
 
-        # 5. Build citations list with real score & filename
+        # 6. Build citations list with real score & filename
         citations = []
         similarity_scores = []
         for chunk, score, filename in retrieved_items:
@@ -120,23 +158,29 @@ async def chat(
                 )
             )
 
+        # Deduplicate citations: one per document, keeping highest score
+        citations = _deduplicate_citations(citations)
+
         avg_similarity = (
             round(sum(similarity_scores) / len(similarity_scores), 4)
             if similarity_scores
             else 0.0
         )
 
-        # 6. Generate answer using Groq (Llama 3.1) with chat history
+        # 7. Generate answer using Groq (Llama 3.1) with chat history + corpus metadata
         if not chunks:
             answer = "I couldn't find any relevant information in your uploaded documents to answer your question."
         else:
             answer = await generate_answer(
-                query=request_body.question, chunks=chunks, chat_history=chat_history
+                query=request_body.question,
+                chunks=chunks,
+                chat_history=chat_history,
+                corpus_metadata=corpus_metadata,
             )
 
         latency_ms = int((time.time() - start_time) * 1000)
 
-        # 7. Save assistant's answer as a Message
+        # 8. Save assistant's answer as a Message
         citation_dicts = [
             {
                 "chunk_id": str(c.chunk_id),
@@ -160,7 +204,7 @@ async def chat(
         )
         db.add(assistant_msg)
 
-        # 8. Persist QueryLog for analytics
+        # 9. Persist QueryLog for analytics
         query_log = QueryLog(
             id=uuid.uuid4(),
             user_id=current_user.id,
@@ -248,7 +292,10 @@ async def chat_stream(
     db.add(user_msg)
     await db.flush()
 
-    # 4. Retrieve context chunks scoped to user
+    # 4. Query corpus metadata (ground truth for the LLM)
+    corpus_metadata = await _build_corpus_metadata(db, current_user.id)
+
+    # 5. Retrieve context chunks scoped to user
     retrieved_items = await retrieve_context(
         query=request_body.question,
         db=db,
@@ -277,6 +324,9 @@ async def chat_stream(
                 source=source,
             )
         )
+
+    # Deduplicate citations: one per document, keeping highest score
+    citations = _deduplicate_citations(citations)
 
     avg_similarity = (
         round(sum(similarity_scores) / len(similarity_scores), 4)
@@ -315,7 +365,10 @@ async def chat_stream(
                 yield f"event: token\ndata: {token_payload}\n\n"
             else:
                 async for token in generate_answer_stream(
-                    query=request_body.question, chunks=chunks, chat_history=chat_history
+                    query=request_body.question,
+                    chunks=chunks,
+                    chat_history=chat_history,
+                    corpus_metadata=corpus_metadata,
                 ):
                     full_answer.append(token)
                     token_payload = dumps({"delta": token})

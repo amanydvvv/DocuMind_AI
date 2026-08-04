@@ -119,12 +119,19 @@ def get_llm():
 RAG_PROMPT_TEMPLATE = """
 You are an expert AI assistant tasked with answering questions based ONLY on the provided context and conversation history.
 
+{corpus_metadata}
+
 {chat_history_section}
 
 Context information is below.
 ---------------------
 {context}
 ---------------------
+
+IMPORTANT: The context above contains retrieved text CHUNKS, not separate documents.
+Multiple chunks may come from the SAME document. When answering questions about
+how many documents exist, what documents exist, or listing document names, use
+ONLY the CORPUS METADATA block above — never count the retrieved chunks as documents.
 
 Given the context information, chat history, and no prior knowledge, answer the user's query.
 If the answer is not contained in the context, say "I don't have enough information to answer that based on the provided documents."
@@ -136,7 +143,7 @@ Answer:
 
 prompt = PromptTemplate(
     template=RAG_PROMPT_TEMPLATE,
-    input_variables=["chat_history_section", "context", "query"]
+    input_variables=["corpus_metadata", "chat_history_section", "context", "query"]
 )
 
 class RateLimitError(Exception):
@@ -162,7 +169,10 @@ def _is_fallback_error(err: Exception) -> bool:
 
 
 async def generate_answer(
-    query: str, chunks: List[Chunk], chat_history: Optional[List[Message]] = None
+    query: str,
+    chunks: List[Chunk],
+    chat_history: Optional[List[Message]] = None,
+    corpus_metadata: str = "",
 ) -> str:
     """
     Generate an answer using the provided chunks as context and prior chat history.
@@ -190,6 +200,7 @@ async def generate_answer(
     # Execute the LLM
     try:
         response = await chain.ainvoke({
+            "corpus_metadata": corpus_metadata,
             "chat_history_section": chat_history_section,
             "context": context_text,
             "query": query
@@ -206,7 +217,10 @@ async def generate_answer(
 
 
 async def generate_answer_stream(
-    query: str, chunks: List[Chunk], chat_history: Optional[List[Message]] = None
+    query: str,
+    chunks: List[Chunk],
+    chat_history: Optional[List[Message]] = None,
+    corpus_metadata: str = "",
 ):
     """
     Stream answer tokens as they arrive from the LLM provider.
@@ -230,6 +244,7 @@ async def generate_answer_stream(
     
     try:
         async for chunk_response in chain.astream({
+            "corpus_metadata": corpus_metadata,
             "chat_history_section": chat_history_section,
             "context": context_text,
             "query": query
