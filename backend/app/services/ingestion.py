@@ -39,6 +39,19 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 _RATE_LIMIT_ERR_MARKERS = ("429", "Quota exceeded", "ResourceExhausted", "rate limit")
 
 
+def _strip_think_blocks(text: str) -> str:
+    """Remove <think>...</think> reasoning traces from thinking-model output."""
+    if "<think>" not in text:
+        return text
+    while True:
+        start = text.find("<think>")
+        end = text.find("</think>", start)
+        if start == -1 or end == -1:
+            break
+        text = text[:start] + text[end + len("</think>"):]
+    return text.replace("</think>", "").replace("<think>", "")
+
+
 def _is_rate_limit(exc: Exception) -> bool:
     err_str = str(exc)
     return any(marker.lower() in err_str.lower() for marker in _RATE_LIMIT_ERR_MARKERS)
@@ -81,17 +94,17 @@ async def _ocr_pdf_page(page) -> str:
         img_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
         data_url = f"data:image/png;base64,{img_b64}"
         resp = await groq_client.chat.completions.create(
-            model="llama-3.2-11b-vision-preview",
+            model=settings.VISION_MODEL,
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Extract and transcribe all text from this scanned document image accurately. Return only the extracted text."},
+                    {"type": "text", "text": "Extract and transcribe all text from this scanned document image accurately. Write each line exactly once, in reading order. Return only the extracted text."},
                     {"type": "image_url", "image_url": {"url": data_url}},
                 ],
             }],
             max_tokens=2000,
         )
-        return resp.choices[0].message.content.strip()
+        return _strip_think_blocks(resp.choices[0].message.content).strip()
     except Exception as e:
         logger.warning(f"OCR fallback failed for page: {e}")
     return ""
