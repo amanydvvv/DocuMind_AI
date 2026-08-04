@@ -43,6 +43,7 @@ app = FastAPI(
     version=settings.APP_VERSION,
     description="AI-powered technical documentation assistant with RAG",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 @app.middleware("http")
