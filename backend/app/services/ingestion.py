@@ -1,3 +1,4 @@
+import asyncio
 import os
 import uuid
 import logging
@@ -52,7 +53,11 @@ def _is_rate_limit(exc: Exception) -> bool:
 async def _embed_texts(texts: list[str]):
     """Embed a batch of texts with retry on transient rate limits/network errors."""
     try:
-        return await embeddings.aembed_documents(texts)
+        return await asyncio.to_thread(
+            embeddings.embed_documents,
+            texts,
+            output_dimensionality=settings.EMBEDDING_DIMENSION,
+        )
     except Exception as exc:
         logger.warning(f"Embedding batch failed ({len(texts)} texts): {exc}")
         raise

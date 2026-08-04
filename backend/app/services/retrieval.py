@@ -72,7 +72,11 @@ async def _retrieve_vector_candidates(
     Stage 1 Dense Vector Search via pgvector or fallback JSONB vector calculation.
     Returns List[Tuple[Chunk, similarity_score]]
     """
-    query_vector = await embeddings.aembed_query(query)
+    query_vector = await asyncio.to_thread(
+        embeddings.embed_query,
+        query,
+        output_dimensionality=settings.EMBEDDING_DIMENSION,
+    )
     query_vector = query_vector[:settings.EMBEDDING_DIMENSION]
 
     try:

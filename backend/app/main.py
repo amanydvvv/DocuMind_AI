@@ -107,7 +107,14 @@ async def health_check():
         try:
             import asyncio
             from app.services.retrieval import embeddings
-            await asyncio.wait_for(embeddings.aembed_query("healthcheck"), timeout=4.0)
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    embeddings.embed_query,
+                    "healthcheck",
+                    output_dimensionality=settings.EMBEDDING_DIMENSION,
+                ),
+                timeout=4.0,
+            )
             llm_status = "healthy"
         except Exception:
             llm_status = "unreachable"
