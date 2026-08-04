@@ -73,22 +73,19 @@ DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/documind
 DATABASE_URL_SYNC=postgresql://postgres:password@localhost:5432/documind
 ```
 
-### 2. Install Dependencies & Run Backend
+### 2. Run Backend
+
+**Option A — Docker Compose (recommended).** Starts the Postgres/pgvector DB
+and API together. The API service reads your keys (`GROQ_API_KEY`,
+`GEMINI_API_KEY`, `ENVIRONMENT`, etc.) straight from `backend/.env` and only
+overrides the DB connection to use the local Docker database.
 
 ```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate  # On Windows
-pip install -r requirements.txt
-
-# Run migrations
-alembic upgrade head
-
-# Start FastAPI server
-uvicorn app.main:app --reload --port 8000
+docker compose up -d --build
 ```
 
-Verify backend health:
+The container runs `alembic upgrade head` automatically on start, then serves
+the API on `http://localhost:8000`. Verify:
 
 ```bash
 curl http://localhost:8000/api/health
@@ -102,6 +99,22 @@ Expected output:
   "llm_provider": "healthy",
   "version": "0.1.0"
 }
+```
+
+**Option B — Legacy (venv + uvicorn).** For running the API directly without
+Docker:
+
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate  # On Windows
+pip install -r requirements.txt
+
+# Run migrations (Docker Compose does this automatically)
+alembic upgrade head
+
+# Start FastAPI server
+uvicorn app.main:app --reload --port 8000
 ```
 
 ### 3. Install & Run Frontend
