@@ -104,6 +104,7 @@ async def chat(
         similarity_scores = []
         for chunk, score, filename in retrieved_items:
             page_num = chunk.metadata_.get("page_number", None) if chunk.metadata_ else None
+            source = chunk.metadata_.get("source", None) if chunk.metadata_ else None
             similarity_scores.append(score)
             citations.append(
                 Citation(
@@ -115,6 +116,7 @@ async def chat(
                     content_preview=chunk.content[:297] + "..."
                     if len(chunk.content) > 300
                     else chunk.content,
+                    source=source,
                 )
             )
 
@@ -143,6 +145,7 @@ async def chat(
                 "page_number": c.page_number,
                 "score": c.score,
                 "content_preview": c.content_preview,
+                "source": c.source,
             }
             for c in citations
         ]
@@ -259,6 +262,7 @@ async def chat_stream(
     similarity_scores = []
     for chunk, score, filename in retrieved_items:
         page_num = chunk.metadata_.get("page_number", None) if chunk.metadata_ else None
+        source = chunk.metadata_.get("source", None) if chunk.metadata_ else None
         similarity_scores.append(score)
         citations.append(
             Citation(
@@ -270,6 +274,7 @@ async def chat_stream(
                 content_preview=chunk.content[:297] + "..."
                 if len(chunk.content) > 300
                 else chunk.content,
+                source=source,
             )
         )
 
@@ -287,6 +292,7 @@ async def chat_stream(
             "page_number": c.page_number,
             "score": c.score,
             "content_preview": c.content_preview,
+            "source": c.source,
         }
         for c in citations
     ]

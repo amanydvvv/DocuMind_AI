@@ -26,10 +26,13 @@ embeddings = GoogleGenerativeAIEmbeddings(
     timeout=30.0,
 )
 
-# OpenAI-compatible client pointed at Groq Cloud
+# OpenAI-compatible client pointed at Groq Cloud. Tight timeout (30s) so a
+# hung OCR/vision call degrades to the guardrail instead of stalling the
+# ingestion worker for the openai default of 600s.
 groq_client = AsyncOpenAI(
     api_key=os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1",
+    timeout=30.0,
 )
 
 
@@ -39,17 +42,24 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 _RATE_LIMIT_ERR_MARKERS = ("429", "Quota exceeded", "ResourceExhausted", "rate limit")
 
 
-def _strip_think_blocks(text: str) -> str:
-    """Remove <think>...</think> reasoning traces from thinking-model output."""
+def _strip_think_blocks(text: str) -> str | None:
+    """Remove <think>...</think> reasoning traces from thinking-model output.
+
+    Returns None when a <think> block is unclosed — i.e. the model response was
+    truncated mid-reasoning — so callers can treat the page as failed OCR
+    instead of embedding reasoning text that would surface in citations.
+    """
     if "<think>" not in text:
-        return text
+        return text.replace("</think>", "")
     while True:
         start = text.find("<think>")
         end = text.find("</think>", start)
         if start == -1 or end == -1:
             break
         text = text[:start] + text[end + len("</think>"):]
-    return text.replace("</think>", "").replace("<think>", "")
+    if "<think>" in text:
+        return None
+    return text.replace("</think>", "")
 
 
 def _is_rate_limit(exc: Exception) -> bool:
@@ -104,8 +114,17 @@ async def _ocr_pdf_page(page) -> str:
             }],
             max_tokens=2000,
         )
-        return _strip_think_blocks(resp.choices[0].message.content).strip()
+        cleaned = _strip_think_blocks(resp.choices[0].message.content)
+        if cleaned is None:
+            # Response was truncated mid-reasoning: embedding the partial
+            # reasoning text could surface it in citations, so fail the page
+            # and let the "no readable text" guardrail handle it.
+            logger.warning("OCR response truncated mid-reasoning; treating page as failed OCR")
+            return ""
+        return cleaned.strip()
     except Exception as e:
+        # Timeout, rate limit, network, and model errors all land here and
+        # degrade to the guardrail rejection below.
         logger.warning(f"OCR fallback failed for page: {e}")
     return ""
 
@@ -139,17 +158,19 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
             doc.page_count = len(pdf)
             for i, page in enumerate(pdf):
                 text = page.get_text()
+                source = "text"
                 if not text or not text.strip():
                     logger.info(f"Page {i+1} has no vector text, running Groq OCR fallback...")
                     text = await _ocr_pdf_page(page)
+                    source = "ocr"
 
                 if text and text.strip():
-                    pages.append({"text": text.strip(), "page_number": i + 1})
+                    pages.append({"text": text.strip(), "page_number": i + 1, "source": source})
     elif doc.file_type == "markdown":
         with open(file_path, "r", encoding="utf-8") as f:
             text = f.read()
             if text and text.strip():
-                pages.append({"text": text.strip(), "page_number": 1})
+                pages.append({"text": text.strip(), "page_number": 1, "source": "text"})
             doc.page_count = 1
     else:
         raise RuntimeError(f"Unsupported file type: {doc.file_type}")
@@ -178,6 +199,7 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
                 "metadata": {
                     "page_number": page["page_number"],
                     "filename": doc.filename,
+                    "source": page.get("source", "text"),
                 },
                 "index": chunk_index
             })

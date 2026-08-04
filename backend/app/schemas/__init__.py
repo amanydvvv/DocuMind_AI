@@ -49,6 +49,10 @@ class Citation(BaseModel):
     page_number: Optional[int] = None
     score: float
     content_preview: str = Field(..., max_length=300)
+    # How the chunk text was obtained: "text" (extracted from the file's
+    # text layer) or "ocr" (read from the page image by a vision model).
+    # Lets the UI label OCR-derived content so users can weigh its trust.
+    source: Optional[str] = None
 
 
 class ChatRequest(BaseModel):

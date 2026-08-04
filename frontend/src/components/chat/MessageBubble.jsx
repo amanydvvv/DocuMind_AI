@@ -29,9 +29,14 @@ export default function MessageBubble({ message, onCitationClick }) {
                   key={idx}
                   onClick={() => onCitationClick && onCitationClick(cit)}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md transition-colors border border-blue-100"
-                  title={`Score: ${cit.score?.toFixed(3)}`}
+                  title={cit.source === 'ocr' ? 'Text read from a scanned image by a vision model' : `Score: ${cit.score?.toFixed(3)}`}
                 >
                   📄 {cit.filename || cit.metadata?.filename || 'Document'}
+                  {cit.source === 'ocr' && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 rounded border border-amber-200">
+                      OCR
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

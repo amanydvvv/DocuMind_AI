@@ -17,6 +17,11 @@ export default function CitationViewer({ citation, onClose }) {
                   📄 Page {citation.page_number || citation.metadata?.page_number}
                 </span>
               )}
+              {citation.source === 'ocr' && (
+                <span className="inline-flex items-center px-1.5 py-0.5 font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 rounded border border-amber-200">
+                  Read from image (OCR)
+                </span>
+              )}
               {citation.score !== undefined && citation.score !== null && (
                 <span className="flex items-center gap-1">
                   🎯 Relevance: {(citation.score * 100).toFixed(1)}%
