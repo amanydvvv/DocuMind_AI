@@ -19,10 +19,16 @@ services:
   api:
     build: ./backend
     container_name: documind-api
+    # API keys (GROQ/GEMINI), ENVIRONMENT, and any non-DB settings come from
+    # backend/.env (the same single source of truth used for local uvicorn).
+    # DATABASE_URL / DEBUG below intentionally override the env file.
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: "postgresql+asyncpg://documind:documind_dev@db:5432/documind"
       DATABASE_URL_SYNC: "postgresql://documind:documind_dev@db:5432/documind"
       DEBUG: "true"
+      PORT: "8000"
     ports:
       - "8000:8000"
     volumes:
