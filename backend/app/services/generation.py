@@ -1,9 +1,9 @@
-
 import logging
 import os
 from typing import List, Optional
 
 from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 
 from app.models import Chunk, Message
@@ -36,11 +36,85 @@ def build_token_budgeted_history(messages: List[Message]) -> List[Message]:
 
 
 def get_llm():
-    return ChatGroq(
-        api_key=os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY,
-        model_name="llama-3.1-8b-instant",
-        temperature=0.3,
-    )
+    """
+    Build a resilient LLM with a fallback cascade:
+      1. Groq  llama-3.1-8b-instant   (fast, low-latency — primary)
+      2. Groq  llama-3.3-70b-versatile (higher capacity pool)
+      3. Groq  qwen3-32b              (different model family, separate queue)
+      4. Gemini 1.5 Flash              (cross-provider safety net)
+
+    If any model returns a 503, 429, or any other error, LangChain's
+    with_fallbacks() automatically tries the next one in the chain.
+    """
+    groq_key = os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY
+    gemini_key = os.getenv("GEMINI_API_KEY") or settings.GEMINI_API_KEY
+
+    if not groq_key and not gemini_key:
+        raise RuntimeError(
+            "Neither GROQ_API_KEY nor GEMINI_API_KEY is set. "
+            "At least one LLM provider key is required for chat generation."
+        )
+
+    fallbacks = []
+
+    # --- Primary: Groq llama-3.1-8b-instant ---
+    primary = None
+    if groq_key:
+        primary = ChatGroq(
+            api_key=groq_key,
+            model_name="llama-3.1-8b-instant",
+            temperature=0.3,
+            max_retries=1,  # one retry with backoff before cascading
+        )
+
+        # --- Fallback 1: Groq llama-3.3-70b-versatile ---
+        fallbacks.append(ChatGroq(
+            api_key=groq_key,
+            model_name="llama-3.3-70b-versatile",
+            temperature=0.3,
+            max_retries=0,
+        ))
+
+        # --- Fallback 2: Groq qwen3-32b ---
+        fallbacks.append(ChatGroq(
+            api_key=groq_key,
+            model_name="qwen3-32b",
+            temperature=0.3,
+            max_retries=0,
+        ))
+
+    # --- Fallback 3 (cross-provider): Gemini 1.5 Flash ---
+    if gemini_key:
+        gemini_fallback = ChatGoogleGenerativeAI(
+            model="gemini-1.5-flash",
+            google_api_key=gemini_key,
+            temperature=0.3,
+            max_output_tokens=1024,
+        )
+        if primary is None:
+            # Groq key missing — Gemini is the only provider
+            primary = gemini_fallback
+        else:
+            fallbacks.append(gemini_fallback)
+
+    if primary is None:
+        raise RuntimeError(
+            "Could not initialise any LLM. Check your API key environment variables."
+        )
+
+    if fallbacks:
+        logger.info(
+            "LLM fallback cascade active: %s → %s",
+            primary.model_name if hasattr(primary, 'model_name') else str(primary),
+            " → ".join(
+                fb.model_name if hasattr(fb, 'model_name') else str(fb)
+                for fb in fallbacks
+            ),
+        )
+        return primary.with_fallbacks(fallbacks)
+
+    return primary
+
 
 RAG_PROMPT_TEMPLATE = """
 You are an expert AI assistant tasked with answering questions based ONLY on the provided context and conversation history.
@@ -68,6 +142,23 @@ prompt = PromptTemplate(
 class RateLimitError(Exception):
     """Raised when the LLM provider hits rate limits or quota bounds."""
     pass
+
+
+# Error markers that should trigger fallback (via RateLimitError or LangChain's with_fallbacks)
+FALLBACK_TRIGGER_MARKERS = (
+    "429",
+    "Quota exceeded",
+    "ResourceExhausted",
+    "rate limit",
+    "503",
+    "queue is full",
+)
+
+
+def _is_fallback_error(err: Exception) -> bool:
+    """Check if an error should trigger the fallback cascade."""
+    err_str = str(err)
+    return any(marker.lower() in err_str.lower() for marker in FALLBACK_TRIGGER_MARKERS)
 
 
 async def generate_answer(
@@ -105,14 +196,8 @@ async def generate_answer(
         })
         return response.content
     except Exception as e:
-        err_str = str(e)
-        if (
-            "429" in err_str
-            or "Quota exceeded" in err_str
-            or "ResourceExhausted" in err_str
-            or "rate limit" in err_str.lower()
-        ):
-            logger.warning(f"LLM Rate Limit Exceeded: {e}")
+        if _is_fallback_error(e):
+            logger.warning(f"LLM error triggers fallback: {e}")
             raise RateLimitError(
                 "The AI service is currently at capacity or quota limits have been reached. Please try again in a moment."
             )
@@ -152,17 +237,10 @@ async def generate_answer_stream(
             if chunk_response.content:
                 yield chunk_response.content
     except Exception as e:
-        err_str = str(e)
-        if (
-            "429" in err_str
-            or "Quota exceeded" in err_str
-            or "ResourceExhausted" in err_str
-            or "rate limit" in err_str.lower()
-        ):
-            logger.warning(f"LLM Rate Limit Exceeded during stream: {e}")
+        if _is_fallback_error(e):
+            logger.warning(f"LLM error triggers fallback during stream: {e}")
             raise RateLimitError(
                 "The AI service is currently at capacity or quota limits have been reached. Please try again in a moment."
             )
         logger.error(f"Error during LLM token streaming: {e}", exc_info=True)
         raise
-
