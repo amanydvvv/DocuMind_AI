@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pymupdf
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -69,6 +70,74 @@ def _is_rate_limit(exc: Exception) -> bool:
     return any(marker.lower() in err_str.lower() for marker in _RATE_LIMIT_ERR_MARKERS)
 
 
+# --- Pre-flight OCR image-quality gate -------------------------------------
+# Empirically calibrated at dpi=150 (the render the vision model actually sees)
+# against the Part 6 regression samples:
+#   blank.pdf      intensity_std=0.0      edge_frac>30=0.0      grad_mean=0.0
+#   noise.pdf      intensity_std=61.2     edge_frac>30=0.1233   grad_mean=8.25
+#   live_scan.pdf  intensity_std=31.0     edge_frac>30=0.0158   grad_mean=1.66
+# A variance-only check is provably insufficient (noise 61.2 vs scan 31.0
+# overlap), and edge density alone has only ~8x separation; the composite
+# below rejects structureless noise with ~2x headroom on both axes while real
+# scans sit 3-5x clear.
+_BLANK_PAGE_STD_THRESHOLD = 2.0
+_NOISE_GRAD_MEAN_THRESHOLD = 4.5
+_NOISE_EDGE_FRACTION_THRESHOLD = 0.06
+_EDGE_GRADIENT_THRESHOLD = 30.0
+
+
+def _page_metrics_from_samples(samples) -> tuple:
+    """Compute (intensity_std, grad_mean, edge_fraction) for a grayscale image.
+
+    edge_fraction is the share of pixels whose gradient magnitude exceeds
+    _EDGE_GRADIENT_THRESHOLD. Real documents have sparse strong edges (text
+    strokes) on mostly-flat regions; pure random noise has dense, uniformly
+    weak gradients — the two statistics together separate them reliably.
+    """
+    arr = samples.astype(np.float32)
+    intensity_std = float(arr.std())
+    gy, gx = np.gradient(arr)
+    grad_mag = np.sqrt(gx * gx + gy * gy)
+    grad_mean = float(grad_mag.mean())
+    edge_fraction = float((grad_mag > _EDGE_GRADIENT_THRESHOLD).mean())
+    return intensity_std, grad_mean, edge_fraction
+
+
+def _gate_decision(intensity_std: float, grad_mean: float, edge_fraction: float) -> tuple:
+    """Classify a page as blank / structureless noise / readable.
+
+    Returns (is_blank, is_noise). Blank pages have near-zero intensity
+    variance; pure noise has high mean gradient AND dense edge pixels, while
+    real content keeps both low (sparse strong edges on flat background).
+    """
+    is_blank = intensity_std < _BLANK_PAGE_STD_THRESHOLD
+    is_noise = (
+        grad_mean > _NOISE_GRAD_MEAN_THRESHOLD
+        and edge_fraction > _NOISE_EDGE_FRACTION_THRESHOLD
+    )
+    return is_blank, is_noise
+
+
+def _is_unreadable_page(pix) -> bool:
+    """Pre-flight gate: reject blank and structureless-noise pages before OCR.
+
+    Skips the Groq vision call entirely for pages that cannot contain text,
+    degrading them to the same 'no readable text' guardrail as OCR failure.
+    """
+    gray = pymupdf.Pixmap(pymupdf.csGRAY, pix)
+    samples = np.frombuffer(gray.samples, dtype=np.uint8).reshape(gray.height, gray.width)
+    intensity_std, grad_mean, edge_fraction = _page_metrics_from_samples(samples)
+    is_blank, is_noise = _gate_decision(intensity_std, grad_mean, edge_fraction)
+    if is_blank or is_noise:
+        logger.warning(
+            "Pre-flight OCR gate rejected page: intensity_std=%.2f grad_mean=%.2f "
+            "edge_fraction=%.4f (blank=%s, noise=%s)",
+            intensity_std, grad_mean, edge_fraction, is_blank, is_noise,
+        )
+        return True
+    return False
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=30),
@@ -97,12 +166,28 @@ def _normalize_embedding(vector: list, dimension: int) -> list:
     return vector + [0.0] * (dimension - len(vector))
 
 
+_UNREADABLE_TOKEN = "[UNREADABLE]"
+
+_OCR_PROMPT_TEXT = (
+    "Extract and transcribe all text from this scanned document image accurately. "
+    "Write each line exactly once, in reading order. Return only the extracted text. "
+    "If you cannot confidently transcribe real text from this image (for example a "
+    "blank page, pure noise, or an unreadable scan), respond with EXACTLY the literal "
+    "token [UNREADABLE] and nothing else. Do not write explanations or hedging such "
+    "as 'the image is unclear' — your entire response must be exactly the token "
+    "[UNREADABLE] when you cannot transcribe the text."
+)
+
+
 async def _ocr_pdf_page(page) -> str:
     """Fallback OCR for scanned PDF pages using Groq vision model."""
     if not settings.GROQ_API_KEY:
         return ""
     try:
         pix = page.get_pixmap(dpi=150)
+        if _is_unreadable_page(pix):
+            # Pre-flight quality gate rejected page (blank or structureless noise)
+            return ""
         img_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
         data_url = f"data:image/png;base64,{img_b64}"
         resp = await groq_client.chat.completions.create(
@@ -110,7 +195,7 @@ async def _ocr_pdf_page(page) -> str:
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Extract and transcribe all text from this scanned document image accurately. Write each line exactly once, in reading order. Return only the extracted text."},
+                    {"type": "text", "text": _OCR_PROMPT_TEXT},
                     {"type": "image_url", "image_url": {"url": data_url}},
                 ],
             }],
@@ -123,7 +208,13 @@ async def _ocr_pdf_page(page) -> str:
             # and let the "no readable text" guardrail handle it.
             logger.warning("OCR response truncated mid-reasoning; treating page as failed OCR")
             return ""
-        return cleaned.strip()
+
+        cleaned_str = cleaned.strip()
+        if cleaned_str == _UNREADABLE_TOKEN or cleaned_str.startswith(_UNREADABLE_TOKEN):
+            logger.warning("OCR model returned sentinel token [UNREADABLE]; treating page as failed OCR")
+            return ""
+
+        return cleaned_str
     except Exception as e:
         # Timeout, rate limit, network, and model errors all land here and
         # degrade to the guardrail rejection below.

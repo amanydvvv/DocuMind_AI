@@ -23,6 +23,9 @@ langchain-text-splitters==0.3.8
 # Document parsing
 pymupdf==1.25.5
 
+# Image analysis (pre-flight OCR gate: blank/noise rejection)
+numpy==2.5.1
+
 # HTTP client
 httpx==0.28.1
 
