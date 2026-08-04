@@ -74,7 +74,7 @@ export function useConversations() {
 
   const removeConversation = useCallback(
     async (id) => {
-      const snapshot = conversations;
+      const previousConversations = [...conversations];
       // Optimistic removal
       setConversations((prev) => prev.filter((c) => c.id !== id));
       if (id === activeConversationId) {
@@ -84,8 +84,8 @@ export function useConversations() {
         await deleteConversation(id);
       } catch (err) {
         // Rollback state on error
-        setConversations(snapshot);
-        setError(err.message || 'Failed to delete conversation');
+        setConversations(previousConversations);
+        setError(err.message || 'Conversation not found or could not be deleted.');
       }
     },
     [conversations, activeConversationId, startNewChat]
