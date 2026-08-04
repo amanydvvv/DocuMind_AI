@@ -5,7 +5,7 @@ Endpoints for managing multi-turn conversation sessions and viewing historical m
 
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -112,6 +112,8 @@ async def delete_conversation(
             status_code=404, detail=f"Conversation {conversation_id} not found."
         )
 
+    # Explicitly delete child messages first to avoid Foreign Key constraint errors
+    await db.execute(delete(Message).where(Message.conversation_id == conversation_id))
     await db.delete(conv)
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

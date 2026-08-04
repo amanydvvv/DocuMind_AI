@@ -74,17 +74,21 @@ export function useConversations() {
 
   const removeConversation = useCallback(
     async (id) => {
+      const snapshot = conversations;
+      // Optimistic removal
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (id === activeConversationId) {
+        startNewChat();
+      }
       try {
         await deleteConversation(id);
-        setConversations((prev) => prev.filter((c) => c.id !== id));
-        if (id === activeConversationId) {
-          startNewChat();
-        }
       } catch (err) {
+        // Rollback state on error
+        setConversations(snapshot);
         setError('Failed to delete conversation: ' + err.message);
       }
     },
-    [activeConversationId, startNewChat]
+    [conversations, activeConversationId, startNewChat]
   );
 
   const sendMessage = useCallback(

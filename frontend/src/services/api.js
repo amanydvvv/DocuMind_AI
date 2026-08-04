@@ -378,6 +378,11 @@ export async function deleteConversation(conversationId) {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to delete conversation');
+    let errorMsg = 'Failed to delete conversation';
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.detail || errorMsg;
+    } catch (e) {}
+    throw new Error(errorMsg);
   }
 }
