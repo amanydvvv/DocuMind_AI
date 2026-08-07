@@ -86,8 +86,13 @@ app.include_router(analytics_router)
 
 
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])
-async def health_check():
+async def health_check(request: Request):
     """Check server, database, and LLM provider connectivity."""
+    cf_ip = request.headers.get("cf-connecting-ip")
+    forwarded = request.headers.get("x-forwarded-for")
+    peer = request.client.host if request.client else "none"
+    logger.info("LIVE_PROD_HEADERS_DEBUG cf_connecting_ip=%r x_forwarded_for=%r peer=%r", cf_ip, forwarded, peer)
+
     from sqlalchemy import text
     from app.database import async_session
 
