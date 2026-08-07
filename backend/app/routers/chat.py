@@ -10,6 +10,7 @@ from json import dumps
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -416,4 +417,11 @@ async def chat_stream(
             err_payload = dumps({"detail": "An internal error occurred during generation."})
             yield f"event: error\ndata: {err_payload}\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    # Summary Buffer Memory: summarize the last 5 messages once the stream
+    # finishes. The service opens its own isolated session, so it is safe to
+    # run after the request-scoped db is closed.
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        background=BackgroundTask(update_conversation_summary, conversation_id),
+    )
