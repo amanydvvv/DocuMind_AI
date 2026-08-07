@@ -12,6 +12,10 @@ Rate Limiting Key Resolution Priority:
    client-supplied header spoofing attacks on direct-origin routes.
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from fastapi import Request
 from slowapi import Limiter
 
@@ -27,8 +31,14 @@ def _rate_limit_key(request: Request) -> str:
        X-Forwarded-For is explicitly IGNORED when CF-Connecting-IP is absent to prevent
        client-supplied header spoofing attacks on direct-origin routes.
     """
-    cf_ip = request.headers.get("cf-connecting-ip")
-    if cf_ip:
+    cf_ip = request.headers.get("cf-connecting-ip") or "ABSENT"
+    forwarded = request.headers.get("x-forwarded-for") or "ABSENT"
+    peer = request.client.host if request.client else "ABSENT"
+    log_line = f"RATELIMIT_DEBUG cf={cf_ip} xff={forwarded} peer={peer}"
+    logger.info(log_line)
+    print(log_line, flush=True)
+
+    if cf_ip != "ABSENT":
         return cf_ip.strip()
 
     if request.client and request.client.host:
