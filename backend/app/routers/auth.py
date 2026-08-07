@@ -23,7 +23,21 @@ from app.core.security import (
     rotate_refresh_token,
 )
 
+import os
+import logging
+from pathlib import Path
+from app.config import get_settings
+from app.models import Document
+from app.services.ingestion import _resolve_file_path
+
+settings = get_settings()
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str
 
 
 class UserSignupRequest(BaseModel):
@@ -163,3 +177,50 @@ async def get_me(current_user: User = Depends(get_current_user)):
         email=current_user.email,
         created_at=current_user.created_at.isoformat(),
     )
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_me(
+    body: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently delete the current user account, associated files, and cascaded data."""
+    # 1. Re-authenticate password
+    if not verify_password(body.password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password.",
+        )
+
+    user_id = current_user.id
+    logger.info("Account deletion requested for user_id=%s", user_id)
+
+    # 2. Best-effort physical on-disk file cleanup
+    try:
+        docs_res = await db.execute(
+            select(Document).where(Document.user_id == current_user.id)
+        )
+        user_docs = docs_res.scalars().all()
+        for doc in user_docs:
+            try:
+                file_path = Path(_resolve_file_path(doc))
+                if file_path.exists():
+                    os.remove(file_path)
+            except Exception as file_exc:
+                logger.warning(
+                    "Failed to delete physical file %s for user %s: %s",
+                    doc.id, user_id, file_exc
+                )
+    except Exception as docs_exc:
+        logger.warning(
+            "Error querying user documents during file cleanup (user %s): %s",
+            user_id, docs_exc
+        )
+
+    # 3. Delete user row (PostgreSQL ON DELETE CASCADE purges all child tables)
+    await db.delete(current_user)
+    await db.commit()
+
+    logger.info("Account deletion completed for user_id=%s", user_id)
+    return None

@@ -13,7 +13,14 @@ import uuid
 
 @pytest_asyncio.fixture
 async def async_client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    # Unique X-Forwarded-For per test so each test gets its own rate-limit bucket
+    # (signup is limited to 5/min; a shared 127.0.0.1 bucket trips the limiter).
+    unique_ip = f"203.0.113.{uuid.uuid4().int % 200 + 1}"
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"X-Forwarded-For": unique_ip},
+    ) as client:
         yield client
     await engine.dispose()
 
@@ -51,6 +58,15 @@ async def test_auth_signup_and_login(async_client: AsyncClient):
     )
     assert me_res.status_code == 200
     assert me_res.json()["email"] == user_email
+
+    # Clean up account so the test leaves zero residual data in the shared DB
+    del_res = await async_client.request(
+        "DELETE",
+        "/api/auth/me",
+        json={"password": password},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert del_res.status_code == 204
 
 
 @pytest.mark.asyncio
@@ -172,3 +188,152 @@ async def test_multi_tenant_document_and_conversation_isolation(async_client: As
     assert chat_res_b.status_code == 200
     # Citations for User B must be empty because User B owns 0 documents
     assert len(chat_res_b.json()["citations"]) == 0
+
+    # 10. Clean up both accounts so the test leaves zero residual data in the shared DB
+    del_a = await async_client.request(
+        "DELETE", "/api/auth/me",
+        json={"password": "password1234"},
+        headers=headers_a,
+    )
+    assert del_a.status_code == 204
+    del_b = await async_client.request(
+        "DELETE", "/api/auth/me",
+        json={"password": "password1234"},
+        headers=headers_b,
+    )
+    assert del_b.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_account_deletion_requires_correct_password(async_client: AsyncClient):
+    """Verify DELETE /api/auth/me rejects incorrect password with 401 and preserves account."""
+    user_email = f"del_pass_{uuid.uuid4().hex[:6]}@example.com"
+    password = "CorrectPass123!"
+
+    signup_res = await async_client.post(
+        "/api/auth/signup",
+        json={"email": user_email, "password": password}
+    )
+    assert signup_res.status_code == 201
+    token = signup_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Attempt deletion with WRONG password
+    del_fail = await async_client.request(
+        "DELETE",
+        "/api/auth/me",
+        json={"password": "WrongPassword123!"},
+        headers=headers,
+    )
+    assert del_fail.status_code == 401
+    assert "Incorrect email or password" in del_fail.json()["detail"]
+
+    # Profile endpoint must still function normally
+    me_res = await async_client.get("/api/auth/me", headers=headers)
+    assert me_res.status_code == 200
+    assert me_res.json()["email"] == user_email
+
+    # Clean up account with correct password so the test leaves zero residual data
+    del_ok = await async_client.request(
+        "DELETE",
+        "/api/auth/me",
+        json={"password": password},
+        headers=headers,
+    )
+    assert del_ok.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_account_deletion_purges_user_and_cascade_data(async_client: AsyncClient):
+    """Verify DELETE /api/auth/me purges user, docs, chunks, conversations, messages, query_logs, refresh token, and files."""
+    from pathlib import Path
+    from app.services.ingestion import _resolve_file_path
+    from app.models import User, Document, Chunk, Conversation, Message, QueryLog
+    from app.database import async_session
+    from sqlalchemy import select, func
+
+    user_email = f"del_full_{uuid.uuid4().hex[:6]}@example.com"
+    password = "CorrectPass123!"
+
+    signup_res = await async_client.post(
+        "/api/auth/signup",
+        json={"email": user_email, "password": password}
+    )
+    assert signup_res.status_code == 201
+    data = signup_res.json()
+    token = data["access_token"]
+    refresh_token = data["refresh_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Retrieve user_id
+    me_init = await async_client.get("/api/auth/me", headers=headers)
+    assert me_init.status_code == 200
+    user_id = uuid.UUID(me_init.json()["id"])
+
+    # Upload physical document
+    file_content = b"# Document To Delete\nPhysical file cleanup test."
+    upload_res = await async_client.post(
+        "/api/documents/upload",
+        files={"file": ("to_delete.md", file_content, "text/markdown")},
+        headers=headers,
+    )
+    assert upload_res.status_code == 201
+    doc_id = uuid.UUID(upload_res.json()["id"])
+
+    # Resolve physical on-disk file path
+    async with async_session() as db:
+        doc_obj = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one()
+        file_path = Path(_resolve_file_path(doc_obj))
+    assert file_path.exists()
+
+    # Create conversation
+    chat_res = await async_client.post(
+        "/api/chat",
+        json={"question": "Test query before deletion"},
+        headers=headers,
+    )
+    assert chat_res.status_code == 200
+    conv_id = uuid.UUID(chat_res.json()["conversation_id"])
+
+    # Execute account deletion with CORRECT password
+    del_res = await async_client.request(
+        "DELETE",
+        "/api/auth/me",
+        json={"password": password},
+        headers=headers,
+    )
+    assert del_res.status_code == 204
+
+    # Old access token must now be rejected with 401 across all protected endpoints
+    assert (await async_client.get("/api/auth/me", headers=headers)).status_code == 401
+    assert (await async_client.get("/api/documents", headers=headers)).status_code == 401
+    assert (await async_client.get("/api/conversations", headers=headers)).status_code == 401
+
+    # Old refresh token must be invalidated: CAS rotation fails because the user row is gone
+    refresh_res = await async_client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert refresh_res.status_code == 401
+
+    # DB Assertions: Directly verify CASCADE purged all child table rows
+    async with async_session() as db:
+        user_cnt = (await db.execute(select(func.count()).where(User.id == user_id))).scalar_one()
+        doc_cnt = (await db.execute(select(func.count()).where(Document.user_id == user_id))).scalar_one()
+        chunk_cnt = (await db.execute(select(func.count()).where(Chunk.document_id == doc_id))).scalar_one()
+        conv_cnt = (await db.execute(select(func.count()).where(Conversation.user_id == user_id))).scalar_one()
+        msg_cnt = (await db.execute(select(func.count()).where(Message.conversation_id == conv_id))).scalar_one()
+        log_cnt = (await db.execute(select(func.count()).where(QueryLog.user_id == user_id))).scalar_one()
+
+        assert user_cnt == 0, "User record must be deleted"
+        assert doc_cnt == 0, "Document records must be cascade deleted"
+        assert chunk_cnt == 0, "Chunk records must be cascade deleted"
+        assert conv_cnt == 0, "Conversation records must be cascade deleted"
+        assert msg_cnt == 0, "Message records must be cascade deleted"
+        assert log_cnt == 0, "QueryLog records must be cascade deleted"
+
+    # Old refresh token is invalid because the jti lives on the users row, now gone
+    # (already asserted via /api/auth/refresh above)
+
+    # Physical file must be deleted from disk
+    assert not file_path.exists()
