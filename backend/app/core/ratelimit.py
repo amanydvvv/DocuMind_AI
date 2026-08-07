@@ -2,49 +2,39 @@
 DocuMind AI — Rate Limiting
 Shared slowapi limiter instance keyed by the real client IP.
 
-Rate Limiting Key Resolution Priority:
-1. CF-Connecting-IP: Injected by Cloudflare at the outer edge when traffic
-   routes through Cloudflare to a custom domain. Overwritten at the edge so
-   clients CANNOT spoof it.
-2. request.client.host: Socket connection peer IP fallback when CF-Connecting-IP
-   is absent (e.g. direct-origin requests to *.onrender.com or local integration tests).
-   X-Forwarded-For is explicitly IGNORED when CF-Connecting-IP is absent to prevent
-   client-supplied header spoofing attacks on direct-origin routes.
+Peer-anchored CF-Connecting-IP resolution:
+The CF-Connecting-IP header (set by Cloudflare at the outer edge) is only
+trusted when the immediate TCP peer (request.client.host) is a private address,
+which is what Render's internal proxy presents. Direct-origin requests (e.g.
+*.onrender.com) and local integration tests reach the app with a public or
+loopback peer, so the header is ignored and the peer IP is used instead.
+X-Forwarded-For is never consulted: clients can trivially spoof it.
 """
-
-import logging
-
-logger = logging.getLogger(__name__)
 
 from fastapi import Request
 from slowapi import Limiter
+
+_PRIVATE_IP_PREFIXES = ("10.", "172.16.", "192.168.", "127.", "::1", "fc00:", "fe80:")
 
 
 def _rate_limit_key(request: Request) -> str:
     """
     Key rate limits by real client IP.
 
-    1. CF-Connecting-IP: Untamperable edge IP set by Cloudflare when traffic
-       routes through Cloudflare to a custom domain.
-    2. request.client.host: Socket connection IP fallback when CF-Connecting-IP
-       is absent (e.g. direct-origin requests to *.onrender.com or local tests).
-       X-Forwarded-For is explicitly IGNORED when CF-Connecting-IP is absent to prevent
-       client-supplied header spoofing attacks on direct-origin routes.
+    1. CF-Connecting-IP: Trusted ONLY when the TCP peer (request.client.host)
+       starts with a private IP prefix, i.e. traffic proxied by Render's
+       internal proxy where the header is set at the edge and cannot be spoofed.
+    2. request.client.host: Socket connection peer otherwise. Never spoofable
+       because it comes from the TCP connection itself.
     """
-    cf_ip = request.headers.get("cf-connecting-ip") or "ABSENT"
-    forwarded = request.headers.get("x-forwarded-for") or "ABSENT"
-    peer = request.client.host if request.client else "ABSENT"
-    log_line = f"RATELIMIT_DEBUG cf={cf_ip} xff={forwarded} peer={peer}"
-    logger.info(log_line)
-    print(log_line, flush=True)
+    peer = request.client.host if request.client and request.client.host else "127.0.0.1"
 
-    if cf_ip != "ABSENT":
-        return cf_ip.strip()
+    if peer.startswith(_PRIVATE_IP_PREFIXES):
+        cf_ip = request.headers.get("cf-connecting-ip")
+        if cf_ip:
+            return cf_ip.strip()
 
-    if request.client and request.client.host:
-        return request.client.host
-
-    return "127.0.0.1"
+    return peer
 
 
 limiter = Limiter(key_func=_rate_limit_key, default_limits=[])

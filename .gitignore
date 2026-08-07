@@ -34,3 +34,9 @@ frontend/qa_artifacts/
 frontend/qa_fixture_applicant_2026.pdf
 security-audit/
 claude-skills/
+
+# Test fixtures: only tracked inside backend/tests/fixtures/
+*.pdf
+*.txt
+!backend/tests/fixtures/
+!backend/tests/fixtures/**

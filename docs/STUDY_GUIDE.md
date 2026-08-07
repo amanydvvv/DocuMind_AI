@@ -13,7 +13,8 @@
    - [Pydantic Schemas vs. ORM Models](#5-pydantic-schemas-vs-orm-models)
 2. [Phase 2: Ingestion Pipeline Concepts](#phase-2-ingestion-pipeline-concepts)
 3. [Phase 3: RAG Retrieval & LLM Generation](#phase-3-rag-retrieval--llm-generation)
-4. [ðŸ’¡ Master Interview Cheat Sheet](#-master-interview-cheat-sheet)
+4. [Phase 9: Production Incident Debugging & Security Hardening](#phase-9-production-incident-debugging--security-hardening)
+5. [ðŸ’¡ Master Interview Cheat Sheet](#-master-interview-cheat-sheet)
 
 ---
 
@@ -210,6 +211,74 @@ $$S_{norm} = \frac{S - S_{min}}{S_{max} - S_{min} + \epsilon}$$
 
 ---
 
+## Phase 9: Production Incident Debugging & Security Hardening
+
+- [x] NameError Crash Origin: Missing Imports in Middleware (`import uuid`)
+- [x] Supabase Connection Pooler Ports (Session 5432 vs Transaction 6543)
+- [x] Rate-Limiter Spoofing via `CF-Connecting-IP` & Peer-Anchored Keys
+
+### 1. NameError Crash: Missing Imports in Middleware
+#### The Bug
+Every single request returned HTTP 500 after a "cleanup" commit removed `import uuid`. The `add_correlation_id` middleware in `backend/app/main.py` calls `uuid.uuid4()` to generate a request ID, but the module it imported from was deleted, leaving the name undefined at runtime.
+
+#### The Cause
+- Starlette/FastAPI middleware runs on **every request, before routing**. An `ImportError`/`NameError` raised here crashes the whole request, so *all* endpoints (auth, documents, chat) broke at once — not just one route.
+- The symptom looked like "the database is down" or "deployment is broken", because the error surfaced as a 500 on every path. The traceback pointed to `main.py`, not to the app logic.
+
+#### The Engineering Fix
+Restore `import uuid` at the top of the module and re-run the test suite. A single missing import in a hot middleware is a total outage.
+
+#### The Lesson
+Always run the test suite before/after any "cleanup" commit. A green test suite is the fastest detector of import-deletion accidents.
+
+---
+
+### 2. Supabase Connection Pooler Ports: 6543 vs 5432
+**The Symptom:** `psycopg2.OperationalError: FATAL: password authentication failed for user "postgres"` — even with a *valid* password.
+
+**The Root Cause:** Supabase exposes two endpoints that share a hostname:
+- **Session/Transaction pooler on port `6543`** — accepts a pooler realm username (e.g. `postgres.fvceackhbnbffcfwdyoc`), supports prepared statements *only* when using the dedicated pooler port. `asyncpg`, however, needs `statement_cache_size=0` with `6553` in session mode.
+- **Direct connection on port `5432`** — real Postgres port, but it uses a **different auth realm** than the pooler. A password that authenticates against the pooler does not authenticate on the direct host, and vice-versa.
+
+**The Role of the Pooler** (transaction mode 6543): PgBouncer/Supabase pooler pins every transaction to a dedicated backend connection, which prevents `full connection` churn and keeps the async connection alive — critical for async app workers.
+
+#### The Fix We Applied
+- Confirmed the pooler (port `6543`) authenticates the new password.
+- Kept SQLAlchemy's async engine on the **Session-mode `6543`** connection with `statement_cache_size=0`, so `asyncpg` never prepares statements (which would collide across pooler backends).
+
+#### Key Takeaways
+- A failed `password authentication failed` error is **not always** wrong credentials — check the port and the connection mode (session vs transaction).
+- For async apps behind a connection pooler, disable `asyncpg` statement caching.
+
+---
+
+### 3. Rate-Limiter Spoofing via `CF-Connecting-IP` & the Peer-Anchored Fix
+**The Vulnerability:** The original `_rate_limit_key()` trusted `CF-Connecting-IP` header unconditionally. This header is set by Cloudflare at the edge, but **any** client can still *prepend* values to it OR reach the origin directly (Render's `*.onrender.com`) and fully spoof it. An attacker who rotates the header each request can bypass the per-IP rate limit, enabling brute-force of login/signup.
+
+**The Fix — Peer-Anchoring:**
+```python
+_PRIVATE_IP_PREFIXES = ("10.", "172.16.", "192.168.", "127.", "::1", "fc00:", "fe80:")
+
+def _rate_limit_key(request: Request) -> str:
+    peer = request.client.host if request.client and request.client.host else "127.0.0.1"
+    if peer.startswith(_PRIVATE_IP_PREFIXES):
+        cf_ip = request.headers.get("cf-connecting-ip")
+        if cf_ip:
+            return cf_ip.strip()
+    return peer
+```
+- The **TCP peer (`request.client.host`)** is set by the socket itself — a client cannot spoof it.
+- `CF-Connecting-IP` is trusted **only** when `request.client.host` starts with a private-IP prefix (i.e. the request arrived from Render's internal proxy).
+- If the peer isn't private, we ignore the header and fall back to the peer IP. Direct connections (like the `*.onrender.com` routing) never trust the header.
+
+**Threats defeated:**
+- `X-Forwarded-For` rotation → ignored entirely.
+- `CF-Connecting-IP` spoofing on direct-origin requests → header ignored unless the peer is private.
+
+**Key Takeaway:** Never trust a client-supplied header to identify the peer unless you *also* verify the immediate peer is a trusted proxy.
+
+---
+
 ## ðŸ’¡ Master Interview Cheat Sheet
 
 When an interviewer asks you about your technical decisions on DocuMind AI, use these exact, high-impact responses:
@@ -273,3 +342,12 @@ When an interviewer asks you about your technical decisions on DocuMind AI, use 
 
 #### Q: "How do you implement refresh-token rotation securely?"
 > *"I issue a short-lived access token (24h) plus a longer-lived refresh token (7d) carrying a unique 'jti'. The jti is stored on the user row, and each POST /api/auth/refresh call validates the signature and type claim, checks the jti matches the stored value, then issues a fresh pair with a new jti. If an old refresh token is replayed, the stored jti no longer matches, so the session is treated as stolen and forced to re-login. Access-token-only endpoints also reject tokens whose 'type' claim is not 'access', so a leaked refresh token cannot be used as a bearer credential."*
+
+#### Q: "Tell me about a production outage that turned out to be a one-line import missing."
+> *"Every request began returning HTTP 500. Server logs initially looked like a database outage, but the stack trace pointed to middleware — `add_correlation_id()` used `uuid.uuid4()` while `import uuid` was gone from `backend/app/main.py`. Because middleware wraps every request, a missing import there took down all routes at once. I restored the import and re-ran the suite; the lesson is to always run the full test suite before and after cleanup commits, since a green suite would have caught the missing import in the middleware path immediately."*
+
+#### Q: "How do you debug a password-authentication failure against a cloud PostgreSQL connection pooler?"
+> *"A `FATAL: password authentication failed for user "postgres"` is often misdiagnosed as bad credentials. Supabase exposes two endpoints: the direct database on 5432 and a transaction pooler on 6543 with a distinct realm username. The correct fix for this app was to connect on port 6543 with the pooler URL; testing both ports separately isolated that 5432 rejects while 6543 authenticates."*
+
+#### Q: "How do you prevent rate-limit bypass by spoofed client headers?"
+> *"A naive key function trusts `CF-Connecting-IP` unconditionally, but any client can spoof `X-Forwarded-For` and reach the origin directly, rotating headers to rotate the rate-limit bucket. I switched to a peer-anchored key: trust the `CF-Connecting-IP` header only when `request.client.host` starts with a private IP prefix (i.e. traffic proxied by Render's internal proxy), and otherwise fall back to the raw socket peer IP, which a client cannot spoof. A regression test rotates `X-Forwarded-For` values and still hits the limit."*

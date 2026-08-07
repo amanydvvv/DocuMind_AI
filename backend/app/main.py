@@ -2,6 +2,7 @@
 DocuMind AI — FastAPI Application Entry Point
 """
 
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -35,8 +36,7 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
-import uuid
-from fastapi import Request, Response
+from fastapi import Request
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -86,15 +86,8 @@ app.include_router(analytics_router)
 
 
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])
-async def health_check(request: Request, response: Response):
+async def health_check():
     """Check server, database, and LLM provider connectivity."""
-    cf_ip = request.headers.get("cf-connecting-ip") or "ABSENT"
-    forwarded = request.headers.get("x-forwarded-for") or "ABSENT"
-    peer = request.client.host if request.client else "ABSENT"
-    log_line = f"RATELIMIT_DEBUG cf={cf_ip} xff={forwarded} peer={peer}"
-    logger.info(log_line)
-    print(log_line, flush=True)
-    response.headers["X-Debug-Ratelimit"] = log_line
 
     from sqlalchemy import text
     from app.database import async_session
