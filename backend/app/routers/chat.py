@@ -8,7 +8,7 @@ import time
 import uuid
 from json import dumps
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,7 @@ from app.core.ratelimit import limiter
 from app.core.security import get_current_user
 from app.schemas import ChatRequest, ChatResponse, Citation
 from app.services.retrieval import retrieve_context
+from app.services.memory import update_conversation_summary
 from app.services.generation import (
     generate_answer,
     generate_answer_stream,
@@ -71,6 +72,7 @@ def _deduplicate_citations(citations: list) -> list:
 async def chat(
     request: Request,
     request_body: ChatRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -176,6 +178,7 @@ async def chat(
                 chunks=chunks,
                 chat_history=chat_history,
                 corpus_metadata=corpus_metadata,
+                conversation_summary=conv.context_summary,
             )
 
         latency_ms = int((time.time() - start_time) * 1000)
@@ -216,6 +219,9 @@ async def chat(
         )
         db.add(query_log)
         await db.commit()
+
+        # Summary Buffer Memory: summarize the last 5 messages in the background
+        background_tasks.add_task(update_conversation_summary, conversation_id, db)
 
         return ChatResponse(
             answer=answer,
@@ -369,6 +375,7 @@ async def chat_stream(
                     chunks=chunks,
                     chat_history=chat_history,
                     corpus_metadata=corpus_metadata,
+                    conversation_summary=conv.context_summary,
                 ):
                     full_answer.append(token)
                     token_payload = dumps({"delta": token})

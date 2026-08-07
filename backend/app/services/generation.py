@@ -173,11 +173,24 @@ async def generate_answer(
     chunks: List[Chunk],
     chat_history: Optional[List[Message]] = None,
     corpus_metadata: str = "",
+    conversation_summary: Optional[str] = None,
 ) -> str:
     """
     Generate an answer using the provided chunks as context and prior chat history.
     """
     logger.info("Generating answer based on retrieved context and conversation history...")
+    
+    # Inject persistent summary memory as leading system-prompt context
+    memory_prefix = (
+        f"Prior Context: {conversation_summary}\n\n"
+        if conversation_summary
+        else ""
+    )
+    template = memory_prefix + RAG_PROMPT_TEMPLATE
+    prompt = PromptTemplate(
+        template=template,
+        input_variables=["corpus_metadata", "chat_history_section", "context", "query"]
+    )
     
     # Format context by joining chunk contents
     context_text = "\n\n---\n\n".join(
@@ -221,11 +234,24 @@ async def generate_answer_stream(
     chunks: List[Chunk],
     chat_history: Optional[List[Message]] = None,
     corpus_metadata: str = "",
+    conversation_summary: Optional[str] = None,
 ):
     """
     Stream answer tokens as they arrive from the LLM provider.
     """
     logger.info("Streaming answer tokens from LLM...")
+    
+    # Inject persistent summary memory as leading system-prompt context
+    memory_prefix = (
+        f"Prior Context: {conversation_summary}\n\n"
+        if conversation_summary
+        else ""
+    )
+    template = memory_prefix + RAG_PROMPT_TEMPLATE
+    prompt = PromptTemplate(
+        template=template,
+        input_variables=["corpus_metadata", "chat_history_section", "context", "query"]
+    )
     
     context_text = "\n\n---\n\n".join(
         [f"Document snippet {i+1}:\n{chunk.content}" for i, chunk in enumerate(chunks)]
