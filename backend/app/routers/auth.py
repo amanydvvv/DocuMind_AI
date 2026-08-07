@@ -113,7 +113,7 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
         raise HTTPException(status_code=401, detail="Incorrect email or password.")
 
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="This account has been deactivated.")
+        raise HTTPException(status_code=401, detail="Incorrect email or password.")
 
     return await _issue_tokens(db, user)
 

@@ -67,6 +67,45 @@ async def test_unauthenticated_access_rejected(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_deactivated_account_login_is_indistinguishable(async_client: AsyncClient):
+    """Deactivated accounts must return the same generic 401 as bad credentials (no account enumeration)."""
+    from app.database import async_session
+    from app.models.user import User
+    from sqlalchemy import update, select
+
+    user_email = f"deact_{uuid.uuid4().hex[:6]}@example.com"
+    password = "password1234"
+
+    signup_res = await async_client.post(
+        "/api/auth/signup",
+        json={"email": user_email, "password": password}
+    )
+    assert signup_res.status_code == 201
+    user_id = uuid.UUID(signup_res.json()["user_id"])
+    token = signup_res.json()["access_token"]
+
+    # Deactivate the account directly in the DB (no admin endpoint exists)
+    async with async_session() as db:
+        await db.execute(update(User).where(User.id == user_id).values(is_active=False))
+        await db.commit()
+
+    # Login must be indistinguishable from a wrong password
+    login_res = await async_client.post(
+        "/api/auth/login",
+        json={"email": user_email, "password": password}
+    )
+    assert login_res.status_code == 401
+    assert login_res.json()["detail"] == "Incorrect email or password."
+    assert "deactivated" not in login_res.json()["detail"].lower()
+
+    # Clean up the account via direct DB delete (user has no documents/conversations)
+    async with async_session() as db:
+        await db.execute(update(User).where(User.id == user_id).values(is_active=True))
+        await db.delete((await db.execute(select(User).where(User.id == user_id))).scalar_one())
+        await db.commit()
+
+
+@pytest.mark.asyncio
 async def test_multi_tenant_document_and_conversation_isolation(async_client: AsyncClient):
     """
     Create User A and User B.
