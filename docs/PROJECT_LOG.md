@@ -4,6 +4,27 @@
 
 ---
 
+## 2026-08-07 — Summary Buffer Memory & Consistent Memory Persistence on Streaming, Green Test Suite
+
+**Severity:** Low — feature work.
+
+### Milestones
+1. **Added `test_memory_integration.py` for summary persistence.**
+   - Seeds a temp user/conversation/messages, invokes `update_conversation_summary`, and asserts `context_summary` is populated, non-empty, and preamble-free; cleans up all seeded rows in `finally`.
+
+2. **Fixed SSE streaming background task gap via Starlette `BackgroundTask`.**
+   - `/api/chat/stream` (`chat_stream`) was streaming answers without dispatching the summary worker at the end, so streamed conversations never got `context_summary` persisted.
+   - Added `from starlette.background import BackgroundTask` and `background=BackgroundTask(update_conversation_summary, conversation_id)` on the `StreamingResponse` (worker opens its own session, so it survives request-scoped DB teardown).
+
+3. **Resolved legacy test suite asyncio markers.**
+   - `backend/tests/test_regression_e2e.py` was a standalone script: module-level `asyncio.run(main())` fired during pytest import, used `sys.exit(1)`, depended on live `localhost:8000`, and its four `async def test_*` lacked `@pytest.mark.asyncio`.
+   - Rewrote it as a proper pytest module: `import pytest` / `pytest_asyncio`, `@pytest.mark.asyncio` on every async test, in-process `ASGITransport` against the app, auth header attached after signup, `await engine.dispose()` in the client fixture (setup + teardown) to avoid cross-loop pooled-connection `RuntimeError: Event loop is closed`, and standalone `main()` guarded behind `if __name__ == "__main__":`.
+
+### Verification
+- Full suite: `pytest tests/ -v` → **21 passed, 0 failures, 0 errors.**
+
+---
+
 ## 2026-08-07 — Production Outage: Rate Limiter & 500 Crash
 
 **Severity:** Critical — production down (all API routes returning 500).
