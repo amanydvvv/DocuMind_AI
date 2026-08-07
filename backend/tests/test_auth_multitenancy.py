@@ -350,25 +350,42 @@ async def test_rate_limit_cannot_be_bypassed_via_spoofed_header(async_client: As
     Signup endpoint is limited to 5/minute.
     """
     password = "Password123!"
+    created: list[tuple[str, str]] = []  # (access_token, password) for cleanup
 
-    # Perform 5 signups (within 5/min limit) with spoofed prepended headers
-    for i in range(5):
-        email = f"ratelimit_{i}_{uuid.uuid4().hex[:4]}@example.com"
-        spoofed_header = f"1.2.3.{i+1}, 203.0.113.100"
-        res = await async_client.post(
+    try:
+        # Perform 5 signups (within 5/min limit) with spoofed prepended headers.
+        # On Render a client can prepend arbitrary IPs to X-Forwarded-For, so a
+        # key that trusts that header is trivially bypassable. The fix must
+        # ignore X-Forwarded-For entirely: every request shares the same
+        # unspoofable key (here the 127.0.0.1 ASGI peer) regardless of the
+        # spoofed header values.
+        for i in range(5):
+            email = f"ratelimit_{i}_{uuid.uuid4().hex[:4]}@example.com"
+            spoofed_header = f"1.2.3.{i+1}, 203.0.113.100"
+            res = await async_client.post(
+                "/api/auth/signup",
+                json={"email": email, "password": password},
+                headers={"X-Forwarded-For": spoofed_header},
+            )
+            assert res.status_code == 201, f"Signup {i+1} should succeed"
+            created.append((res.json()["access_token"], password))
+
+        # 6th request with a DIFFERENT spoofed prepended IP -> Must still get 429
+        bypass_email = f"ratelimit_bypass_{uuid.uuid4().hex[:4]}@example.com"
+        res_6 = await async_client.post(
             "/api/auth/signup",
-            json={"email": email, "password": password},
-            headers={"X-Forwarded-For": spoofed_header},
+            json={"email": bypass_email, "password": password},
+            headers={"X-Forwarded-For": "9.9.9.9, 203.0.113.100"},
         )
-        assert res.status_code == 201, f"Signup {i+1} should succeed"
-
-    # 6th request with a DIFFERENT spoofed prepended IP -> Must still get 429 Too Many Requests
-    bypass_email = f"ratelimit_bypass_{uuid.uuid4().hex[:4]}@example.com"
-    res_6 = await async_client.post(
-        "/api/auth/signup",
-        json={"email": bypass_email, "password": password},
-        headers={"X-Forwarded-For": "9.9.9.9, 203.0.113.100"},
-    )
-    assert res_6.status_code == 429
-    assert "too many requests" in res_6.json().get("detail", "").lower()
+        assert res_6.status_code == 429
+        assert "too many requests" in res_6.json().get("detail", "").lower()
+    finally:
+        # Clean up the created users so the suite leaves zero residual data
+        for token, pw in created:
+            await async_client.request(
+                "DELETE",
+                "/api/auth/me",
+                json={"password": pw},
+                headers={"Authorization": f"Bearer {token}"},
+            )
 
