@@ -14,7 +14,8 @@
 2. [Phase 2: Ingestion Pipeline Concepts](#phase-2-ingestion-pipeline-concepts)
 3. [Phase 3: RAG Retrieval & LLM Generation](#phase-3-rag-retrieval--llm-generation)
 4. [Phase 9: Production Incident Debugging & Security Hardening](#phase-9-production-incident-debugging--security-hardening)
-5. [ðŸ’¡ Master Interview Cheat Sheet](#-master-interview-cheat-sheet)
+5. [Section 4: Advanced RAG Features](#section-4-advanced-rag-features)
+6. [ðŸ’¡ Master Interview Cheat Sheet](#-master-interview-cheat-sheet)
 
 ---
 
@@ -276,6 +277,29 @@ def _rate_limit_key(request: Request) -> str:
 - `CF-Connecting-IP` spoofing on direct-origin requests → header ignored unless the peer is private.
 
 **Key Takeaway:** Never trust a client-supplied header to identify the peer unless you *also* verify the immediate peer is a trusted proxy.
+
+---
+
+## Section 4: Advanced RAG Features
+
+### Summary Buffer Memory
+
+As conversations grow, replaying the entire chat history on every turn drives up token count, latency, and cost — and eventually blows past the model's context window. **Summary Buffer Memory** solves this by maintaining a rolling summary instead of the raw transcript:
+
+- **Buffer window:** After every N new messages (e.g. 5), we summarize the newest chunk of the conversation using the LLM.
+- **Rolling merge:** The new summary either replaces the old one or is appended to it, so a long conversation collapses into a compact, lossy-but-useful digest.
+- **Context injection:** On each turn, the injected "history" is a short summary buffer rather than every message — keeping the goal (a clean, bounded context window) without losing conversational intent.
+- **Token savings:** Summarizing every N messages is far cheaper than passing full history, because a fixed-size summary costs roughly constant tokens no matter how long the conversation gets.
+
+On this project, the plan is:
+- Store the rolling summary in a new `conversations.context_summary` column (Alembic migration `cdde890276e6`).
+- `backend/app/services/memory.py`'s `update_conversation_summary(conversation_id, db)` fetches the last 5 messages, asks Groq to summarize them, and saves the result.
+
+Why summarize every N messages instead of passing full history:
+1. **Token economy** — a summary of a conversation is far fewer tokens than the source transcript.
+2. **Latency** — fewer input tokens means faster first-token generation.
+3. **Cost** — LLM providers bill per token; shrinking history shrinks the bill.
+4. **Context integrity** — a bounded, curated summary avoids the model's attention being diluted by stale or redundant messages.
 
 ---
 
