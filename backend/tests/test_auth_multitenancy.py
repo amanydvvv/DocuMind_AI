@@ -11,16 +11,20 @@ from app.database import engine
 import uuid
 
 
+from app.core.ratelimit import limiter
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def reset_rate_limiter():
+    """Reset slowapi rate limiter memory storage before each test for clean isolation."""
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
 @pytest_asyncio.fixture
 async def async_client():
-    # Unique X-Forwarded-For per test so each test gets its own rate-limit bucket
-    # (signup is limited to 5/min; a shared 127.0.0.1 bucket trips the limiter).
-    unique_ip = f"203.0.113.{uuid.uuid4().int % 200 + 1}"
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        headers={"X-Forwarded-For": unique_ip},
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
     await engine.dispose()
 
@@ -337,3 +341,34 @@ async def test_account_deletion_purges_user_and_cascade_data(async_client: Async
 
     # Physical file must be deleted from disk
     assert not file_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_cannot_be_bypassed_via_spoofed_header(async_client: AsyncClient):
+    """
+    Verify that varying the prepended client-supplied X-Forwarded-For IP does NOT bypass rate limits.
+    Signup endpoint is limited to 5/minute.
+    """
+    password = "Password123!"
+
+    # Perform 5 signups (within 5/min limit) with spoofed prepended headers
+    for i in range(5):
+        email = f"ratelimit_{i}_{uuid.uuid4().hex[:4]}@example.com"
+        spoofed_header = f"1.2.3.{i+1}, 203.0.113.100"
+        res = await async_client.post(
+            "/api/auth/signup",
+            json={"email": email, "password": password},
+            headers={"X-Forwarded-For": spoofed_header},
+        )
+        assert res.status_code == 201, f"Signup {i+1} should succeed"
+
+    # 6th request with a DIFFERENT spoofed prepended IP -> Must still get 429 Too Many Requests
+    bypass_email = f"ratelimit_bypass_{uuid.uuid4().hex[:4]}@example.com"
+    res_6 = await async_client.post(
+        "/api/auth/signup",
+        json={"email": bypass_email, "password": password},
+        headers={"X-Forwarded-For": "9.9.9.9, 203.0.113.100"},
+    )
+    assert res_6.status_code == 429
+    assert "too many requests" in res_6.json().get("detail", "").lower()
+
