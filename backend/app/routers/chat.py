@@ -220,8 +220,9 @@ async def chat(
         db.add(query_log)
         await db.commit()
 
-        # Summary Buffer Memory: summarize the last 5 messages in the background
-        background_tasks.add_task(update_conversation_summary, conversation_id, db)
+        # Summary Buffer Memory: summarize the last 5 messages in the background.
+        # The service opens its own session (request-scoped db is closed by then).
+        background_tasks.add_task(update_conversation_summary, conversation_id)
 
         return ChatResponse(
             answer=answer,
