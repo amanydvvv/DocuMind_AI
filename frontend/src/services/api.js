@@ -1,5 +1,5 @@
 const DEFAULT_API_URL = 'https://documind-ai-97t5.onrender.com';
-const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
+export const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
 
 if (!/^https?:\/\//.test(API_URL)) {
   throw new Error(
@@ -107,7 +107,7 @@ export async function refreshAccessToken() {
   return data.access_token;
 }
 
-async function authedFetch(url, options = {}, retry = true) {
+export async function authedFetch(url, options = {}, retry = true) {
   const headers = { ...(options.headers || {}) };
   const token = getAuthToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;

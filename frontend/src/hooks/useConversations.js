@@ -3,16 +3,24 @@ import {
   fetchConversations,
   fetchConversationDetails,
   deleteConversation,
-  sendChatMessageStream,
 } from '../services/api';
+import { useChatStream } from './useChatStream';
 
 export function useConversations() {
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState(null);
+
+  const {
+    messages,
+    metadata,
+    isStreaming,
+    error,
+    setError,
+    abort,
+    resetMessages,
+    streamMessage,
+  } = useChatStream();
 
   const abortControllerRef = useRef(null);
 
@@ -30,15 +38,13 @@ export function useConversations() {
   }, [loadConversationList]);
 
   const startNewChat = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
+    abort();
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setActiveConversationId(null);
-    setMessages([]);
+    resetMessages([]);
     setIsLoadingHistory(false);
-    setError(null);
-  }, []);
+  }, [abort, resetMessages]);
 
   const selectConversation = useCallback(
     async (id) => {
@@ -53,11 +59,10 @@ export function useConversations() {
 
       setActiveConversationId(id);
       setIsLoadingHistory(true);
-      setError(null);
 
       try {
         const details = await fetchConversationDetails(id, controller.signal);
-        setMessages(details.messages || []);
+        resetMessages(details.messages || []);
       } catch (err) {
         if (err.name === 'AbortError') return;
         setError(err.message || 'Failed to load thread messages');
@@ -68,7 +73,7 @@ export function useConversations() {
         }
       }
     },
-    [activeConversationId]
+    [activeConversationId, resetMessages, setError]
   );
 
   const removeConversation = useCallback(
@@ -82,84 +87,36 @@ export function useConversations() {
       try {
         await deleteConversation(id);
       } catch (err) {
-        // Rollback state on error
+        // Rollback state and surface the error in the banner
         setConversations(previousConversations);
         setError(err.message || 'Conversation not found or could not be deleted.');
       }
     },
-    [conversations, activeConversationId, startNewChat]
+    [conversations, activeConversationId, startNewChat, setError]
   );
 
   const sendMessage = useCallback(
     async (question, documentId = null) => {
-      if (!question.trim() || isGenerating) return;
+      if (!question.trim() || isStreaming) return;
 
-      setError(null);
-      const userMsg = { role: 'user', content: question };
-      setMessages((prev) => [...prev, userMsg]);
-      setIsGenerating(true);
-
-      let assistantCreated = false;
-
-      try {
-        await sendChatMessageStream({
-          question,
-          document_id: documentId,
-          conversation_id: activeConversationId,
-          onMetadata: (metadata) => {
-            if (metadata.conversation_id && metadata.conversation_id !== activeConversationId) {
-              setActiveConversationId(metadata.conversation_id);
-            }
-            if (!assistantCreated) {
-              assistantCreated = true;
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: 'assistant',
-                  content: '',
-                  citations: metadata.citations || [],
-                },
-              ]);
-            }
-          },
-          onToken: (tokenDelta) => {
-            setMessages((prev) => {
-              const updated = [...prev];
-              const lastIdx = updated.length - 1;
-              if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
-                updated[lastIdx] = {
-                  ...updated[lastIdx],
-                  content: updated[lastIdx].content + tokenDelta,
-                };
-              }
-              return updated;
-            });
-          },
-          onError: (errDetail) => {
-            setError(errDetail || 'Failed to generate response');
-            if (!assistantCreated) {
-              setMessages((prev) => prev.slice(0, -1));
-            }
-          },
-          onDone: () => {
-            loadConversationList();
-          },
-        });
-      } catch (err) {
-        setError(err.message || 'Error sending message');
-      } finally {
-        setIsGenerating(false);
-      }
+      streamMessage({
+        question,
+        document_id: documentId,
+        conversation_id: activeConversationId,
+        onConversationId: setActiveConversationId,
+        onDone: loadConversationList,
+      });
     },
-    [activeConversationId, isGenerating, loadConversationList]
+    [activeConversationId, isStreaming, streamMessage, loadConversationList]
   );
 
   return {
     conversations,
     activeConversationId,
     messages,
+    metadata,
     isLoadingHistory,
-    isGenerating,
+    isGenerating: isStreaming,
     error,
     loadConversationList,
     selectConversation,

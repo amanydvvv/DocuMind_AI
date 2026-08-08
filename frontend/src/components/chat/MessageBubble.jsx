@@ -1,6 +1,11 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+function handleCitationClick(cit) {
+  // PDF viewer routing hook (react-pdf lands next sprint): log the intent now
+  console.log('Navigate to Document ID:', cit.document_id || cit.id, 'Page:', cit.page_number || null);
+}
+
 export default function MessageBubble({ message, onCitationClick }) {
   const isUser = message.role === 'user';
 
@@ -27,11 +32,19 @@ export default function MessageBubble({ message, onCitationClick }) {
               {message.citations.map((cit, idx) => (
                 <button
                   key={idx}
-                  onClick={() => onCitationClick && onCitationClick(cit)}
+                  onClick={() => {
+                    handleCitationClick(cit);
+                    if (onCitationClick) onCitationClick(cit);
+                  }}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md transition-colors border border-blue-100"
                   title={cit.source === 'ocr' ? 'Text read from a scanned image by a vision model' : `Score: ${cit.score?.toFixed(3)}`}
                 >
                   📄 {cit.filename || cit.metadata?.filename || 'Document'}
+                  {(cit.page_number || cit.metadata?.page_number) && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 bg-white rounded border border-blue-200">
+                      p.{cit.page_number || cit.metadata?.page_number}
+                    </span>
+                  )}
                   {cit.source === 'ocr' && (
                     <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 rounded border border-amber-200">
                       OCR
