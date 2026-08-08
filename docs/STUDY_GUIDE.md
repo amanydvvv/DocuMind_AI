@@ -301,6 +301,13 @@ Why summarize every N messages instead of passing full history:
 3. **Cost** — LLM providers bill per token; shrinking history shrinks the bill.
 4. **Context integrity** — a bounded, curated summary avoids the model's attention being diluted by stale or redundant messages.
 
+### Retrieval Result Cache
+
+To cut RAG costs (each miss = one Gemini embedding call + two Postgres queries), `retrieve_context` is fronted by a **tenant-scoped TTL LRU cache** keyed on `(user_id, document_id-scope, top_k, normalized_query)`. Exact-normalized-match keying (lowercase/trim/whitespace-collapse) means zero false positives, and hits return the exact same tuple shape as a fresh call, so streaming and citation output are byte-identical. Every content mutation (upload/delete/reindex/account deletion) flushes the tenant's entries, so stale results can never reference documents that no longer exist.
+
+> **"How would this cache scale to multiple workers?"**
+> *"The retrieval cache is intentionally in-process — on our single Render worker every request flows through one process, so it gets full effect. If we ever scale horizontally, the cache degrades gracefully to per-worker hit rates: still correct, because keys are tenant-scoped, just less effective, with no error or warning. At that point the fix is to swap the in-memory store for a shared Redis cache with the same keying, but adding that network dependency today would only cost latency and an outage surface for zero benefit."*
+
 ---
 
 ## ðŸ’¡ Master Interview Cheat Sheet

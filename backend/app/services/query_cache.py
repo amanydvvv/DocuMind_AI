@@ -38,6 +38,16 @@ Invalidation (requirement 4):
 Observability (requirement 5):
   - hit/miss/eviction counters exposed via `stats()`; every hit and miss also
     logs an info line so effectiveness is visible in Render logs without tooling.
+
+Deployment / scaling trade-off:
+  - This cache is IN-PROCESS and in-memory by design. On Render's current
+    single-worker deployment every query flows through one process, so the
+    cache has full effect. If the app is ever scaled to multiple workers, the
+    cache silently degrades to per-worker hit rates — no errors, no warnings,
+    still correct (keys are tenant-scoped), just less effective. If multi-worker
+    scaling ever happens, migrate the store to a shared Redis cache keyed the
+    same way; until then a network dependency would only add latency and an
+    outage surface for zero benefit.
 """
 
 import logging
