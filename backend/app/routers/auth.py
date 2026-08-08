@@ -29,6 +29,7 @@ from pathlib import Path
 from app.config import get_settings
 from app.models import Document
 from app.services.ingestion import _resolve_file_path
+from app.services.query_cache import query_cache
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -221,6 +222,9 @@ async def delete_me(
     # 3. Delete user row (PostgreSQL ON DELETE CASCADE purges all child tables)
     await db.delete(current_user)
     await db.commit()
+
+    # Tenant no longer exists: drop its cached retrieval results immediately.
+    query_cache.invalidate_user(user_id)
 
     logger.info("Account deletion completed for user_id=%s", user_id)
     return None

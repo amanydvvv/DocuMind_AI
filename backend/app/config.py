@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     CHUNK_OVERLAP: int = 200
     TOP_K: int = 5
 
+    # Retrieval Cache
+    # TTL for cached (user_id, normalized_query) retrieval results.
+    CACHE_TTL_SECONDS: int = 600
+    # Max distinct (user_id, normalized_query) entries kept per process.
+    CACHE_MAX_ENTRIES: int = 300
+
     # Environment: "development" auto-generates a JWT secret; anything else
     # (default "production") requires JWT_SECRET_KEY to be explicitly set.
     ENVIRONMENT: str = "production"

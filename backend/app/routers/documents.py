@@ -21,6 +21,7 @@ from app.models.user import User
 from app.core.security import get_current_user
 from app.schemas import DocumentResponse, DocumentListResponse
 from app.services.ingestion import ingest_document
+from app.services.query_cache import query_cache
 
 settings = get_settings()
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -102,6 +103,9 @@ async def upload_document(
     )
     db.add(doc)
     await db.flush()
+
+    # Corpus changed: cached retrieval results for this tenant are stale.
+    query_cache.invalidate_user(current_user.id)
 
     # Queue background ingestion with the absolute on-disk path
     background_tasks.add_task(ingest_document, str(file_id), str(file_path))
@@ -254,6 +258,9 @@ async def delete_document(
     await db.delete(doc)
     await db.commit()
 
+    # Corpus changed: cached retrieval results for this tenant are stale.
+    query_cache.invalidate_user(current_user.id)
+
 
 @router.post("/{document_id}/reindex", response_model=DocumentResponse)
 async def reindex_document(
@@ -274,6 +281,9 @@ async def reindex_document(
     doc.status = "pending"
     doc.error_message = None
     await db.commit()
+
+    # Chunks replaced: cached retrieval results for this tenant are stale.
+    query_cache.invalidate_user(current_user.id)
 
     # Pass the absolute path so ingestion does not re-derive it from a local dir
     ext = doc.file_type if doc.file_type != "markdown" else "md"

@@ -17,6 +17,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from app.models import Chunk, Document
 from app.config import get_settings
+from app.services.query_cache import query_cache
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -320,6 +321,17 @@ async def retrieve_context(
     start_time = time.time()
     logger.info(f"Executing Multi-Tenant Hybrid Retrieval for user {user_id}, query: '{query}'")
 
+    # Cache-first: identical normalized queries within TTL skip embed + DB work.
+    cached = query_cache.get(user_id, document_id, top_k, query)
+    if cached is not None:
+        logger.info(
+            "Retrieval served from cache for user %s, query: '%s' (%d chunks)",
+            user_id,
+            query,
+            len(cached),
+        )
+        return cached
+
     try:
         # 1. Fetch vector and lexical candidates from DB with user_id tenant filtering
         vector_candidates = await _retrieve_vector_candidates(
@@ -368,6 +380,9 @@ async def retrieve_context(
         logger.info(
             f"Hybrid retrieval pipeline completed in {total_retrieval_ms}ms (Stage 1: {stage1_ms}ms, Stage 2 Re-Rank: {total_retrieval_ms - stage1_ms}ms). Returning {len(retrieved)} chunks."
         )
+
+        query_cache.put(user_id, document_id, top_k, query, retrieved)
+
         return retrieved
 
     except Exception as e:
