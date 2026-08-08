@@ -1,11 +1,10 @@
 """
-DocuMind AI - Retrieval Evaluation Harness (schema + retrieval runner)
+DocuMind AI - Retrieval Evaluation Harness (schema + retrieval runner + judge)
 
 This module is the plumbing layer for the LLM-as-judge eval harness
-(see docs/PLAN_EVAL_GUARDRAILS.md, Feature 1, Steps 2-3). It deliberately
+(see docs/PLAN_EVAL_GUARDRAILS.md, Feature 1, Steps 2-5). It deliberately
 lives in `app/services/` but imports nothing from the request path
-(routers, generation, main) - importing this module has no side effects on
-live traffic.
+(routers, main) - importing this module has no side effects on live traffic.
 
 Step 2 (schema + loader):
   - GoldenEntry: Pydantic model matching backend/tests/eval/golden_set.json
@@ -22,9 +21,28 @@ Step 3 (composed retrieval runner):
   (RRF_K, TOP_Ns, blend weights) can be overridden at runtime for
   knob-flip experiments; overrides are always restored afterwards, even
   on exception.
+
+Step 4 (marker recall@k):
+  marker_recall_at_k() is a pure, deterministic arbiter: at least one
+  retrieved chunk (within top-k) contains at least one expected marker,
+  case-insensitive substring match.
+
+Step 5 (generation + judge pipeline):
+  run_evaluation() runs the full loop per entry: composed retrieval, a
+  real generation call through generation.generate_answer() (the 2nd-LLM
+  call that single-call eval setups miss), then a judge call on
+  EVAL_JUDGE_MODEL at temperature=0 with strict JSON parsing - one retry
+  on malformed output, then fail-closed (all dimensions fail + judge_error).
+  Negative controls are reported separately and a control scoring "pass"
+  is flagged as a harness-validity problem, never counted as a normal
+  pass. The core run function takes a list of entries so sampling layers
+  (CLI --sample) can be added later without refactoring. LLM call counts
+  (generation + judge + retries) are tracked and returned for budget
+  visibility.
 """
 
 import json
+import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,7 +50,11 @@ from typing import Any, Dict, List, Mapping, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.services import retrieval
+from app.config import get_settings
+from app.services import generation, retrieval
+
+logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 # --------------------------------------------------------------------------
@@ -253,3 +275,297 @@ async def run_retrieval_for_entry(
         retrieved=retrieved,
         knobs_applied=overrides,
     )
+
+
+# --------------------------------------------------------------------------
+# Step 4 - deterministic marker recall@k
+# --------------------------------------------------------------------------
+
+
+def marker_recall_at_k(
+    expected_markers: List[str], retrieved: List[RetrievedChunk]
+) -> bool:
+    """
+    True if at least one retrieved chunk (within top-k, i.e. the given
+    ordered list) contains at least one expected marker as a case-insensitive
+    substring. Pure and deterministic - the cheap, non-flaky arbiter that
+    runs alongside the LLM judge. An entry with no markers is never a
+    recall hit (returns False).
+
+    Negative-control semantics: their markers are deliberately absent from
+    the corpus, so marker recall is EXPECTED to be False there. It is still
+    computed and reported for every entry, because a True on a negative
+    control would mean a fabricated marker accidentally appears in
+    retrieved text - something the harness must surface, not hide. Pass
+    rates in the aggregated report exclude negative controls by design.
+    """
+    if not expected_markers:
+        return False
+    markers = [marker.lower() for marker in expected_markers]
+    for chunk in retrieved:
+        content = chunk.content.lower()
+        if any(marker in content for marker in markers):
+            return True
+    return False
+
+# --------------------------------------------------------------------------
+# Step 5 - generation + judge pipeline
+# --------------------------------------------------------------------------
+
+JUDGE_DIMENSIONS = ("retrieval_pass", "groundedness_pass", "completeness_pass")
+
+# Per-chunk character budget sent to the judge (token economy).
+JUDGE_CHUNK_CHAR_LIMIT = 2500
+
+# Attempts for a well-formed judge response before failing closed.
+JUDGE_MAX_ATTEMPTS = 2
+
+JUDGE_PROMPT_TEMPLATE = (
+    "You are an evaluation judge for a retrieval-augmented generation (RAG) "
+    "system. You are grading ONE question-answer instance. Base every decision "
+    "strictly on the materials provided below; do not use outside knowledge.\n"
+    "\n"
+    "QUESTION:\n{question}\n"
+    "\n"
+    "REFERENCE FACTS that a correct answer must cover (ground truth):\n{facts}\n"
+    "\n"
+    "RETRIEVED CONTEXT (the chunks the answer was generated from):\n{chunks}\n"
+    "\n"
+    "GENERATED ANSWER:\n{answer}\n"
+    "\n"
+    "Return ONLY a valid JSON object with exactly these three boolean fields:\n"
+    '{{"retrieval_pass": bool, "groundedness_pass": bool, '
+    '"completeness_pass": bool}}\n'
+    "\n"
+    "Definitions:\n"
+    "- retrieval_pass: whether the retrieved context chunks contain the "
+    "information needed to answer the question.\n"
+    "- groundedness_pass: whether the generated answer is fully supported by "
+    "the retrieved context, with no hallucinated or unsupported claims.\n"
+    "- completeness_pass: whether the generated answer covers all the "
+    "reference facts, or explicitly says it cannot when the context lacks "
+    "them.\n"
+    "Do not output anything besides the JSON object."
+)
+
+JUDGE_RETRY_SUFFIX = (
+    "\n\nYour previous response was not valid JSON. Output ONLY the JSON "
+    "object, nothing else."
+)
+
+
+def _format_chunks_for_judge(chunks: List[RetrievedChunk]) -> str:
+    """Render retrieved chunks (rank, score, truncated content) for the judge."""
+    if not chunks:
+        return "(no chunks retrieved)"
+    lines = []
+    for i, chunk in enumerate(chunks, start=1):
+        content = chunk.content.strip()
+        if len(content) > JUDGE_CHUNK_CHAR_LIMIT:
+            content = content[:JUDGE_CHUNK_CHAR_LIMIT] + " ...[truncated]"
+        lines.append(f"[{i}] (score={chunk.score:.3f})\n{content}")
+    return "\n\n".join(lines)
+
+
+def _parse_judge_json(raw: str) -> Optional[Dict[str, bool]]:
+    """
+    Strict parser: the response must be a JSON object whose three judge
+    dimensions are all present and all booleans. Anything else (prose, code
+    fences, missing or non-bool fields, partial object) is malformed.
+    """
+    try:
+        payload = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    parsed: Dict[str, bool] = {}
+    for dim in JUDGE_DIMENSIONS:
+        value = payload.get(dim)
+        if not isinstance(value, bool):
+            return None
+        parsed[dim] = value
+    return parsed
+
+
+async def _invoke_judge(judge_llm, prompt_text: str) -> str:
+    """Single judge LLM call; returns the raw response text."""
+    response = await judge_llm.ainvoke([{"role": "user", "content": prompt_text}])
+    return response.content if hasattr(response, "content") else str(response)
+
+
+async def _judge_answer(
+    judge_llm, entry: GoldenEntry, answer: str, chunks: List[RetrievedChunk]
+) -> tuple[Dict[str, bool], bool, int]:
+    """
+    Judge one answer. Returns (dimensions, judge_error, attempts).
+
+    Fail-closed contract: malformed or failing judge output is NEVER treated
+    as a pass. On malformed output the call is retried once; if the retry is
+    also malformed (or the judge call raises), all three dimensions are
+    marked fail and judge_error is set.
+    """
+    prompt_text = JUDGE_PROMPT_TEMPLATE.format(
+        question=entry.question,
+        facts="\n".join(f"- {fact}" for fact in entry.answer_facts) or "(none)",
+        chunks=_format_chunks_for_judge(chunks),
+        answer=answer or "(no answer generated)",
+    )
+
+    attempts = 0
+    for attempt in range(JUDGE_MAX_ATTEMPTS):
+        attempts += 1
+        text = prompt_text if attempt == 0 else prompt_text + JUDGE_RETRY_SUFFIX
+        try:
+            raw = await _invoke_judge(judge_llm, text)
+        except Exception as exc:
+            logger.warning("judge call failed for %s: %s", entry.id, exc)
+            raw = ""
+        parsed = _parse_judge_json(raw)
+        if parsed is not None:
+            return parsed, False, attempts
+
+    logger.warning(
+        "judge returned malformed output for %s after %d attempt(s); failing closed",
+        entry.id,
+        attempts,
+    )
+    return {dim: False for dim in JUDGE_DIMENSIONS}, True, attempts
+
+
+@dataclass
+class QuestionResult:
+    """Per-question eval outcome, including verdicts on negative controls."""
+
+    entry_id: str
+    expect_verdict: str
+    is_negative_control: bool
+    marker_recall: bool
+    retrieval_pass: bool
+    groundedness_pass: bool
+    completeness_pass: bool
+    judge_error: bool
+    generated_answer: str
+    knobs_applied: Dict[str, Any]
+
+
+@dataclass
+class EvalReport:
+    """Aggregated eval output for one run over a list of entries."""
+
+    questions: List[QuestionResult]
+    llm_calls: int
+
+    def summary(self) -> Dict[str, Any]:
+        """Collapse the report into a printable/assertable summary dict.
+
+        Pass rates are computed over pass-type entries only; negative
+        controls are reported separately (per-id dimension outcomes) and a
+        negative control scoring "pass" on any judge dimension is flagged
+        as a harness-validity violation, prominently and separately.
+        """
+        dims = ("marker_recall",) + JUDGE_DIMENSIONS
+        pass_type = [q for q in self.questions if not q.is_negative_control]
+        neg_controls = [q for q in self.questions if q.is_negative_control]
+
+        pass_rates: Dict[str, Optional[float]] = {}
+        for dim in dims:
+            if pass_type:
+                hits = sum(1 for q in pass_type if getattr(q, dim))
+                pass_rates[dim] = hits / len(pass_type)
+            else:
+                pass_rates[dim] = None
+
+        negative_controls = {
+            q.entry_id: {dim: getattr(q, dim) for dim in dims} for q in neg_controls
+        }
+        violations = [
+            q.entry_id
+            for q in neg_controls
+            if q.retrieval_pass or q.groundedness_pass or q.completeness_pass
+        ]
+
+        return {
+            "total_questions": len(self.questions),
+            "llm_calls": self.llm_calls,
+            "pass_rates": pass_rates,
+            "negative_controls": negative_controls,
+            "negative_control_violations": violations,
+            "judge_errors": [q.entry_id for q in self.questions if q.judge_error],
+        }
+
+
+async def run_evaluation(
+    entries: List[GoldenEntry],
+    session,
+    *,
+    user_id=None,
+    document_id=None,
+    overrides: Optional[Mapping[str, Any]] = None,
+    judge_temperature: float = 0.0,
+) -> EvalReport:
+    """
+    Run the full generation + judge pipeline over the GIVEN entries.
+
+    The entry list is a parameter (not "load all 30"): callers may pass a
+    subset for sampling/ablation without refactoring this function.
+
+    Per entry:
+      (a) composed retrieval (Step 3 runner) -> chunks
+      (b) generation.generate_answer() on those chunks - the real generation
+          cascade at default temperature 0.3 - this is the 2nd LLM call that
+          single-call eval designs miss; calling it is mandatory, retrieval
+          alone is never judged
+      (c) judge on EVAL_JUDGE_MODEL at temperature=0 with strict JSON
+          parsing (one retry, then fail-closed)
+
+    LLM calls are counted (generation + judge + retries) and returned in the
+    report for budget visibility; no limit is enforced here.
+    """
+    llm_calls = 0
+    judge_llm = generation.get_llm(
+        temperature=judge_temperature,
+        model_name=settings.EVAL_JUDGE_MODEL,
+    )
+
+    questions: List[QuestionResult] = []
+    for entry in entries:
+        retrieval_result = await run_retrieval_for_entry(
+            entry,
+            session,
+            user_id=user_id,
+            document_id=document_id,
+            overrides=overrides,
+        )
+
+        recall = marker_recall_at_k(
+            entry.expected_chunk_markers, retrieval_result.retrieved
+        )
+
+        answer = await generation.generate_answer(
+            entry.question, retrieval_result.retrieved
+        )
+        llm_calls += 1
+
+        dimensions, judge_error, attempts = await _judge_answer(
+            judge_llm, entry, answer, retrieval_result.retrieved
+        )
+        llm_calls += attempts
+
+        questions.append(
+            QuestionResult(
+                entry_id=entry.id,
+                expect_verdict=entry.expect_verdict,
+                is_negative_control=entry.expect_verdict == "fail",
+                marker_recall=recall,
+                retrieval_pass=dimensions["retrieval_pass"],
+                groundedness_pass=dimensions["groundedness_pass"],
+                completeness_pass=dimensions["completeness_pass"],
+                judge_error=judge_error,
+                generated_answer=answer,
+                knobs_applied=dict(overrides or {}),
+            )
+        )
+
+    return EvalReport(questions=questions, llm_calls=llm_calls)
+

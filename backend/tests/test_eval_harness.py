@@ -1,26 +1,34 @@
 """
-DocuMind AI — Evaluation Harness Plumbing Tests (Steps 2-3)
+DocuMind AI Ã¢â‚¬â€ Evaluation Harness Plumbing Tests (Steps 2-5)
 
 Pure plumbing tests: zero LLM calls, zero live DB. The retrieval pipeline
 is mocked at the Stage-1 boundary exactly like test_query_cache.py does,
 so these tests only prove the runner composes the retrieval internals
-directly (never the cache-wrapped entry point) and that knob overrides
-take effect and are always restored afterwards.
+directly (never the cache-wrapped entry point), knob overrides take effect
+and are always restored afterwards, marker recall is deterministic, and
+the generation+judge pipeline is fail-closed with negative controls
+reported separately. The judge LLM is stubbed - no real LLM calls.
 """
 
 import json
+from types import SimpleNamespace
 import uuid
 
 import pytest
 
+import app.services.generation as generation
 import app.services.retrieval as retrieval
+from app.config import get_settings
 from app.services.evaluation import (
     ALLOWED_RETRIEVAL_KNOBS,
     DEFAULT_GOLDEN_FILE,
     EvaluationConfigError,
     GoldenEntry,
+    QuestionResult,
     RetrievalRunResult,
     load_golden_set,
+    marker_recall_at_k,
+    run_evaluation,
     run_retrieval_for_entry,
 )
 
@@ -327,4 +335,290 @@ async def test_knobs_restored_even_when_pipeline_raises(monkeypatch):
             session=BoomDB(),
             overrides={"RRF_K": 999},
         )
-    assert retrieval.RRF_K == original
+    assert retrieval.RRF_K == original# ---------------------------------------------------------------------------
+# Step 4 - marker recall@k (deterministic)
+# ---------------------------------------------------------------------------
+
+
+def _recall_entry(markers, contents):
+    """Marker-recall fixture: chunks built from plain content strings."""
+    chunks = [
+        SimpleNamespace(content=c, score=0.9, chunk_id="x", document_id="d")
+        for c in contents
+    ]
+    return chunks
+
+
+def test_marker_recall_true_on_exact():
+    chunks = _recall_entry(None, ["The cap of $75 applies."])
+    assert marker_recall_at_k(["cap of $75"], chunks) is True
+
+
+def test_marker_recall_case_insensitive():
+    chunks = _recall_entry(None, ["THE CAP OF $75 IS FINAL."])
+    assert marker_recall_at_k(["cap of $75"], chunks) is True
+
+
+def test_marker_recall_miss_returns_false():
+    chunks = _recall_entry(None, ["Unrelated content here."])
+    assert marker_recall_at_k(["cap of $75"], chunks) is False
+
+
+def test_marker_recall_any_marker_matches():
+    chunks = _recall_entry(None, ["The chips are nice.", "second marker inside"])
+    assert marker_recall_at_k(["one marker", "second marker"], chunks) is True
+
+
+def test_marker_recall_uses_retrieval_order():
+    chunks = _recall_entry(None, ["warm-up text", "needle buried in later chunk"])
+    assert marker_recall_at_k(["needle"], chunks) is True
+
+
+def test_marker_recall_empty_marker_list_never_hits():
+    chunks = _recall_entry(None, ["anything"])
+    assert marker_recall_at_k([], chunks) is False
+
+
+# ---------------------------------------------------------------------------
+# Step 5 - judge pipeline (stubbed LLMs; no network in the default suite)
+# ---------------------------------------------------------------------------
+
+
+class FakeJudgeLLM:
+    """Scripted judge: returns queued responses in order, last one repeats."""
+
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+
+    async def ainvoke(self, messages):
+        self.calls += 1
+        idx = min(self.calls - 1, len(self.responses) - 1)
+        return SimpleNamespace(content=self.responses[idx])
+
+
+class RaisingJudge:
+    """Judge whose provider is down: every call raises."""
+
+    async def ainvoke(self, messages):
+        raise RuntimeError("provider down")
+
+
+def _stub_stages(monkeypatch, chunks):
+    """Stub Stage-1 retrieval to deterministic chunks + stubbed generation."""
+    spy = StageSpy(chunks)
+    monkeypatch.setattr(retrieval, "_retrieve_vector_candidates", spy.vector)
+    monkeypatch.setattr(retrieval, "_retrieve_lexical_candidates", spy.lexical)
+
+    generated = []
+
+    async def fake_generate(query, chunks):
+        generated.append(query)
+        return "The meal cap is $75."
+
+    monkeypatch.setattr(generation, "generate_answer", fake_generate)
+    return spy, generated
+
+
+def _stub_judge(monkeypatch, judge):
+    monkeypatch.setattr(generation, "get_llm", lambda **kwargs: judge)
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_success_path(monkeypatch):
+    chunks = [FakeChunk("The cap of $75 applies.")]
+    spy, generated = _stub_stages(monkeypatch, chunks)
+    judge = FakeJudgeLLM([
+        '{"retrieval_pass": true, "groundedness_pass": true, '
+        '"completeness_pass": true}'
+    ])
+    _stub_judge(monkeypatch, judge)
+
+    entry = GoldenEntry(**_entry())
+    report = await run_evaluation([entry], session=BoomDB(), user_id=uuid.uuid4())
+
+    q = report.questions[0]
+    assert isinstance(q, QuestionResult)
+    assert q.entry_id == entry.id
+    assert q.marker_recall is True
+    assert q.retrieval_pass is True
+    assert q.groundedness_pass is True
+    assert q.completeness_pass is True
+    assert q.judge_error is False
+    assert generated == [entry.question]
+    assert report.llm_calls == 2  # 1 generation + 1 judge attempt
+
+    summary = report.summary()
+    assert summary["pass_rates"]["marker_recall"] == 1.0
+    assert summary["pass_rates"]["retrieval_pass"] == 1.0
+    assert summary["negative_controls"] == {}
+    assert summary["negative_control_violations"] == []
+    assert summary["judge_errors"] == []
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_judge_retries_on_malformed_then_parses(monkeypatch):
+    chunks = [FakeChunk("The cap of $75 applies.")]
+    _stub_stages(monkeypatch, chunks)
+    judge = FakeJudgeLLM([
+        "this is prose, not json",
+        '{"retrieval_pass": false, "groundedness_pass": true, '
+        '"completeness_pass": false}',
+    ])
+    _stub_judge(monkeypatch, judge)
+
+    report = await run_evaluation(
+        [GoldenEntry(**_entry())], session=BoomDB(), user_id=uuid.uuid4()
+    )
+
+    q = report.questions[0]
+    assert q.retrieval_pass is False
+    assert q.groundedness_pass is True
+    assert q.completeness_pass is False
+    assert q.judge_error is False
+    assert judge.calls == 2
+    assert report.llm_calls == 3  # generation + 2 judge attempts
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_fails_closed_on_malformed_twice(monkeypatch):
+    chunks = [FakeChunk("The cap of $75 applies.")]
+    _stub_stages(monkeypatch, chunks)
+    judge = FakeJudgeLLM(["not json at all", "still not json"])
+    _stub_judge(monkeypatch, judge)
+
+    entry = GoldenEntry(**_entry())
+    report = await run_evaluation([entry], session=BoomDB(), user_id=uuid.uuid4())
+
+    q = report.questions[0]
+    assert q.retrieval_pass is False
+    assert q.groundedness_pass is False
+    assert q.completeness_pass is False
+    assert q.judge_error is True
+    assert judge.calls == 2
+    assert report.llm_calls == 3
+
+    summary = report.summary()
+    assert summary["judge_errors"] == [entry.id]
+    assert summary["pass_rates"]["retrieval_pass"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_fails_closed_when_judge_call_raises(monkeypatch):
+    chunks = [FakeChunk("The cap of $75 applies.")]
+    _stub_stages(monkeypatch, chunks)
+    _stub_judge(monkeypatch, RaisingJudge())
+
+    report = await run_evaluation(
+        [GoldenEntry(**_entry())], session=BoomDB(), user_id=uuid.uuid4()
+    )
+
+    q = report.questions[0]
+    assert q.retrieval_pass is False
+    assert q.groundedness_pass is False
+    assert q.completeness_pass is False
+    assert q.judge_error is True
+    assert report.llm_calls == 3  # generation + 2 judge attempts, both raising
+
+
+@pytest.mark.asyncio
+async def test_negative_control_scoring_pass_is_flagged_as_violation(monkeypatch):
+    chunks = [FakeChunk("The cap of $75 applies.")]
+    _stub_stages(monkeypatch, chunks)
+    # A "contaminated" judge that passes everything, including the negative
+    # control whose fabricated facts are absent from the corpus. This is the
+    # failure mode the harness must flag prominently, never count as pass.
+    judge = FakeJudgeLLM([
+        '{"retrieval_pass": true, "groundedness_pass": true, '
+        '"completeness_pass": true}'
+    ])
+    _stub_judge(monkeypatch, judge)
+
+    pass_entry = GoldenEntry(**_entry())
+    neg_entry = GoldenEntry(**_entry(
+        id="NEG-3",
+        expect_verdict="fail",
+        expected_chunk_markers=["fabricated quarterly figure"],
+        answer_facts=["the fabricated quarterly figure"],
+    ))
+    report = await run_evaluation(
+        [pass_entry, neg_entry], session=BoomDB(), user_id=uuid.uuid4()
+    )
+
+    summary = report.summary()
+    assert summary["negative_control_violations"] == [neg_entry.id]
+    assert summary["negative_controls"][neg_entry.id]["retrieval_pass"] is True
+    assert summary["negative_controls"][neg_entry.id]["marker_recall"] is False
+    # Pass-type rates exclude the control: only the single pass entry counts.
+    assert summary["pass_rates"]["retrieval_pass"] == 1.0
+    assert sum(1 for q in report.questions if not q.is_negative_control) == 1
+
+
+@pytest.mark.asyncio
+async def test_negative_control_only_run_reports_separately(monkeypatch):
+    chunks = [FakeChunk("This corpus contains no fabricated facts.")]
+    _stub_stages(monkeypatch, chunks)
+    judge = FakeJudgeLLM([
+        '{"retrieval_pass": false, "groundedness_pass": false, '
+        '"completeness_pass": false}'
+    ])
+    _stub_judge(monkeypatch, judge)
+
+    neg_entry = GoldenEntry(**_entry(id="NEG-002", expect_verdict="fail"))
+    report = await run_evaluation(
+        [neg_entry], session=BoomDB(), user_id=uuid.uuid4()
+    )
+
+    summary = report.summary()
+    assert summary["negative_controls"]["NEG-002"]["retrieval_pass"] is False
+    assert summary["negative_control_violations"] == []
+    # No pass-type entries -> rates are None, not a distorted zero.
+    assert summary["pass_rates"]["retrieval_pass"] is None
+
+
+# ---------------------------------------------------------------------------
+# Prerequisite - get_llm temperature/model pinning (no network in tests)
+# ---------------------------------------------------------------------------
+
+
+def test_get_llm_default_temperature_is_unchanged(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    llm = generation.get_llm()
+    assert hasattr(llm, "runnable")  # cascade wrapper
+    assert llm.runnable.temperature == 0.3
+    assert all(fb.temperature == 0.3 for fb in llm.fallbacks)
+
+
+def test_get_llm_temperature_override_applied_everywhere(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    llm = generation.get_llm(temperature=0.7)
+    assert llm.runnable.temperature == 0.7
+    assert all(fb.temperature == 0.7 for fb in llm.fallbacks)
+
+
+def test_get_llm_pinned_model_bypasses_cascade(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    pinned = generation.get_llm(
+        temperature=0.0, model_name=get_settings().EVAL_JUDGE_MODEL
+    )
+    # ChatGroq normalizes temperature 0 to ~1e-8 at construction time.
+    assert pinned.temperature == pytest.approx(0.0, abs=1e-7)
+    assert pinned.model_name == get_settings().EVAL_JUDGE_MODEL
+    assert not hasattr(pinned, "runnable")  # single model, no fallbacks
+
+
+def test_get_llm_pinned_requires_groq_key(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    class GeminiOnlySettings:
+        GROQ_API_KEY = None
+        GEMINI_API_KEY = "gemini-test"
+
+    # Pin the module-level settings so real .env keys can't leak in.
+    monkeypatch.setattr(generation, "settings", GeminiOnlySettings())
+
+    with pytest.raises(RuntimeError, match="GROQ_API_KEY is required"):
+        generation.get_llm(temperature=0.0, model_name="qwen3-32b")
+
+

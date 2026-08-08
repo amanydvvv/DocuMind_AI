@@ -35,7 +35,7 @@ def build_token_budgeted_history(messages: List[Message]) -> List[Message]:
     return selected
 
 
-def get_llm():
+def get_llm(temperature: float = 0.3, model_name: Optional[str] = None):
     """
     Build a resilient LLM with a fallback cascade:
       1. Groq  llama-3.1-8b-instant   (fast, low-latency — primary)
@@ -45,6 +45,12 @@ def get_llm():
 
     If any model returns a 503, 429, or any other error, LangChain's
     with_fallbacks() automatically tries the next one in the chain.
+
+    `temperature` (default 0.3) is applied to every model in the cascade.
+    `model_name`, when provided, bypasses the cascade entirely and returns a
+    single ChatGroq instance pinned to that model — used by the eval harness
+    judge, which must grade on its own model (EVAL_JUDGE_MODEL) at
+    temperature=0 rather than the generation cascade.
     """
     groq_key = os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY
     gemini_key = os.getenv("GEMINI_API_KEY") or settings.GEMINI_API_KEY
@@ -55,6 +61,18 @@ def get_llm():
             "At least one LLM provider key is required for chat generation."
         )
 
+    if model_name is not None:
+        if not groq_key:
+            raise RuntimeError(
+                "GROQ_API_KEY is required when an explicit model_name is requested."
+            )
+        return ChatGroq(
+            api_key=groq_key,
+            model_name=model_name,
+            temperature=temperature,
+            max_retries=1,
+        )
+
     fallbacks = []
 
     # --- Primary: Groq llama-3.1-8b-instant ---
@@ -63,7 +81,7 @@ def get_llm():
         primary = ChatGroq(
             api_key=groq_key,
             model_name="llama-3.1-8b-instant",
-            temperature=0.3,
+            temperature=temperature,
             max_retries=1,  # one retry with backoff before cascading
         )
 
@@ -71,7 +89,7 @@ def get_llm():
         fallbacks.append(ChatGroq(
             api_key=groq_key,
             model_name="llama-3.3-70b-versatile",
-            temperature=0.3,
+            temperature=temperature,
             max_retries=0,
         ))
 
@@ -79,7 +97,7 @@ def get_llm():
         fallbacks.append(ChatGroq(
             api_key=groq_key,
             model_name="qwen3-32b",
-            temperature=0.3,
+            temperature=temperature,
             max_retries=0,
         ))
 
@@ -88,7 +106,7 @@ def get_llm():
         gemini_fallback = ChatGoogleGenerativeAI(
             model="gemini-1.5-flash",
             google_api_key=gemini_key,
-            temperature=0.3,
+            temperature=temperature,
             max_output_tokens=1024,
         )
         if primary is None:

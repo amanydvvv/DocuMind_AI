@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_DIMENSION: int = 768
     GENERATIVE_MODEL: str = "llama-3.1-8b-instant"
+    # Judge model for the eval harness. Deliberately a different family from
+    # the primary generation model so an answer is never graded by the same
+    # model that produced it (avoids same-model self-grading bias).
+    EVAL_JUDGE_MODEL: str = "qwen3-32b"
     # Groq vision model used for OCR fallback on scanned (image-only) PDF pages.
     # Default tracks Groq's current vision-capable model.
     VISION_MODEL: str = "qwen/qwen3.6-27b"
