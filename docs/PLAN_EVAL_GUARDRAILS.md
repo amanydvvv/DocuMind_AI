@@ -162,6 +162,46 @@ Contract invariants: citations shape / SSE event sequence (metadata → tokens �
 
 ---
 
+## Phase 2 closed — regression-gate verification (Step 2.6)
+
+Gate run: `scripts/run_eval.py --seed && --run` (full 32 entries, post-guardrail
+code) then `--diff baseline.json eval_20260808_235555.json` (2026-08-08).
+
+**Verdict: pass — zero regressions, entry-level identical to baseline.**
+
+| dimension | baseline | post-guardrail | delta |
+|---|---|---|---|
+| marker_recall | 81.2% | 81.2% | 0.0% |
+| retrieval_pass | 78.1% | 78.1% | 0.0% |
+| groundedness_pass | 96.9% | 96.9% | 0.0% |
+| completeness_pass | 90.6% | 90.6% | 0.0% |
+
+- Shared entries 32/32; **zero per-entry flag changes** across all four
+  dimensions (including the three known misses EVAL-014/016/024 — same rows
+  in both runs).
+- Negative controls NEG-001/002/003: fabricated info not retrievable in both
+  runs (marker_recall/retrieval_pass False) — **zero violations**; groundedness
+  True on controls is the honest-refusal path, not a validity hit
+  (evaluation.py violations semantics).
+- Groundedness-stress EVAL-028/029: identical decline pattern (marker True →
+  retrieval False → groundedness True), same in both runs.
+- No judge errors, same models (generation + judge) and retrieval constants
+  in both headers.
+
+**Why a guardrail false positive cannot explain any future delta:** the harness
+invokes `app.services.retrieval` / `generation` / `evaluation` **directly** —
+guardrails exist only in `app/routers/chat.py` (verified by import search), so
+`sanitize_pii` / `is_injection` / `validate_output` never touch golden
+questions or their answers. Any future per-entry difference on this gate is
+retrieval re-ranking or judge LLM noise, not guardrail interference.
+
+Part 2 is complete and closed: Steps 1-4 (rules, routing wiring, tests — 63
+cases in `backend/tests/test_guardrails.py`, full suite 153 passed) plus this
+regression gate (Step 5). Step 6 (checklist + STUDY_GUIDE hook) covered by
+`docs/PROJECT_CHECKLIST.md` (Part 2 fully marked done).
+
+---
+
 ## Risks
 
 - Judge flakiness → temperature-0, strict parsing, retry-once, recall co-arbiter.
