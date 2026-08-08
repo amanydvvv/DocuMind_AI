@@ -1,181 +1,166 @@
-# DocuMind AI: Frontend API Contract & SSE Streaming
+# DocuMind AI: Frontend API Contract
 
-This document defines the contract for communicating with the DocuMind AI backend for chat and RAG (Retrieval-Augmented Generation) queries. It outlines the request payloads and the Server-Sent Events (SSE) streaming format.
+This document outlines the exact request and response schemas for the RAG Chat API endpoints, ensuring synchronization between the frontend consumption and backend emission of data.
 
-## 1. Request Format
+## 1. Standard Chat Endpoint
 
-**Endpoint:** `POST /api/chat/stream` (and `POST /api/chat`)
+**Endpoint:** `POST /api/chat`
 **Content-Type:** `application/json`
 
-Both the streaming and non-streaming endpoints expect the same `ChatRequest` payload.
+This endpoint returns a complete, non-streaming response.
 
 ### Request Body Schema
-
-```typescript
-interface ChatRequest {
-  // The user's question (required). Min length 1, Max length 2000.
-  question: string;
-  
-  // Optional UUID. If provided, restricts the search to this specific document.
-  document_id?: string; 
-  
-  // Optional UUID. The current conversation context.
-  // If omitted, a new conversation is implicitly started (and its ID is returned in metadata).
-  conversation_id?: string;
-  
-  // Number of document chunks to retrieve (default: 5, range: 1-20).
-  top_k?: number; 
+```json
+{
+  "question": "string (min: 1, max: 2000)",
+  "document_id": "uuid (optional) - Scope search to a specific document",
+  "conversation_id": "uuid (optional) - Continue an existing conversation",
+  "top_k": "integer (optional, default: 5, min: 1, max: 20) - Number of chunks to retrieve"
 }
 ```
 
-## 2. Server-Sent Events (SSE) Streaming Format
-
-**Endpoint:** `POST /api/chat/stream`
-**Accept:** `text/event-stream`
-
-The backend streams the response using the SSE protocol. Each chunk is a standard SSE message containing an `event` type and a `data` JSON payload, separated by `\n\n`.
-
-### Event Types
-
-The backend yields the following event types in order:
-
-#### A. `event: metadata`
-Sent exactly once, at the very beginning of the stream. It provides the conversation context and citations retrieved before generation begins.
-
+### Response Body Schema
 ```json
-event: metadata
-data: {
-  "conversation_id": "uuid-string",
+{
+  "answer": "string",
   "citations": [
     {
-      "chunk_id": "uuid-string",
-      "document_id": "uuid-string",
-      "filename": "document.pdf",
-      "section": "Optional string",
-      "page_number": 42,
-      "score": 0.85,
-      "content_preview": "Snippet of text...",
-      "source": "text" // or "ocr"
+      "chunk_id": "uuid",
+      "document_id": "uuid",
+      "filename": "string",
+      "section": "string (optional)",
+      "page_number": "integer (optional)",
+      "score": "float",
+      "content_preview": "string",
+      "source": "string (optional, e.g., 'text', 'ocr')"
     }
   ],
-  "avg_similarity": 0.85
+  "conversation_id": "uuid",
+  "latency_ms": "integer",
+  "avg_similarity": "float"
 }
 ```
 
-#### B. `event: token`
-Sent multiple times. Each event contains a piece of the generated answer. The frontend should concatenate `delta` strings to build the full answer in real-time.
+---
 
+## 2. Streaming Chat Endpoint (Server-Sent Events)
+
+**Endpoint:** `POST /api/chat/stream`
+**Content-Type:** `application/json`
+**Response-Type:** `text/event-stream`
+
+This endpoint streams the LLM response chunk by chunk using Server-Sent Events (SSE).
+
+### Request Body Schema
+Same as `/api/chat`.
 ```json
-event: token
-data: {"delta": "The answer is"}
-
-event: token
-data: {"delta": " 42."}
+{
+  "question": "string (min: 1, max: 2000)",
+  "document_id": "uuid (optional)",
+  "conversation_id": "uuid (optional)",
+  "top_k": "integer (optional, default: 5)"
+}
 ```
 
-#### C. `event: done`
-Sent exactly once, at the very end of a successful stream. Indicates the backend has finished generation and persisted the messages to the database.
+### SSE Event Schemas
 
-```json
+The streaming response yields discrete events separated by `\n\n`. Each event has an `event` type and a JSON `data` payload.
+
+#### A. Metadata Event (`event: metadata`)
+Emitted exactly **once** at the start of the stream. Contains the conversation ID and citations found.
+```text
+event: metadata
+data: {"conversation_id": "uuid", "citations": [{"chunk_id": "uuid", "document_id": "uuid", "filename": "string", "page_number": 1, "score": 0.85, "content_preview": "...", "source": "text"}], "avg_similarity": 0.85}
+```
+
+#### B. Token Event (`event: token`)
+Emitted **multiple times** as the LLM generates tokens.
+```text
+event: token
+data: {"delta": "Hello"}
+```
+*(The frontend should concatenate all `delta` values to form the complete answer.)*
+
+#### C. Done Event (`event: done`)
+Emitted exactly **once** when the generation successfully finishes.
+```text
 event: done
 data: {"latency_ms": 1250}
 ```
 
-#### D. `event: error`
-Sent if an internal error occurs during generation. The stream will terminate immediately after.
-
-```json
+#### D. Error Event (`event: error`)
+Emitted if an exception occurs during generation. The stream will close immediately after.
+```text
 event: error
 data: {"detail": "An internal error occurred during generation."}
 ```
 
-## 3. Reference Consumption Snippet (TypeScript)
+### Frontend Consumption Example (TypeScript)
 
-The following snippet demonstrates how a frontend client (like React) should correctly fetch and parse the SSE stream using the native `fetch` API and `ReadableStream`.
+The frontend must manually handle the `fetch` request and parse the SSE stream (e.g., using `@microsoft/fetch-event-source` or manual reader).
 
 ```typescript
-export async function sendChatMessageStream(
-  request: ChatRequest,
-  callbacks: {
-    onMetadata?: (data: { conversation_id: string; citations: any[]; avg_similarity: number }) => void;
-    onToken?: (delta: string) => void;
-    onDone?: (data: { latency_ms: number }) => void;
-    onError?: (error: string) => void;
+async function fetchChatStream(question: string) {
+  const response = await fetch('/api/chat/stream', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}` // If applicable
+    },
+    body: JSON.stringify({ question })
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
-) {
-  try {
-    const response = await fetch('/api/chat/stream', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // 'Authorization': `Bearer ${token}` // if applicable
-      },
-      body: JSON.stringify(request),
-    });
 
-    if (!response.ok) {
-      let errorMsg = 'Chat request failed';
-      try {
-        const errorData = await response.json();
-        errorMsg = errorData.detail || errorMsg;
-      } catch {}
-      if (callbacks.onError) callbacks.onError(errorMsg);
-      return;
-    }
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
 
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      // Decode the current chunk and append to our buffer
-      buffer += decoder.decode(value, { stream: true });
+  while (true) {
+    const { value, done } = await reader!.read();
+    if (done) break;
+    
+    buffer += decoder.decode(value, { stream: true });
+    
+    // Process full SSE messages separated by \n\n
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop() || ''; // keep incomplete chunk in buffer
+    
+    for (const part of parts) {
+      if (!part.trim()) continue;
       
-      // Split the buffer by double newlines (SSE message separator)
-      const blocks = buffer.split('\n\n');
+      const lines = part.split('\n');
+      let eventType = 'message';
+      let data = '';
       
-      // The last block might be incomplete, keep it in the buffer
-      buffer = blocks.pop() || '';
-
-      for (const block of blocks) {
-        if (!block.trim()) continue;
-
-        const lines = block.split('\n');
-        let currentEvent = 'message';
-        let currentData = '';
-
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.replace('event: ', '').trim();
-          } else if (line.startsWith('data: ')) {
-            currentData = line.replace('data: ', '').trim();
-          }
-        }
-
-        if (currentData) {
-          try {
-            const parsed = JSON.parse(currentData);
-            
-            if (currentEvent === 'metadata' && callbacks.onMetadata) {
-              callbacks.onMetadata(parsed);
-            } else if (currentEvent === 'token' && callbacks.onToken) {
-              callbacks.onToken(parsed.delta);
-            } else if (currentEvent === 'done' && callbacks.onDone) {
-              callbacks.onDone(parsed);
-            } else if (currentEvent === 'error' && callbacks.onError) {
-              callbacks.onError(parsed.detail || 'Stream error');
-            }
-          } catch (e) {
-            console.error('Failed to parse SSE payload:', currentData, e);
-          }
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          eventType = line.replace('event: ', '').trim();
+        } else if (line.startsWith('data: ')) {
+          data = line.replace('data: ', '').trim();
         }
       }
+      
+      const parsedData = JSON.parse(data);
+      
+      switch (eventType) {
+        case 'metadata':
+          console.log('Got citations:', parsedData.citations);
+          console.log('Conversation ID:', parsedData.conversation_id);
+          break;
+        case 'token':
+          process.stdout.write(parsedData.delta); // append token to UI
+          break;
+        case 'done':
+          console.log('\nFinished in ms:', parsedData.latency_ms);
+          break;
+        case 'error':
+          console.error('Stream error:', parsedData.detail);
+          break;
+      }
     }
-  } catch (err) {
-    if (callbacks.onError) callbacks.onError((err as Error).message);
   }
 }
 ```
