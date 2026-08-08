@@ -29,6 +29,11 @@ RRF_K = 60              # Reciprocal Rank Fusion smoothing constant (higher = mo
 RRF_FUSED_TOP_K = 10    # Top candidates surviving RRF rank fusion into Stage 2
 FINAL_TOP_K = 5         # Final re-ranked candidates passed to generation.py
 
+# Stage 2 re-ranker blend weights (normalized feature combination)
+WEIGHT_VECTOR_NORM = 0.50  # normalized pgvector dense score
+WEIGHT_LEXICAL_NORM = 0.30  # normalized FTS lexical rank
+WEIGHT_PHRASE_NORM = 0.20  # normalized phrase-coverage score
+
 # Initialize embedding model
 embeddings = GoogleGenerativeAIEmbeddings(
     model=f"models/{settings.EMBEDDING_MODEL}",
@@ -297,7 +302,10 @@ def _phrase_coverage_rerank(
         chunk = item["chunk"]
         # Combined Min-Max Normalized Re-Rank Score across 3 independent signals
         final_score = round(
-            (0.50 * norm_vecs[i]) + (0.30 * norm_lexs[i]) + (0.20 * norm_phrases[i]), 4
+            (WEIGHT_VECTOR_NORM * norm_vecs[i])
+            + (WEIGHT_LEXICAL_NORM * norm_lexs[i])
+            + (WEIGHT_PHRASE_NORM * norm_phrases[i]),
+            4,
         )
         reranked.append((chunk, final_score))
 
