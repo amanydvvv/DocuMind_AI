@@ -622,3 +622,61 @@ def test_get_llm_pinned_requires_groq_key(monkeypatch):
         generation.get_llm(temperature=0.0, model_name="qwen3-32b")
 
 
+
+
+# ---------------------------------------------------------------------------
+# Step 5 - negative-control violation semantics (fabrication-leak check)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_control_with_grounded_completeness_pass_is_not_a_violation(monkeypatch):
+    """An honest-refusal answer is legitimately grounded in unrelated context:
+    groundedness/completeness True on a control must NOT trip a violation;
+    only retrievable fabricated info (marker_recall/retrieval_pass) does."""
+    chunks = [FakeChunk("The corpus says full-time staff accrue 25 days of PTO.")]
+    _stub_stages(monkeypatch, chunks)
+    judge = FakeJudgeLLM([
+        '{"retrieval_pass": false, "groundedness_pass": true, '
+        '"completeness_pass": true}'
+    ])
+    _stub_judge(monkeypatch, judge)
+
+    neg_entry = GoldenEntry(**_entry(
+        id="NEG-004",
+        expect_verdict="fail",
+        expected_chunk_markers=["contractors receive 40 days of leave"],
+        answer_facts=["contractors accrue 40 days of PTO"],
+    ))
+    report = await run_evaluation([neg_entry], session=BoomDB(), user_id=uuid.uuid4())
+
+    summary = report.summary()
+    assert summary["negative_controls"]["NEG-004"]["groundedness_pass"] is True
+    assert summary["negative_controls"]["NEG-004"]["completeness_pass"] is True
+    assert summary["negative_control_violations"] == []
+    assert summary["pass_rates"]["retrieval_pass"] is None
+
+
+@pytest.mark.asyncio
+async def test_control_with_retrievable_marker_is_a_violation(monkeypatch):
+    """The real validity failure: fabricated marker shows up in retrieved text."""
+    chunks = [FakeChunk("The contractors receive 40 days of leave per the policy.")]
+    _stub_stages(monkeypatch, chunks)
+    judge = FakeJudgeLLM([
+        '{"retrieval_pass": true, "groundedness_pass": true, '
+        '"completeness_pass": true}'
+    ])
+    _stub_judge(monkeypatch, judge)
+
+    neg_entry = GoldenEntry(**_entry(
+        id="NEG-005",
+        expect_verdict="fail",
+        expected_chunk_markers=["contractors receive 40 days of leave"],
+        answer_facts=["contractors accrue 40 days of PTO"],
+    ))
+    report = await run_evaluation([neg_entry], session=BoomDB(), user_id=uuid.uuid4())
+
+    summary = report.summary()
+    assert summary["negative_control_violations"] == ["NEG-005"]
+    assert summary["negative_controls"]["NEG-005"]["marker_recall"] is True
+

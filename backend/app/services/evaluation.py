@@ -461,8 +461,9 @@ class EvalReport:
 
         Pass rates are computed over pass-type entries only; negative
         controls are reported separately (per-id dimension outcomes) and a
-        negative control scoring "pass" on any judge dimension is flagged
-        as a harness-validity violation, prominently and separately.
+        control is flagged as a harness-validity violation only when its
+        fabricated info is retrievable (marker_recall or retrieval_pass) -
+        see the violations computation below for the groundedness nuance.
         """
         dims = ("marker_recall",) + JUDGE_DIMENSIONS
         pass_type = [q for q in self.questions if not q.is_negative_control]
@@ -479,10 +480,16 @@ class EvalReport:
         negative_controls = {
             q.entry_id: {dim: getattr(q, dim) for dim in dims} for q in neg_controls
         }
+        # A control is only ever "passed" by the harness when its FABRICATED
+        # information is actually retrievable (marker_recall or retrieval_pass
+        # True). groundedness/completeness on a control are informational: an
+        # answer that honestly refuses to confirm the fabricated facts is
+        # legitimately grounded in the unrelated context the retriever found,
+        # so a True there is not a validity problem and must not trip exit 2.
         violations = [
             q.entry_id
             for q in neg_controls
-            if q.retrieval_pass or q.groundedness_pass or q.completeness_pass
+            if q.marker_recall or q.retrieval_pass
         ]
 
         return {
