@@ -15,7 +15,7 @@ Eval harness first (baseline), guardrails second (regression check against basel
 
 ### 1.1 Scope
 
-- Golden dataset (30 Q/A pairs, incl. 3 negative controls) + runnable harness scoring each RAG run on **retrieval relevance**, **groundedness**, **completeness** — binary pass/fail per dimension, plus a deterministic marker-recall@k check as a non-flaky arbiter.
+- Golden dataset (32 Q/A pairs, incl. 3 negative controls) + runnable harness scoring each RAG run on **retrieval relevance**, **groundedness**, **completeness** — binary pass/fail per dimension, plus a deterministic marker-recall@k check as a non-flaky arbiter.
 - Two run modes:
   - **Full mode (default, baseline/final):** retrieval + answer generation + judge — 2 real LLM calls per question.
   - **`--retrieval-only`:** retrieval + judge on retrieval relevance only — for fast dev iteration.
@@ -61,7 +61,7 @@ golden_set.json
   7. --diff a b → per-dimension pass-rate delta + regression count
 ```
 
-- **Call budget (explicit):** full 30-entry run = 30 generation + 30 judge = **60 calls**, worst case +30 (one retry per entry on malformed judge JSON) = **≤90 calls**. `--sample N` = ≤ 2N+2N calls (dev iter). Against Groq free tier (order of magnitude: `llama-3.1-8b-instant` ~30 RPM / 14,400 RPD; `qwen3-32b` ~30-60 RPM / 1,000 RPD; org-level limits — verify on dashboard), a full run fits comfortably within one free-tier day. Full-30 runs are for baseline/final results only; `--sample 5-10` for iteration.
+- **Call budget (explicit):** full 32-entry run = 32 generation + 32 judge = **64 calls**, worst case +32 (one retry per entry on malformed judge JSON) = **≤96 calls**. `--sample N` = ≤ 2N+2N calls (dev iter). Against Groq free tier (order of magnitude: `llama-3.1-8b-instant` ~30 RPM / 14,400 RPD; `qwen3-32b` ~30-60 RPM / 1,000 RPD; org-level limits — verify on dashboard), a full run fits comfortably within one free-tier day. Full-32 runs are for baseline/final results only; `--sample 5-10` for iteration.
 
 ### 1.4 Judge model — verification
 
@@ -90,13 +90,17 @@ In-process patchables (retrieval-time): `retrieval.RRF_K`, `VECTOR_TOP_N`, `LEXI
 
 | # | Step | Effort |
 |---|---|---|
-| 1 | Author eval corpus + 30 golden pairs (incl. 3 negative controls) | L |
+| 1 | Author eval corpus + 32 golden pairs (incl. 3 negative controls) | L |
 | 2 | `evaluation.py`: schema/validator | S |
 | 3 | Runner: retrieval composition, cache-bypass, knob overrides | M |
 | 4 | Marker recall@k | S |
 | 5 | Generation pass + judge (prompt, strict parse+retry, aggregation) | M |
 | 6 | CLI + results archive + `--diff` | M |
 | 7 | Plumbing tests (no LLM/DB) + baseline archival | M |
+
+### 1.9 Groundedness coverage — known open gap
+
+The harness has verified the judge correctly scores `retrieval_pass=False` when a fact is absent from the corpus (EVAL-028/029, grounded-decline), but has not yet observed or tested a case where the model hallucinates a specific fabricated value and whether the judge catches it as ungrounded — a known open gap, not a hidden one.
 
 ---
 

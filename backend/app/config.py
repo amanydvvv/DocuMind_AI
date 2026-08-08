@@ -55,6 +55,15 @@ class Settings(BaseSettings):
     CHUNK_OVERLAP: int = 200
     TOP_K: int = 5
 
+    # Guardrails (plan v3, Part 2)
+    # GUARDRAILS_ENABLED is the master kill switch for all input/output
+    # guardrail rules (PII sanitization, injection block, output checks).
+    # GUARDRAILS_STRICT additionally enables obfuscation-pattern detection
+    # (base64-looking runs, unusual unicode) — off by default because it
+    # trades false positives for extra coverage.
+    GUARDRAILS_ENABLED: bool = True
+    GUARDRAILS_STRICT: bool = False
+
     # Retrieval Cache
     # TTL for cached (user_id, normalized_query) retrieval results.
     CACHE_TTL_SECONDS: int = 600
