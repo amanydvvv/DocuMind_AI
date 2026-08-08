@@ -321,6 +321,7 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
                 document_id=doc.id,
                 chunk_index=data["index"],
                 content=data["text"],
+                page_number=data["metadata"].get("page_number"),
                 metadata_=data["metadata"],
                 embedding=_normalize_embedding(vector, settings.EMBEDDING_DIMENSION),
                 token_count=len(data["text"]) // 4  # Rough token estimation

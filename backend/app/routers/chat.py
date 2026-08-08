@@ -144,7 +144,11 @@ async def chat(
         citations = []
         similarity_scores = []
         for chunk, score, filename in retrieved_items:
-            page_num = chunk.metadata_.get("page_number", None) if chunk.metadata_ else None
+            page_num = (
+            chunk.page_number
+            if chunk.page_number is not None
+            else (chunk.metadata_.get("page_number", None) if chunk.metadata_ else None)
+        )
             source = chunk.metadata_.get("source", None) if chunk.metadata_ else None
             similarity_scores.append(score)
             citations.append(
@@ -316,7 +320,11 @@ async def chat_stream(
     citations = []
     similarity_scores = []
     for chunk, score, filename in retrieved_items:
-        page_num = chunk.metadata_.get("page_number", None) if chunk.metadata_ else None
+        page_num = (
+            chunk.page_number
+            if chunk.page_number is not None
+            else (chunk.metadata_.get("page_number", None) if chunk.metadata_ else None)
+        )
         source = chunk.metadata_.get("source", None) if chunk.metadata_ else None
         similarity_scores.append(score)
         citations.append(
@@ -344,6 +352,7 @@ async def chat_stream(
 
     citation_dicts = [
         {
+            "id": str(c.chunk_id),
             "chunk_id": str(c.chunk_id),
             "document_id": str(c.document_id),
             "filename": c.filename,
