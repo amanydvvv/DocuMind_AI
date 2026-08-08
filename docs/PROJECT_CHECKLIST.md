@@ -131,5 +131,12 @@ This is a living execution tracker structured around development phases.
 - **Google's "new project" restriction pattern**: Google sometimes restricts older model generations to existing API keys/projects while removing access for newly created keys. This means `gemini-2.5-flash` may work for one developer's key but 404 for another's, creating intermittent failures that are hard to diagnose without testing against the specific key in use.
 - **The correct safeguard**: Neither pinning nor aliasing alone is sufficient. A startup validation guard that performs an actual `generateContent` smoke-test against the configured model + key is the only reliable way to detect model availability issues before users hit them.
 
-## Planned: Retrieval Eval Harness + I/O Guardrails (NOT STARTED)
-- [ ] **Implementation plan approved**: `docs/PLAN_EVAL_GUARDRAILS.md` (v3) — eval harness first (baseline), guardrails second (regression gate); injection defense **blocks known literal-phrase patterns only — it does not prevent prompt injection in general**.
+## Eval Harness: Retrieval Eval Harness (DONE — Part 1 of plan v3) — I/O Guardrails (NOT STARTED — Part 2)
+- [x] **Implementation plan approved**: `docs/PLAN_EVAL_GUARDRAILS.md` (v3) — eval harness first (baseline), guardrails second (regression gate); injection defense **blocks known literal-phrase patterns only — it does not prevent prompt injection in general**.
+- [x] Author eval corpus + 32 golden pairs (incl. 3 negative controls) — `backend/tests/eval/`
+- [x] Harness: schema/validator, retrieval-composition runner, marker recall@k, generation+judge (strict JSON, retry, fail-closed), aggregation — `backend/app/services/evaluation.py`
+- [x] CLI `--seed / --validate-golden / --run / --sample N / --diff A B` + arched reports — `backend/scripts/run_eval.py`
+- [x] Plumbing tests (`backend/tests/test_eval_harness.py`, `test_eval_cli.py`) + baseline archival (`backend/results/baseline.json`, 32 entries: 89.7% marker recall / 86.2% retrieval / 96.6% groundedness / 89.7% completeness; 0 negative-control violations)
+- [ ] Input guardrails: PII redaction + prompt-injection pattern blocking (sanitized query drives retrieval & LLM only)
+- [ ] Output guardrails: system-prompt-leak + unsafe-content checks; stream-safe handling path
+- [ ] Eval no-regression gate: on-demand harness run vs baseline after guardrail changes

@@ -298,5 +298,25 @@
     "intent": "negative-control",
     "expect_verdict": "fail",
     "notes": "plausible-sounding policy that contradicts the corpus's 25-day rule"
+  },
+  {
+    "id": "EVAL-028",
+    "question": "How many customers are currently on the Vantage plan?",
+    "expected_chunk_markers": ["Vantage plan", "premium SLA"],
+    "answer_facts": ["the number of Vantage customers is not specified in the knowledge base"],
+    "docs": ["eval_corpus.md"],
+    "intent": "groundedness-stress",
+    "expect_verdict": "pass",
+    "notes": "stress: the Vantage support SLA chunk is correctly retrieved, but no customer count exists anywhere in the corpus - a correct answer must decline to guess; inventing the number must fail groundedness"
+  },
+  {
+    "id": "EVAL-029",
+    "question": "What is the exact calendar date of the next disaster recovery drill?",
+    "expected_chunk_markers": ["disaster recovery drills", "48 hours in advance"],
+    "answer_facts": ["the next drill date is not specified in the knowledge base"],
+    "docs": ["eval_corpus.md"],
+    "intent": "groundedness-stress",
+    "expect_verdict": "pass",
+    "notes": "groundedness stress: the drill policy chunk is real (four times a year, 48h advance notice), but no concrete calendar date exists anywhere in the corpus - an answer supplying a date is fabricated; declining is the correct grounded behavior"
   }
 ]

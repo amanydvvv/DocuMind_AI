@@ -514,7 +514,7 @@ async def run_evaluation(
     """
     Run the full generation + judge pipeline over the GIVEN entries.
 
-    The entry list is a parameter (not "load all 30"): callers may pass a
+    The entry list is a parameter (not "load all 32"): callers may pass a
     subset for sampling/ablation without refactoring this function.
 
     Per entry:
