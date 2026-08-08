@@ -1,0 +1,302 @@
+[
+  {
+    "id": "EVAL-001",
+    "question": "How many days of PTO do employees accrue each year?",
+    "expected_chunk_markers": ["accrue 25 days of paid leave", "maximum annual accrual cap is 25 days"],
+    "answer_facts": ["annual PTO accrual is 25 days", "the accrual cap is 25 days"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "numeric fact — exercises FTS number matching"
+  },
+  {
+    "id": "EVAL-002",
+    "question": "What is the cap for meal expenses on business travel?",
+    "expected_chunk_markers": ["cap of $75 per person per evening"],
+    "answer_facts": ["the meal expense cap is $75 per person per evening"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "currency value in prose"
+  },
+  {
+    "id": "EVAL-003",
+    "question": "Which AWS region hosts the primary control plane?",
+    "expected_chunk_markers": ["us-east-1 is the primary region"],
+    "answer_facts": ["the primary region for the control plane is us-east-1"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "proper noun + lookups in platform section"
+  },
+  {
+    "id": "EVAL-004",
+    "question": "What tool runs the batch jobs, and how many times does it retry a failure?",
+    "expected_chunk_markers": ["called Kestrel", "retries failed steps twice"],
+    "answer_facts": ["the orchestrator is named Kestrel", "Kestrel retries each failed step twice"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "two separate facts in one paragraph"
+  },
+  {
+    "id": "EVAL-005",
+    "question": "How long after an incident must the postmortem be delivered?",
+    "expected_chunk_markers": ["blameless postmortem within 3 business days"],
+    "answer_facts": ["a postmortem is required for every incident", "the deadline is 3 business days"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "exact deadline phrase"
+  },
+  {
+    "id": "EVAL-006",
+    "question": "Which identity provider does everyone sign in with?",
+    "expected_chunk_markers": ["OKTA identity provider"],
+    "answer_facts": ["all employees sign in through OKTA"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "vendor noun lookup"
+  },
+  {
+    "id": "EVAL-007",
+    "question": "What is the headcount and where was the company founded?",
+    "expected_chunk_markers": ["founded in 2018", "340 people"],
+    "answer_facts": ["Meridian was founded in 2018", "the company has 340 employees"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "two unconnected facts spanning one paragraph"
+  },
+  {
+    "id": "EVAL-008",
+    "question": "How much is the monthly home-office stipend for remote staff?",
+    "expected_chunk_markers": ["$60 per month home-office stipend"],
+    "answer_facts": ["remote employees receive a $60 per month stipend"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "dollar figure embedded mid-sentence"
+  },
+  {
+    "id": "EVAL-009",
+    "question": "When are production deployments allowed to happen?",
+    "expected_chunk_markers": ["Tuesday and Thursday between 14:00 and 16:00 UTC"],
+    "answer_facts": ["deployments occur on Tuesday and Thursday between 14:00 and 16:00 UTC"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "exact day+time window"
+  },
+  {
+    "id": "EVAL-010",
+    "question": "What is the company mascot called?",
+    "expected_chunk_markers": ["cartoon salamander named Kvothe"],
+    "answer_facts": ["the mascot is a cartoon salamander called Kvothe"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "filler section — tests retrieval of non-product content when asked"
+  },
+  {
+    "id": "EVAL-011",
+    "question": "What RPO and RTO does the control plane promise?",
+    "expected_chunk_markers": ["recovery point objective of 15 minutes", "recovery time objective of 4 hours"],
+    "answer_facts": ["RPO is 15 minutes", "RTO is 4 hours"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "acronym expansion — abbreviations absent from the corpus text"
+  },
+  {
+    "id": "EVAL-012",
+    "question": "How often do machine device keys get replaced?",
+    "expected_chunk_markers": ["rotated automatically every 90 days"],
+    "answer_facts": ["machine keys rotate automatically every 90 days"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "question uses synonyms to differentiate semantic path"
+  },
+  {
+    "id": "EVAL-013",
+    "question": "Will I get paged for a single one-off spike?",
+    "expected_chunk_markers": ["grouped for five minutes before any notification is sent"],
+    "answer_facts": ["alerts are grouped for five minutes before anyone is notified"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "negative phrasing question"
+  },
+  {
+    "id": "EVAL-014",
+    "question": "Which third-party integrations need extra security approval?",
+    "expected_chunk_markers": ["more than 1,000 user records per month"],
+    "answer_facts": ["integrations handling over 1,000 user records per month require the standing review"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "synonym of 'processes' with a threshold"
+  },
+  {
+    "id": "EVAL-015",
+    "question": "How quickly must the on-call engineer acknowledge a page?",
+    "expected_chunk_markers": ["acknowledge a page within 5 minutes"],
+    "answer_facts": ["the on-call engineer must ack a page within 5 minutes"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "near-verbatim match"
+  },
+  {
+    "id": "EVAL-016",
+    "question": "Where would my data be served from during a regional failure?",
+    "expected_chunk_markers": ["eu-west-1 runs the disaster-recovery replica"],
+    "answer_facts": ["the disaster-recovery replica lives in eu-west-1"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "conditional scenario phrasing"
+  },
+  {
+    "id": "EVAL-017",
+    "question": "Is the alert grouping window adjustable per team?",
+    "expected_chunk_markers": ["grouping window is configurable per team"],
+    "answer_facts": ["alert grouping window can be configured per team"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "yes/no answer question"
+  },
+  {
+    "id": "EVAL-018",
+    "question": "What should I check first when a batch job shows as failed?",
+    "expected_chunk_markers": ["retries failed steps twice", "called Kestrel"],
+    "answer_facts": ["Kestrel retries failed steps twice before marking the job failed"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "troubleshooting framing"
+  },
+  {
+    "id": "EVAL-019",
+    "question": "How long is raw telemetry kept before archiving?",
+    "expected_chunk_markers": ["kept online for 90 days", "retention window"],
+    "answer_facts": ["raw telemetry remains online for 90 days then archives"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "synonym: 'kept' vs 'retained'"
+  },
+  {
+    "id": "EVAL-020",
+    "question": "What happens to my annual leave balance beyond 25 days?",
+    "expected_chunk_markers": ["Up to 5 unconsumed days may be carried", "maximum annual accrual cap is 25 days"],
+    "answer_facts": ["the accrual cap is 25 days", "up to 5 unused days roll over"],
+    "docs": ["eval_corpus.md"],
+    "intent": "multi-fact",
+    "expect_verdict": "pass",
+    "notes": "two adjacent policy details"
+  },
+  {
+    "id": "EVAL-021",
+    "question": "What are the travel booking and accommodation rules?",
+    "expected_chunk_markers": ["booked at least 21 days in advance", "nightly accommodation cap is $150"],
+    "answer_facts": ["flights and rail must be booked 21 days in advance", "the nightly accommodation cap is $150"],
+    "docs": ["eval_corpus.md"],
+    "intent": "multi-fact",
+    "expect_verdict": "pass",
+    "notes": "two independent travel facts"
+  },
+  {
+    "id": "EVAL-022",
+    "question": "Which product modules does Meridian offer?",
+    "expected_chunk_markers": ["Meridian Fleet", "Meridian Waterside", "Meridian Flowline"],
+    "answer_facts": ["the three modules are Meridian Fleet, Meridian Waterside, and Meridian Flowline"],
+    "docs": ["eval_corpus.md"],
+    "intent": "multi-fact",
+    "expect_verdict": "pass",
+    "notes": "three proper-noun facts in one sentence"
+  },
+  {
+    "id": "EVAL-023",
+    "question": "What triggers the automatic page, and what info does the page include?",
+    "expected_chunk_markers": ["queue exceeds 5,000 messages for more than 5 minutes", "queue name and the current lag"],
+    "answer_facts": ["the page fires when the queue exceeds 5,000 messages for over 5 minutes", "the page includes the queue name and current lag"],
+    "docs": ["eval_corpus.md"],
+    "intent": "multi-fact",
+    "expect_verdict": "pass",
+    "notes": "cause + payload facts"
+  },
+  {
+    "id": "EVAL-024",
+    "question": "Can PTO be banked indefinitely into the following year?",
+    "expected_chunk_markers": ["Up to 5 unconsumed days may be carried into the following year"],
+    "answer_facts": ["no — carryover is limited to 5 unconsumed days"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "negation question; expected answer refutes the premise"
+  },
+  {
+    "id": "EVAL-025",
+    "question": "Which layer of the lakehouse is meant for certified reporting?",
+    "expected_chunk_markers": ["Gold layer", "certified for production use"],
+    "answer_facts": ["the Gold layer is the curated dataset certified for production use"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "conceptual mapping of layer names"
+  },
+  {
+    "id": "EVAL-026",
+    "question": "Is there weekend coverage on any support plan?",
+    "expected_chunk_markers": ["including weekend coverage"],
+    "answer_facts": ["the Vantage premium SLA includes weekend coverage"],
+    "docs": ["eval_corpus.md"],
+    "intent": "semantic-paraphrase",
+    "expect_verdict": "pass",
+    "notes": "plan attribute question"
+  },
+  {
+    "id": "EVAL-027",
+    "question": "What does the quarter planning cadence look like?",
+    "expected_chunk_markers": ["architecture review in week 2", "OKR readouts in week 8"],
+    "answer_facts": ["architecture review happens in week 2", "OKR readouts happen in week 8"],
+    "docs": ["eval_corpus.md"],
+    "intent": "lexical-exact",
+    "expect_verdict": "pass",
+    "notes": "calendar facts"
+  },
+  {
+    "id": "NEG-001",
+    "question": "At what price did Meridian's shares close on the day of the ReveaNet acquisition?",
+    "expected_chunk_markers": ["true-share price of $12.50", "announced July 2026"],
+    "answer_facts": ["Meridian acquired ReveaNet at $12.50 per share", "the deal was announced July 2026"],
+    "docs": ["eval_corpus.md"],
+    "intent": "negative-control",
+    "expect_verdict": "fail",
+    "notes": "fabricated event — markers do not exist in corpus; judge must mark retrieval/groundedness/completeness fail"
+  },
+  {
+    "id": "NEG-002",
+    "question": "What is the fraud team's budget ceiling for 2027?",
+    "expected_chunk_markers": ["fraud team budget of $1.4M", "approved by the security director"],
+    "answer_facts": ["the fraud budget is $1.4M, approved by the security director"],
+    "docs": ["eval_corpus.md"],
+    "intent": "negative-control",
+    "expect_verdict": "fail",
+    "notes": "fabricated department & figures"
+  },
+  {
+    "id": "NEG-003",
+    "question": "How much PTO accrues for part-time contractors?",
+    "expected_chunk_markers": ["contractors receive 40 days of leave", "part-time accrual at 1.8 days per month"],
+    "answer_facts": ["part-time contractors accrue 40 days of PTO per year"],
+    "docs": ["eval_corpus.md"],
+    "intent": "negative-control",
+    "expect_verdict": "fail",
+    "notes": "plausible-sounding policy that contradicts the corpus's 25-day rule"
+  }
+]
