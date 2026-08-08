@@ -24,6 +24,7 @@ settings = get_settings()
 # Candidate Pool Configuration Constants
 VECTOR_TOP_N = 20       # Top candidates from pgvector HNSW dense search
 LEXICAL_TOP_N = 20      # Top candidates from PostgreSQL FTS lexical search
+RRF_K = 60              # Reciprocal Rank Fusion smoothing constant (higher = more rank dilution)
 RRF_FUSED_TOP_K = 10    # Top candidates surviving RRF rank fusion into Stage 2
 FINAL_TOP_K = 5         # Final re-ranked candidates passed to generation.py
 
@@ -205,12 +206,14 @@ async def _retrieve_lexical_candidates(
 def _reciprocal_rank_fusion(
     vector_candidates: List[Tuple[Chunk, float]],
     lexical_candidates: List[Tuple[Chunk, float]],
-    k: int = 60,
+    k: int = RRF_K,
     top_fused_limit: int = RRF_FUSED_TOP_K,
 ) -> List[Dict]:
     """
     Reciprocal Rank Fusion (RRF): Pure rank-based candidate pool generation.
     RRF_Score(d) = 1/(k + rank_vector) + 1/(k + rank_lexical)
+    Deduplicates by chunk.id: a chunk surfaced by BOTH retrieval paths is merged
+    into a single fused entry carrying both ranks (never passed to the LLM twice).
     Returns sorted list of fused candidate dicts.
     """
     fused_map: Dict[UUID, Dict] = {}
@@ -335,7 +338,7 @@ async def retrieve_context(
         fused_candidates = _reciprocal_rank_fusion(
             vector_candidates=vector_candidates,
             lexical_candidates=lexical_candidates,
-            k=60,
+            k=RRF_K,
             top_fused_limit=RRF_FUSED_TOP_K,
         )
 
