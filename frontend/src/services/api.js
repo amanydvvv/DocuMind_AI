@@ -241,6 +241,33 @@ export async function deleteDocument(documentId) {
   }
 }
 
+export function buildDocumentFileRequest(documentId) {
+  const headers = {};
+  const token = getAuthToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return {
+    url: `${API_URL}/api/documents/${documentId}/file`,
+    httpHeaders: headers,
+  };
+}
+
+export async function fetchDocumentFileResponse(documentId, signal = null) {
+  const response = await authedFetch(
+    `${API_URL}/api/documents/${documentId}/file`,
+    { signal }
+  );
+
+  if (!response.ok) {
+    let errorMsg = 'Failed to load document';
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.detail || errorMsg;
+    } catch {}
+    throw new Error(errorMsg);
+  }
+  return response;
+}
+
 export async function sendChatMessage({ question, document_id = null, conversation_id = null, top_k = 5 }) {
   const response = await authedFetch(`${API_URL}/api/chat`, {
     method: 'POST',

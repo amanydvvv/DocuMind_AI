@@ -1,11 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-function handleCitationClick(cit) {
-  // PDF viewer routing hook (react-pdf lands next sprint): log the intent now
-  console.log('Navigate to Document ID:', cit.document_id || cit.id, 'Page:', cit.page_number || null);
-}
-
 export default function MessageBubble({ message, onCitationClick }) {
   const isUser = message.role === 'user';
 
@@ -32,10 +27,7 @@ export default function MessageBubble({ message, onCitationClick }) {
               {message.citations.map((cit, idx) => (
                 <button
                   key={idx}
-                  onClick={() => {
-                    handleCitationClick(cit);
-                    if (onCitationClick) onCitationClick(cit);
-                  }}
+                  onClick={() => onCitationClick && onCitationClick(cit)}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md transition-colors border border-blue-100"
                   title={cit.source === 'ocr' ? 'Text read from a scanned image by a vision model' : `Score: ${cit.score?.toFixed(3)}`}
                 >

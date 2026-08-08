@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 import CitationViewer from '../shared/CitationViewer';
+
+const PdfViewer = lazy(() => import('../pdf/PdfViewer'));
 
 export default function ChatContainer({
   activeConversation,
@@ -12,6 +14,16 @@ export default function ChatContainer({
   onSendMessage,
 }) {
   const [activeCitation, setActiveCitation] = useState(null);
+  const [activePdf, setActivePdf] = useState(null);
+
+  const handleViewDocument = (citation) => {
+    setActiveCitation(null);
+    setActivePdf({
+      documentId: citation.document_id,
+      filename: citation.filename || citation.metadata?.filename || 'Document',
+      pageNumber: citation.page_number || citation.metadata?.page_number || 1,
+    });
+  };
 
   return (
     <div className="flex flex-col h-full bg-gray-50 relative overflow-hidden">
@@ -54,7 +66,30 @@ export default function ChatContainer({
         <CitationViewer
           citation={activeCitation}
           onClose={() => setActiveCitation(null)}
+          onViewDocument={handleViewDocument}
         />
+      )}
+
+      {/* PDF Viewer Overlay (lazy: pdf.js chunk loads on first open) */}
+      {activePdf && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white rounded-xl px-6 py-4 shadow-xl animate-in zoom-in-95 duration-200">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm font-medium text-text-muted">Loading PDF viewer...</p>
+              </div>
+            </div>
+          }
+        >
+          <PdfViewer
+            key={activePdf.documentId}
+            documentId={activePdf.documentId}
+            filename={activePdf.filename}
+            pageNumber={activePdf.pageNumber}
+            onClose={() => setActivePdf(null)}
+          />
+        </Suspense>
       )}
     </div>
   );

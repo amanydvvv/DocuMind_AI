@@ -4,11 +4,13 @@ Upload, list, detail, delete, and reindex documents with user tenant isolation.
 """
 
 import hashlib
+import logging
 import os
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi.responses import FileResponse
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +24,7 @@ from app.services.ingestion import ingest_document
 
 settings = get_settings()
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 # Upload directory — single source of truth is settings.UPLOAD_DIR (config.py),
 # which resolves to the OS-native temp dir + documind_uploads.
@@ -188,6 +191,44 @@ async def get_document(
         chunk_count=chunk_count,
         created_at=doc.created_at,
         updated_at=doc.updated_at,
+    )
+
+
+@router.get("/{document_id}/file")
+async def get_document_file(
+    document_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Serve the raw PDF file for an owned document (PDF citation viewer).
+
+    Tenant-scoped like every other route: a document owned by another user
+    (or deleted) is indistinguishable and returns 404 so no ownership leaks.
+    """
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.file_type != "pdf":
+        raise HTTPException(
+            status_code=415, detail="Only PDF documents can be viewed in the document viewer."
+        )
+
+    file_path = UPLOAD_DIR / f"{doc.id}.pdf"
+    if not file_path.exists():
+        logger.warning("PDF file missing on disk for document %s (user %s)", doc.id, current_user.id)
+        raise HTTPException(
+            status_code=410,
+            detail="The source file for this document is no longer available. It may have been removed from storage.",
+        )
+
+    return FileResponse(
+        file_path,
+        media_type="application/pdf",
+        filename=doc.filename,
     )
 
 

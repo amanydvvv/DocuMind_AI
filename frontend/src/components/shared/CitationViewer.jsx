@@ -1,4 +1,4 @@
-export default function CitationViewer({ citation, onClose }) {
+export default function CitationViewer({ citation, onClose, onViewDocument }) {
   if (!citation) return null;
 
   return (
@@ -45,7 +45,15 @@ export default function CitationViewer({ citation, onClose }) {
         </div>
         
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-border bg-gray-50 flex justify-end">
+        <div className="px-6 py-3 border-t border-border bg-gray-50 flex justify-end gap-2">
+          {onViewDocument && citation.document_id && (
+            <button
+              onClick={() => onViewDocument(citation)}
+              className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors shadow-sm"
+            >
+              📄 View in document
+            </button>
+          )}
           <button 
             onClick={onClose}
             className="px-4 py-2 bg-white border border-border text-text text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
