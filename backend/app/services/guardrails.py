@@ -179,3 +179,25 @@ def validate_output(text: str, *, enabled: bool | None = None) -> tuple[bool, tu
             flagged.append(f"unsafe:{keyword}")
 
     return not flagged, tuple(flagged)
+
+
+# ---------------------------------------------------------------------------
+# Canned messages the chat routes substitute when a guardrail fires.
+# The conversation turn stays normal-shaped (user message + assistant
+# message + QueryLog all persisted); only the content/citations differ.
+# ---------------------------------------------------------------------------
+
+INJECTION_REFUSAL_MESSAGE = (
+    "I can't answer that request. It looks like a prompt-injection attempt "
+    "rather than a question about your uploaded documents."
+)
+
+OUTPUT_SAFE_MESSAGE = (
+    "I couldn't generate a response that is safe to show. "
+    "Please rephrase your question."
+)
+
+OUTPUT_DISCLAIMER_DELTA = (
+    "\n\nNote: part of this answer could not be verified against your "
+    "documents and was withheld."
+)

@@ -19,9 +19,18 @@ from app.models import Conversation, Message, QueryLog, Document
 from app.models.user import User
 from app.core.ratelimit import limiter
 from app.core.security import get_current_user
+from app.config import get_settings
 from app.schemas import ChatRequest, ChatResponse, Citation
 from app.services.retrieval import retrieve_context
 from app.services.memory import update_conversation_summary
+from app.services.guardrails import (
+    INJECTION_REFUSAL_MESSAGE,
+    OUTPUT_SAFE_MESSAGE,
+    OUTPUT_DISCLAIMER_DELTA,
+    is_injection,
+    sanitize_pii,
+    validate_output,
+)
 from app.services.generation import (
     generate_answer,
     generate_answer_stream,
@@ -31,6 +40,23 @@ from app.services.generation import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+def _guard_input(text: str) -> tuple[str, bool]:
+    """Sanitize-once + injection check (plan v3 §2.2, sanitize-once decision
+    A.2). Returns (sanitized_text, refusal_needed). Raw text is never stored,
+    never sent downstream: the sanitized form drives persistence, history,
+    retrieval, the cache key, and the LLM.
+
+    GUARDRAILS_ENABLED=False bypasses both checks entirely — exact
+    pre-guardrail behavior.
+    """
+    settings = get_settings()
+    if not settings.GUARDRAILS_ENABLED:
+        return text, False
+    sanitized = sanitize_pii(text)
+    flagged, _ = is_injection(sanitized)
+    return sanitized, flagged
 
 
 async def _build_corpus_metadata(db: AsyncSession, user_id) -> str:
@@ -83,6 +109,10 @@ async def chat(
     """
     start_time = time.time()
 
+    # Guardrails run before anything else: sanitize-once (persist, history,
+    # cache key and LLM all consume the sanitized text) + injection check.
+    question, refusal_needed = _guard_input(request_body.question)
+
     try:
         # 1. Session Management
         conversation_id = request_body.conversation_id
@@ -102,7 +132,7 @@ async def chat(
             conv = Conversation(
                 id=uuid.uuid4(),
                 user_id=current_user.id,
-                title=request_body.question[:50]
+                title=question[:50]
             )
             db.add(conv)
             await db.flush()
@@ -116,75 +146,96 @@ async def chat(
         )
         chat_history = build_token_budgeted_history(hist_result.scalars().all())
 
-        # 3. Save user's question as a Message
+        # 3. Save user's question as a Message (sanitized — raw never stored)
         user_msg = Message(
             id=uuid.uuid4(),
             conversation_id=conversation_id,
             role="user",
-            content=request_body.question,
+            content=question,
         )
         db.add(user_msg)
         await db.flush()
 
-        # 4. Query corpus metadata (ground truth for the LLM)
-        corpus_metadata = await _build_corpus_metadata(db, current_user.id)
-
-        # 5. Retrieve relevant chunks from pgvector scoped to current user
-        retrieved_items = await retrieve_context(
-            query=request_body.question,
-            db=db,
-            document_id=request_body.document_id,
-            user_id=current_user.id,
-            top_k=request_body.top_k,
-        )
-
-        chunks = [item[0] for item in retrieved_items]
-
-        # 6. Build citations list with real score & filename
-        citations = []
-        similarity_scores = []
-        for chunk, score, filename in retrieved_items:
-            page_num = (
-            chunk.page_number
-            if chunk.page_number is not None
-            else (chunk.metadata_.get("page_number", None) if chunk.metadata_ else None)
-        )
-            source = chunk.metadata_.get("source", None) if chunk.metadata_ else None
-            similarity_scores.append(score)
-            citations.append(
-                Citation(
-                    chunk_id=chunk.id,
-                    document_id=chunk.document_id,
-                    filename=filename,
-                    page_number=page_num,
-                    score=score,
-                    content_preview=chunk.content[:297] + "..."
-                    if len(chunk.content) > 300
-                    else chunk.content,
-                    source=source,
-                )
-            )
-
-        # Deduplicate citations: one per document, keeping highest score
-        citations = _deduplicate_citations(citations)
-
-        avg_similarity = (
-            round(sum(similarity_scores) / len(similarity_scores), 4)
-            if similarity_scores
-            else 0.0
-        )
-
-        # 7. Generate answer using Groq (Llama 3.1) with chat history + corpus metadata
-        if not chunks:
-            answer = "I couldn't find any relevant information in your uploaded documents to answer your question."
+        # 3b. Injection short-circuit: no retrieval, no generation. The turn
+        # stays normal-shaped: user message + assistant refusal + QueryLog
+        # with empty retrieval artifacts.
+        if refusal_needed:
+            avg_similarity = 0.0
+            citations = []
+            citation_dicts = []
+            answer = INJECTION_REFUSAL_MESSAGE
         else:
-            answer = await generate_answer(
-                query=request_body.question,
-                chunks=chunks,
-                chat_history=chat_history,
-                corpus_metadata=corpus_metadata,
-                conversation_summary=conv.context_summary,
+            # 4. Query corpus metadata (ground truth for the LLM)
+            corpus_metadata = await _build_corpus_metadata(db, current_user.id)
+
+            # 5. Retrieve relevant chunks from pgvector scoped to current user
+            retrieved_items = await retrieve_context(
+                query=question,
+                db=db,
+                document_id=request_body.document_id,
+                user_id=current_user.id,
+                top_k=request_body.top_k,
             )
+
+            chunks = [item[0] for item in retrieved_items]
+
+            # 6. Build citations list with real score & filename
+            citations = []
+            similarity_scores = []
+            for chunk, score, filename in retrieved_items:
+                page_num = (
+                    chunk.page_number
+                    if chunk.page_number is not None
+                    else (chunk.metadata_.get("page_number", None) if chunk.metadata_ else None)
+                )
+                source = chunk.metadata_.get("source", None) if chunk.metadata_ else None
+                similarity_scores.append(score)
+                citations.append(
+                    Citation(
+                        chunk_id=chunk.id,
+                        document_id=chunk.document_id,
+                        filename=filename,
+                        page_number=page_num,
+                        score=score,
+                        content_preview=chunk.content[:297] + "..."
+                        if len(chunk.content) > 300
+                        else chunk.content,
+                        source=source,
+                    )
+                )
+
+            # Deduplicate citations: one per document, keeping highest score
+            citations = _deduplicate_citations(citations)
+
+            avg_similarity = (
+                round(sum(similarity_scores) / len(similarity_scores), 4)
+                if similarity_scores
+                else 0.0
+            )
+
+            # 7. Generate answer using Groq (Llama 3.1) with chat history + corpus metadata
+            if not chunks:
+                answer = "I couldn't find any relevant information in your uploaded documents to answer your question."
+            else:
+                answer = await generate_answer(
+                    query=question,
+                    chunks=chunks,
+                    chat_history=chat_history,
+                    corpus_metadata=corpus_metadata,
+                    conversation_summary=conv.context_summary,
+                )
+
+            # Output guardrail: replace a flagged answer, but log the flag
+            # (with reasons) — never a silent swap.
+            if get_settings().GUARDRAILS_ENABLED:
+                validate_ok, reasons = validate_output(answer)
+                if not validate_ok:
+                    logger.warning(
+                        "output guardrail replaced answer for user %s: %s",
+                        current_user.id,
+                        ", ".join(reasons),
+                    )
+                    answer = OUTPUT_SAFE_MESSAGE
 
         latency_ms = int((time.time() - start_time) * 1000)
 
@@ -212,11 +263,11 @@ async def chat(
         )
         db.add(assistant_msg)
 
-        # 9. Persist QueryLog for analytics
+        # 9. Persist QueryLog for analytics (question = sanitized text)
         query_log = QueryLog(
             id=uuid.uuid4(),
             user_id=current_user.id,
-            question=request_body.question,
+            question=question,
             retrieved_chunks=citation_dicts,
             top_k=request_body.top_k,
             avg_similarity=avg_similarity,
@@ -262,6 +313,10 @@ async def chat_stream(
     """
     start_time = time.time()
 
+    # Guardrails run synchronously pre-stream (plan v3 §2.2): sanitize-once
+    # plus injection check. Raw text never reaches persistence or the LLM.
+    question, refusal_needed = _guard_input(request_body.question)
+
     # 1. Session Management
     conversation_id = request_body.conversation_id
     if conversation_id:
@@ -280,7 +335,7 @@ async def chat_stream(
         conv = Conversation(
             id=uuid.uuid4(),
             user_id=current_user.id,
-            title=request_body.question[:50]
+            title=question[:50]
         )
         db.add(conv)
         await db.flush()
@@ -294,22 +349,66 @@ async def chat_stream(
     )
     chat_history = build_token_budgeted_history(hist_result.scalars().all())
 
-    # 3. Save user's question
+    # 3. Save user's question (sanitized — raw never stored)
     user_msg = Message(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
         role="user",
-        content=request_body.question,
+        content=question,
     )
     db.add(user_msg)
     await db.flush()
+
+    # 3b. Injection short-circuit, fully pre-stream: persist the refusal turn
+    # now (user message + assistant refusal + QueryLog), then stream the
+    # normal event sequence over canned content. No retrieval, no LLM.
+    if refusal_needed:
+        refusal_latency_ms = int((time.time() - start_time) * 1000)
+        assistant_msg = Message(
+            id=uuid.uuid4(),
+            conversation_id=conversation_id,
+            role="assistant",
+            content=INJECTION_REFUSAL_MESSAGE,
+            citations=[],
+            latency_ms=refusal_latency_ms,
+        )
+        db.add(assistant_msg)
+        query_log = QueryLog(
+            id=uuid.uuid4(),
+            user_id=current_user.id,
+            question=question,
+            retrieved_chunks=[],
+            top_k=request_body.top_k,
+            avg_similarity=0.0,
+            latency_ms=refusal_latency_ms,
+        )
+        db.add(query_log)
+        await db.commit()
+
+        async def refusal_generator():
+            meta_payload = dumps({
+                "conversation_id": str(conversation_id),
+                "citations": [],
+                "avg_similarity": 0.0,
+            })
+            yield f"event: metadata\ndata: {meta_payload}\n\n"
+            token_payload = dumps({"delta": INJECTION_REFUSAL_MESSAGE})
+            yield f"event: token\ndata: {token_payload}\n\n"
+            done_payload = dumps({"latency_ms": refusal_latency_ms})
+            yield f"event: done\ndata: {done_payload}\n\n"
+
+        return StreamingResponse(
+            refusal_generator(),
+            media_type="text/event-stream",
+            background=BackgroundTask(update_conversation_summary, conversation_id),
+        )
 
     # 4. Query corpus metadata (ground truth for the LLM)
     corpus_metadata = await _build_corpus_metadata(db, current_user.id)
 
     # 5. Retrieve context chunks scoped to user
     retrieved_items = await retrieve_context(
-        query=request_body.question,
+        query=question,
         db=db,
         document_id=request_body.document_id,
         user_id=current_user.id,
@@ -382,7 +481,7 @@ async def chat_stream(
                 yield f"event: token\ndata: {token_payload}\n\n"
             else:
                 async for token in generate_answer_stream(
-                    query=request_body.question,
+                    query=question,
                     chunks=chunks,
                     chat_history=chat_history,
                     corpus_metadata=corpus_metadata,
@@ -395,12 +494,32 @@ async def chat_stream(
             complete_text = "".join(full_answer)
             latency_ms = int((time.time() - start_time) * 1000)
 
+            # Output guardrail (post-stream, never mutates emitted tokens):
+            # on a flag, append the disclaimer as one more token delta before
+            # `done` and log the reasons — honest, non-destructive.
+            disclaimer = None
+            if get_settings().GUARDRAILS_ENABLED:
+                out_ok, out_reasons = validate_output(complete_text)
+                if not out_ok:
+                    logger.warning(
+                        "output guardrail flagged streamed answer for user %s: %s",
+                        current_user.id,
+                        ", ".join(out_reasons),
+                    )
+                    disclaimer = OUTPUT_DISCLAIMER_DELTA
+                    token_payload = dumps({"delta": disclaimer})
+                    yield f"event: token\ndata: {token_payload}\n\n"
+
+            persisted_answer = (
+                complete_text if disclaimer is None else complete_text + disclaimer
+            )
+
             # Persist assistant message & query log
             assistant_msg = Message(
                 id=uuid.uuid4(),
                 conversation_id=conversation_id,
                 role="assistant",
-                content=complete_text,
+                content=persisted_answer,
                 citations=citation_dicts,
                 latency_ms=latency_ms,
             )
@@ -409,7 +528,7 @@ async def chat_stream(
             query_log = QueryLog(
                 id=uuid.uuid4(),
                 user_id=current_user.id,
-                question=request_body.question,
+                question=question,
                 retrieved_chunks=citation_dicts,
                 top_k=request_body.top_k,
                 avg_similarity=avg_similarity,
