@@ -8,7 +8,7 @@
 
 ## 🌐 Live Demo & Cloud Deployment
 
-- **Frontend App (Vercel)**: [`https://docu-mind-ai-git-main-docmind2.vercel.app`](https://docu-mind-ai-git-main-docmind2.vercel.app)
+- **Frontend App (Vercel)**: [`https://docu-mind-ai-iota.vercel.app`](https://docu-mind-ai-iota.vercel.app)
 - **Backend API (Render)**: [`https://documind-ai-97t5.onrender.com/api/health`](https://documind-ai-97t5.onrender.com/api/health)
 - **Database (Supabase)**: Managed PostgreSQL 17.6 + `pgvector` (Singapore `ap-southeast-1`)
 
@@ -20,13 +20,13 @@
 ## 🚀 Key Features
 
 - **JWT Authentication & Multi-Tenancy**: Secure user signup, login, and workspace resource isolation using RFC 7519 JWT access tokens and PBKDF2-HMAC-SHA256 password hashing.
-- **Document Ingestion & Gemini Multimodal OCR**: Upload PDF or Markdown files with text vector extraction. Automatic **Gemini Flash Vision (`gemini-3.6-flash`) OCR fallback** transcribes text from scanned image-based PDFs (e.g. certificates and receipts) when text vector layer returns 0 characters.
+- **Document Ingestion & Multimodal OCR**: Upload PDF or Markdown files with text vector extraction. Automatic **vision-model OCR fallback** (`VISION_MODEL`, default `qwen/qwen3.6-27b` on Groq) transcribes text from scanned image-based PDFs (e.g. certificates and receipts) when text vector layer returns 0 characters.
 - **Hybrid RAG Search (pgvector HNSW + PostgreSQL FTS)**: Two-stage candidate retrieval combining dense vector similarity search and sparse full-text search fused with Reciprocal Rank Fusion ($k=60$) and phrase-coverage re-ranking.
 - **Real-Time Token Streaming (SSE)**: Server-Sent Events (`text/event-stream`) delivering typewriter-style token streaming to the frontend in real time with client-side 35s `AbortController` timeout resilience.
-- **Multi-Turn RAG Chat & Session Persistence**: Natural language Q&A powered by Google Gemini (`gemini-3.6-flash`), maintaining conversation history across turns and persisting sessions to PostgreSQL.
+- **Multi-Turn RAG Chat & Session Persistence**: Natural language Q&A powered by Groq (`llama-3.1-8b-instant` primary, with qwen3-32b and Gemini `gemini-1.5-flash` fallbacks), maintaining conversation history across turns and persisting sessions to PostgreSQL.
 - **History Sidebar & State Resiliency**: Interactive sidebar for browsing past chat threads, switching contexts with race-condition protection (`AbortController`), creating "+ New Chat" sessions, and guaranteed `try...finally` loading state cleanup.
 - **Source Citation & Interactive Viewer**: Transparent AI responses linked directly to exact source chunks, complete with relevance scores, page numbers, and an interactive popover viewer.
-- **PgBouncer & Connection Resilience**: Port 5432 Session Mode with `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` eliminating PgBouncer prepared statement cache collisions.
+- **PgBouncer & Connection Resilience**: Session-mode connection pooling against Supabase's PgBouncer (direct PostgreSQL on `5432`, session pooler on `6543`) with `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` eliminating PgBouncer prepared statement cache collisions.
 - **RAG Analytics & Performance Tracking**: Real-time monitoring of query volume, average latency, vector similarity metrics, and document retrieval frequencies.
 
 ---
@@ -38,11 +38,11 @@
 | **Backend Framework** | [FastAPI](https://fastapi.tiangolo.com/) | Async REST API framework with Pydantic schemas |
 | **Database & Vector Store** | [PostgreSQL 17.6](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) | Relational database with HNSW vector indexing & FTS GIN index |
 | **ORM & Database Driver** | [SQLAlchemy 2.0](https://www.sqlalchemy.org/) + `asyncpg` | Fully asynchronous database queries and Alembic migrations |
-| **Connection Pooling** | Supabase PgBouncer | Session Mode (Port 5432) with disabled statement cache |
+| **Connection Pooling** | Supabase PgBouncer | Session Mode (pooler port 6543, direct port 5432) with disabled statement cache |
 | **Authentication** | RFC 7519 JWT + PBKDF2 | Security layer with Bearer token authentication & multi-tenant isolation |
-| **LLM, Embeddings & OCR** | [Google Gemini](https://ai.google.dev/) + [LangChain](https://www.langchain.com/) | `gemini-embedding-001` (768d), `gemini-3.6-flash` text generation & vision OCR |
+| **LLM, Embeddings & OCR** | Groq + Google Gemini + [LangChain](https://www.langchain.com/) | `gemini-embedding-001` (768d) embeddings; Groq `llama-3.1-8b-instant` generation & `qwen/qwen3.6-27b` vision OCR |
 | **Document Parsing** | [PyMuPDF](https://pymupdf.readthedocs.io/) | Fast PDF text extraction & page image rendering |
-| **Frontend Framework** | [React 18](https://react.dev/) + [Vite](https://vitejs.dev/) | Single-page application with custom hooks & Auth modal |
+| **Frontend Framework** | [React 19](https://react.dev/) + [Vite](https://vitejs.dev/) | Single-page application with custom hooks & Auth modal |
 | **Styling** | Vanilla CSS Tokens | Sleek dark mode design system with smooth animations |
 | **Infrastructure** | [Render](https://render.com/) + [Vercel](https://vercel.com/) | Dockerized web service backend + static frontend deployment |
 

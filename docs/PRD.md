@@ -25,7 +25,7 @@
 ## 3. Core Features
 | Feature | Description | Current Status | Relevant Files |
 |---|---|---|---|
-| **Document Ingestion & Gemini OCR** | Upload files, hash duplicate detection, chunk text, batch embed, and store in pgvector. Uses **Gemini Multimodal Vision (`gemini-3.6-flash`)** for scanned image-based PDFs when text vector layer is empty. | ✅ Done | `app/routers/documents.py`, `app/services/ingestion.py` |
+| **Document Ingestion & Vision OCR** | Upload files, hash duplicate detection, chunk text, batch embed, and store in pgvector. Uses a configurable **vision model OCR fallback** (`VISION_MODEL`, default Groq `qwen/qwen3.6-27b`) for scanned image-based PDFs when text vector layer is empty. | ✅ Done | `app/routers/documents.py`, `app/services/ingestion.py` |
 | **Hybrid RAG Retrieval & RRF** | Two-stage candidate retrieval (pgvector HNSW + PostgreSQL FTS) fused with Reciprocal Rank Fusion ($k=60$) and Stage 2 re-ranking. Includes 30s timeout guards. | ✅ Done | `app/routers/chat.py`, `app/services/retrieval.py` |
 | **Multi-Turn Conversation Memory** | Store chat history in DB, retrieve prior messages (last 10 turns), and inject into LLM context for seamless follow-ups. | ✅ Done | `app/routers/chat.py`, `app/services/generation.py` |
 | **Real-Time Token Streaming (SSE)** | Stream LLM responses token-by-token using Server-Sent Events (`text/event-stream`) for typewriter-style rendering with client-side 35s `AbortController` timeout. | ✅ Done | `app/routers/chat.py`, `app/services/generation.py`, `frontend/src/services/api.js` |
@@ -39,10 +39,10 @@
 |---|---|---|
 | **Backend Engine** | Python + FastAPI | Python is the industry standard for AI SDKs (LangChain); FastAPI provides modern async I/O and SSE streaming. |
 | **Database & Vector Store** | PostgreSQL + `pgvector` | Unified relational and vector store; avoids network latency/overhead of separate databases. |
-| **Connection Pooling** | Supabase PgBouncer (Port 5432) | Session mode connection pooling with `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` to prevent prepared statement cache collisions. |
+| **Connection Pooling** | Supabase PgBouncer | Session mode connection pooling (direct PostgreSQL on port `5432`, session pooler on port `6543`) with `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` to prevent prepared statement cache collisions. |
 | **Vector Index** | `HNSW` | Graph-based traversal perfectly bypasses "empty-probe" Voronoi limitations of `ivfflat` on small datasets. |
 | **ORM & Driver** | SQLAlchemy 2.0 + `asyncpg` | Non-blocking execution prevents thread exhaustion under high concurrency. |
-| **LLM & OCR Engine** | LangChain + Gemini Flash | Seamlessly chains text/vision prompts to Google's embeddings (`gemini-embedding-001`) and generation/OCR APIs (`gemini-3.6-flash`). |
+| **LLM & Vision OCR Engine** | LangChain + Groq (+ Gemini fallback) | Primary generation on Groq (`llama-3.1-8b-instant`), vision OCR via Groq (`qwen/qwen3.6-27b`), Google Gemini embeddings (`gemini-embedding-001`), and backend Gemini fallback (`gemini-1.5-flash`). |
 | **Authentication** | PyJWT / Standard Library + PBKDF2 | Lightweight, dependency-free JWT issuance/decoding and secure password hashing. |
 
 ## 5. Data Model

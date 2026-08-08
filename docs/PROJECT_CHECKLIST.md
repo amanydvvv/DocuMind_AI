@@ -50,7 +50,7 @@ This is a living execution tracker structured around development phases.
 - [x] Implement robust rollback handling (`await db.rollback()`) and `RateLimitError` (HTTP 429) mapping for Google API quota bounds
 - [x] Create encapsulated custom hook (`frontend/src/hooks/useConversations.js`) with `AbortController` race condition defense
 - [x] Build history navigation UI (`ConversationSidebar.jsx`, `ConversationItem.jsx`, tabbed `Layout.jsx`) with "+ New Chat" reset and active thread deletion fallbacks
-- [x] Standardize model configuration default to `gemini-3.6-flash` in `.env`
+- [x] Standardize model configuration default to `llama-3.1-8b-instant` (Groq) in `.env`
 
 ## Phase 7: Real-Time Token Streaming (SSE) [âœ… COMPLETE]
 - [x] Implement `generate_answer_stream()` async generator in `backend/app/services/generation.py` using `chain.astream()`
@@ -92,9 +92,9 @@ This is a living execution tracker structured around development phases.
 - [x] Outline manual UptimeRobot keep-alive setup instructions (5-minute HTTP keyword check on `/api/health` to prevent Render 15-min sleep and Supabase 7-day auto-pause)
 
 ## Phase 11: Production Hardening, Gemini Vision OCR & UI Resiliency [âœ… COMPLETE]
-- [x] **Supabase PgBouncer & Asyncpg Fix**: Configured Port 5432 Session Mode and added `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` in `backend/app/database.py` to eliminate `DuplicatePreparedStatementError` across connection pools.
+- [x] **Supabase PgBouncer & Asyncpg Fix**: Configured session-mode pooling (direct Postgres on `5432`, session pooler on `6543`) and added `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` in `backend/app/database.py` to eliminate `DuplicatePreparedStatementError` across connection pools.
 - [x] **CORS Multi-Tenant Domain Matching**: Updated `CORSMiddleware` in `backend/app/main.py` with `allow_origin_regex=r"https://docu-?mind-?ai(-[a-z0-9-]+)?\.vercel\.app"` supporting Vercel production and preview deploys with hyphens.
-- [x] **Scanned PDF Gemini Multimodal Vision OCR**: Integrated Gemini Flash (`gemini-3.6-flash`) vision fallback in `backend/app/services/ingestion.py` for scanned image-based PDFs (e.g. income certificates) when text vector layer returns 0 characters.
+- [x] **Scanned PDF Vision OCR**: Integrated `qwen/qwen3.6-27b` (Groq) vision OCR fallback via `VISION_MODEL` in `backend/app/services/ingestion.py` for scanned image-based PDFs (e.g. income certificates) when text vector layer returns 0 characters.
 - [x] **Client-Side Timeout & Guaranteed State Cleanup**: Added 35s `AbortController` timeout to `sendChatMessageStream` in `frontend/src/services/api.js` and wrapped `sendMessage` in `try...finally` block in `frontend/src/hooks/useConversations.js` to guarantee `isGenerating` resets to `false`, preventing UI spinner hangs.
 - [x] **LLM & Vector Embedding Request Timeouts**: Configured `request_timeout=30.0` on `ChatGoogleGenerativeAI` and `GoogleGenerativeAIEmbeddings` to prevent silent backend socket stalls.
 ## Phase 12: Enterprise Production-Readiness Audit & Hardening [✅ COMPLETE]
@@ -110,7 +110,7 @@ This is a living execution tracker structured around development phases.
 - [x] **JSON-Only Login**: Removed form/multipart parsing from `/api/auth/login`; credentials accepted only as JSON via `LoginRequest` schema.
 - [x] **JWT Secret Strictness**: Replaced hardcoded fallback secret with required `JWT_SECRET_KEY` setting (dev default documented, Render `sync: false` env var added); access tokens carry a `type=access` claim rejected by refresh flow.
 - [x] **Account Lifecycle Enforcement**: `login` and `refresh` reject `is_active == False` accounts (403/401).
-- [x] **API Rate Limiting**: Added slowapi limiter keyed by `X-Forwarded-For` (Render proxy) — 5/min signup, 10/min login/refresh, 10/min chat endpoints — with 429 JSON handler.
+- [x] **API Rate Limiting**: Added slowapi limiter with peer-anchored keying — `CF-Connecting-IP` is trusted ONLY when the TCP peer is a private address (Render proxy); `X-Forwarded-For` is never consulted (client-spoofable) — 5/min signup, 10/min login/refresh, 10/min chat endpoints, with 429 JSON handler.
 - [x] **Chat Query Efficiency & Error Hygiene**: History now uses `ORDER BY created_at DESC LIMIT 10` (was full-table load + `[-10:]`), and non-stream 500s no longer leak `str(e)` to clients (logged server-side).
 - [x] **Dead Config Removal**: Removed unused `SIMILARITY_THRESHOLD` setting (never consumed by retrieval).
 - [x] **Ingestion Resilience**: `request_timeout=30.0` on embeddings, tenacity exponential-backoff retry on rate-limited/transient embedding failures, and `_normalize_embedding` pad/truncate to `EMBEDDING_DIMENSION` with mismatch logging.
@@ -118,7 +118,7 @@ This is a living execution tracker structured around development phases.
 - [x] **Frontend Test Enablement**: Added `vitest` + `@testing-library/react` + `jsdom` and `npm test` script; 3/3 hook state-resiliency tests pass; production build passes; oxlint has 0 errors.
 
 ## Phase 13: GENERATIVE_MODEL Incident Hardening [CHANGE] [✅ COMPLETE]
-- [x] **Model Migration**: Pinned `GENERATIVE_MODEL` to `gemini-3.6-flash` (GA July 21, 2026, no announced shutdown) across `config.py`, `render.yaml`, `.env.example`, `README.md`, and `docs/PRD.md`. Replaced unstable auto-updating alias `gemini-flash-latest` and deprecated `gemini-2.5-flash` (404 for new API keys, scheduled shutdown Oct 16, 2026).
+- [x] **Model Migration**: Pinned `GENERATIVE_MODEL` to `llama-3.1-8b-instant` (Groq) across `config.py` (line 41), `render.yaml` (line 20), both `.env.example` files, `README.md`, and `docs/PRD.md`. `VISION_MODEL` pinned to `qwen/qwen3.6-27b` (Groq) in `config.py` (line 44), with `gemini-1.5-flash` as the cross-provider generation fallback (`generation.py`).
 - [x] **Startup Model Validation Guard**: Added `_validate_generative_model()` in `backend/app/main.py` lifespan hook — calls Google ListModels API to confirm model exists and supports `generateContent`, then performs a lightweight `generateContent` smoke-test (4-token "Say OK") to catch models that pass metadata checks but fail on actual invocation (e.g. gemini-2.5-flash). Logs CRITICAL on failure without crashing, so `/api/health` remains reachable for ops diagnosis.
 - [x] **Deprecated Parameter Fix**: Changed `request_timeout=30.0` → `timeout=30.0` in `generation.py` `ChatGoogleGenerativeAI` constructor (langchain-google-genai deprecation warning).
 - [x] **Corrupted render.yaml Fix**: Removed duplicate `services:` block introduced by prior ad-hoc edits.
@@ -127,6 +127,6 @@ This is a living execution tracker structured around development phases.
 
 ### Study Notes
 - **Why hardcoded Gemini model IDs are a recurring production liability**: Google deprecates and removes model generations on fixed schedules (e.g. `gemini-1.0-pro` removed Feb 2025, `gemini-2.0-flash-lite` removed June 2026, `gemini-2.5-flash` scheduled Oct 2026). A model that works today can 404 silently tomorrow with no code-level warning — the failure only surfaces when a real user sends a query.
-- **Auto-updating aliases vs. pinned versions**: Aliases like `gemini-flash-latest` auto-resolve to whichever model Google currently considers "latest," which can change without notice. This means your app's behavior, quality, and even availability can shift between deployments. Pinned versions (e.g. `gemini-3.6-flash`) give deterministic behavior but require manual rotation when deprecated.
+- **Auto-updating aliases vs. pinned versions**: Aliases like `gemini-flash-latest` auto-resolve to whichever model Google currently considers "latest," which can change without notice. This means your app's behavior, quality, and even availability can shift between deployments. Pinned versions (e.g. `llama-3.1-8b-instant` or `gemini-1.5-flash`) give deterministic behavior but require manual rotation when deprecated.
 - **Google's "new project" restriction pattern**: Google sometimes restricts older model generations to existing API keys/projects while removing access for newly created keys. This means `gemini-2.5-flash` may work for one developer's key but 404 for another's, creating intermittent failures that are hard to diagnose without testing against the specific key in use.
 - **The correct safeguard**: Neither pinning nor aliasing alone is sufficient. A startup validation guard that performs an actual `generateContent` smoke-test against the configured model + key is the only reliable way to detect model availability issues before users hit them.
