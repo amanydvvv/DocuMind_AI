@@ -44,7 +44,7 @@ Step 5 (generation + judge pipeline):
 import json
 import logging
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
@@ -191,12 +191,18 @@ def _knob_override(retrieval_module, overrides: Mapping[str, Any]):
 
 @dataclass
 class RetrievedChunk:
-    """A chunk surviving the full hybrid pipeline, in final retrieval order."""
+    """A chunk surviving the full hybrid pipeline, in final retrieval order.
+
+    Carries the fields generation consumes (page_number, metadata_) so the
+    eval path exercises the same context formatting as the live chat path.
+    """
 
     chunk_id: str
     document_id: Optional[str]
     content: str
     score: float
+    page_number: Optional[int] = None
+    metadata_: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -254,7 +260,7 @@ async def run_retrieval_for_entry(
             fused_candidates=fused,
             query=entry.question,
             final_top_k=retrieval.FINAL_TOP_K,
-        )
+)
 
     retrieved = [
         RetrievedChunk(
@@ -264,6 +270,8 @@ async def run_retrieval_for_entry(
             ),
             content=chunk.content,
             score=score,
+            page_number=getattr(chunk, "page_number", None),
+            metadata_=dict(getattr(chunk, "metadata_", None) or {}),
         )
         for chunk, score in reranked
     ]
