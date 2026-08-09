@@ -169,6 +169,15 @@ code) then `--diff baseline.json eval_20260808_235555.json` (2026-08-08).
 
 **Verdict: pass — zero regressions, entry-level identical to baseline.**
 
+> **Denominator convention: A — ALL entries including NEG controls.** Every
+> rate below divides by 32 (31 EVAL + NEG-001/002/003). These numbers are NOT
+> interchangeable with Convention B tables (EVAL-only, harness
+> `summary.pass_rates` field, NEGs excluded — denominators 29 or 31). A table
+> from one convention should never be diffed against a table from the other
+> without converting first: e.g. the same 32-entry baseline is 81.2% marker /
+> 78.1% retrieval under Convention A but 89.7% / 86.2% under Convention B
+> (matched `PROJECT_CHECKLIST.md` numbers).
+
 | dimension | baseline | post-guardrail | delta |
 |---|---|---|---|
 | marker_recall | 81.2% | 81.2% | 0.0% |
@@ -199,6 +208,29 @@ Part 2 is complete and closed: Steps 1-4 (rules, routing wiring, tests — 63
 cases in `backend/tests/test_guardrails.py`, full suite 153 passed) plus this
 regression gate (Step 5). Step 6 (checklist + STUDY_GUIDE hook) covered by
 `docs/PROJECT_CHECKLIST.md` (Part 2 fully marked done).
+
+---
+
+## Known limitation — judge noise on groundedness_pass / completeness_pass
+
+`groundedness_pass` and `completeness_pass` are LLM-judge dimensions and show
+run-to-run variance exceeding the real signal on unchanged inputs. Concrete
+evidence from the 2026-08-09 decline-anchor investigation:
+
+- **EVAL-001**: byte-identical answer ("Employees accrue 25 days of paid leave
+  per year.") scored completeness True / False / False across three runs with
+  **no code or prompt change** between runs.
+- **EVAL-020**: the post-fix answer was strictly improved (added a section
+  citation) yet was scored completeness False, reversing the prior run's True.
+
+Practical implication: a completeness/groundedness delta of a few entries on a
+~30-entry set must NOT be treated as a regression signal on its own — it needs
+manual per-entry chunk verification (quoting the retrieved chunk text) before
+being acted on, as done in the decline-anchor investigation.
+
+`marker_recall` and `retrieval_pass` do **not** share this issue: they are
+deterministic, chunk-based checks (marker phrases present in retrieved
+content), so these two dimensions are the stable arbiters for diffing runs.
 
 ---
 
