@@ -225,8 +225,13 @@ async def _ocr_pdf_page(page) -> str:
 
 def _resolve_file_path(doc: Document, file_path: Optional[str] = None) -> str:
     """Derive the on-disk path for a document if one was not supplied."""
-    if file_path:
+    if file_path and os.path.exists(file_path):
         return file_path
+    if doc.raw_bytes:
+        ext = doc.file_type if doc.file_type != "markdown" else "md"
+        with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+            tmp.write(doc.raw_bytes)
+            return tmp.name
     ext = doc.file_type if doc.file_type != "markdown" else "md"
     return str(Path(settings.UPLOAD_DIR) / f"{doc.id}.{ext}")
 
