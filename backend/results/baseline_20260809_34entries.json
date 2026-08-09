@@ -1,6 +1,6 @@
 {
   "header": {
-    "created_at": "2026-08-09T16:09:27.354675+00:00",
+    "created_at": "2026-08-09T12:15:59.952021+00:00",
     "mode": "full",
     "total_entries": 34,
     "generation_model": "llama-3.1-8b-instant",
@@ -22,9 +22,9 @@
     "llm_calls": 68,
     "pass_rates": {
       "marker_recall": 0.9032258064516129,
-      "retrieval_pass": 0.9032258064516129,
-      "groundedness_pass": 0.8709677419354839,
-      "completeness_pass": 0.7741935483870968
+      "retrieval_pass": 0.8709677419354839,
+      "groundedness_pass": 0.967741935483871,
+      "completeness_pass": 0.9032258064516129
     },
     "negative_controls": {
       "NEG-001": {
@@ -36,14 +36,14 @@
       "NEG-002": {
         "marker_recall": false,
         "retrieval_pass": false,
-        "groundedness_pass": false,
+        "groundedness_pass": true,
         "completeness_pass": false
       },
       "NEG-003": {
         "marker_recall": false,
         "retrieval_pass": false,
         "groundedness_pass": true,
-        "completeness_pass": true
+        "completeness_pass": false
       }
     },
     "negative_control_violations": [],
@@ -70,7 +70,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "According to the Workforce & People Policies, meals are expensed at a cap of $75 per person per evening on business travel."
+      "generated_answer_truncated": "The cap for meal expenses on business travel is $75 per person per evening."
     },
     {
       "entry_id": "EVAL-003",
@@ -92,7 +92,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "The tool that runs the batch jobs is called Kestrel, and it retries a failure twice before marking the job failed."
+      "generated_answer_truncated": "Kestrel runs the batch jobs, and it retries a failure twice."
     },
     {
       "entry_id": "EVAL-005",
@@ -103,7 +103,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "The postmortem must be delivered within 3 business days after an incident."
+      "generated_answer_truncated": "According to the document, a blameless postmortem must be delivered within 3 business days after an incident."
     },
     {
       "entry_id": "EVAL-006",
@@ -123,9 +123,9 @@
       "marker_recall": true,
       "retrieval_pass": true,
       "groundedness_pass": true,
-      "completeness_pass": false,
+      "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "The company was founded in Austin, Texas. The current headcount is 340 people across ten countries."
+      "generated_answer_truncated": "The company, Meridian Analytics, employs 340 people across ten countries today. The company was founded in 2018 in Austin, Texas."
     },
     {
       "entry_id": "EVAL-008",
@@ -147,7 +147,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "Production deployments are allowed to happen on Tuesday and Thursday between 14:00 and 16:00 UTC."
+      "generated_answer_truncated": "Production deployments are allowed to happen only on Tuesday and Thursday between 14:00 and 16:00 UTC."
     },
     {
       "entry_id": "EVAL-010",
@@ -169,7 +169,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "The Meridian Cloud control plane guarantees a recovery point objective of 15 minutes and a recovery time objective of 4 hours on the control plane."
+      "generated_answer_truncated": "The control plane guarantees a recovery point objective of 15 minutes and a recovery time objective of 4 hours on the control plane."
     },
     {
       "entry_id": "EVAL-012",
@@ -191,7 +191,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "According to the context, alerts are grouped for five minutes before any notification is sent. This means that a single one-off spike will not page people, as it will be grouped with other alerts and "
+      "generated_answer_truncated": "No, you will not get paged for a single one-off spike. According to the alert grouping mechanism, small temporary spikes do not page people."
     },
     {
       "entry_id": "EVAL-014",
@@ -202,7 +202,7 @@
       "groundedness_pass": false,
       "completeness_pass": false,
       "judge_error": false,
-      "generated_answer_truncated": "The documents do not cover the topic of third-party integrations that require extra security approval. However, the topic of security is mentioned in the \"Trust & Security\" section of the document. If"
+      "generated_answer_truncated": "Based on the provided documents, I found that third-party integrations that need extra security approval are not explicitly mentioned. However, the document \"Engineering Standards\" (Section 2) mention"
     },
     {
       "entry_id": "EVAL-015",
@@ -221,10 +221,10 @@
       "is_negative_control": false,
       "marker_recall": false,
       "retrieval_pass": true,
-      "groundedness_pass": false,
-      "completeness_pass": false,
+      "groundedness_pass": true,
+      "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "If a regional failure occurs, your data would be served from a region other than the primary region of your tenant. If your tenant is created in the US, the data would be served from eu-west-1, and if"
+      "generated_answer_truncated": "Your data would be served from eu-west-1 during a regional failure."
     },
     {
       "entry_id": "EVAL-017",
@@ -235,7 +235,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "Yes, the alert grouping window is adjustable per team, and it can be configured through the Pilot dashboard."
+      "generated_answer_truncated": "Yes, the alert grouping window is adjustable per team."
     },
     {
       "entry_id": "EVAL-018",
@@ -243,10 +243,10 @@
       "is_negative_control": false,
       "marker_recall": true,
       "retrieval_pass": true,
-      "groundedness_pass": false,
-      "completeness_pass": false,
+      "groundedness_pass": true,
+      "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "When a batch job shows as failed, you should first check the job's logs or the specific steps that failed to understand the reason for the failure. Additionally, looking into any error messages or cod"
+      "generated_answer_truncated": "According to the document, the orchestrator that schedules every batch job is called Kestrel. Kestrel runs jobs in fixed windows and retries failed steps twice before marking the job failed. Therefore"
     },
     {
       "entry_id": "EVAL-019",
@@ -257,7 +257,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "Raw telemetry is kept online for 90 days before it is moved to a lower-cost archive tier in a separate storage."
+      "generated_answer_truncated": "Raw telemetry is kept online for 90 days before archiving."
     },
     {
       "entry_id": "EVAL-020",
@@ -266,9 +266,9 @@
       "marker_recall": true,
       "retrieval_pass": true,
       "groundedness_pass": true,
-      "completeness_pass": false,
+      "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "According to the Workforce & People Policies section, up to 5 unconsumed days may be carried into the following year. This means that if an employee's annual leave balance exceeds 25 days, they can ca"
+      "generated_answer_truncated": "Your annual leave balance beyond 25 days can be carried over up to 5 days into the following year."
     },
     {
       "entry_id": "EVAL-021",
@@ -279,7 +279,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "According to the documents, business travel has specific rules: meals are expensed at a cap of $75 per person per evening, flights and rail must be booked at least 21 days in advance, and the nightly "
+      "generated_answer_truncated": "According to the document, business travel meals are expensed at a cap of $75 per person per evening. Flights and rail must be booked at least 21 days in advance, and the nightly accommodation cap is "
     },
     {
       "entry_id": "EVAL-022",
@@ -290,7 +290,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "Meridian offers three product modules: Meridian Fleet (vehicle health), Meridian Waterside (maritime machinery), and Meridian Flowline (factory floor analytics)."
+      "generated_answer_truncated": "Meridian offers three product modules: Meridian Fleet, Meridian Waterside, and Meridian Flowline."
     },
     {
       "entry_id": "EVAL-023",
@@ -301,7 +301,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "When the ingestion queue exceeds 5,000 messages for more than 5 minutes, the system pages the on-call engineer automatically. The page payload includes the queue name and the current lag in seconds."
+      "generated_answer_truncated": "The automatic page is triggered when the ingestion queue exceeds 5,000 messages for more than 5 minutes, and the page includes the queue name and the current lag in seconds."
     },
     {
       "entry_id": "EVAL-024",
@@ -309,10 +309,10 @@
       "is_negative_control": false,
       "marker_recall": false,
       "retrieval_pass": false,
-      "groundedness_pass": false,
+      "groundedness_pass": true,
       "completeness_pass": false,
       "judge_error": false,
-      "generated_answer_truncated": "The documents do not cover the topic of banking PTO into the following year."
+      "generated_answer_truncated": "Unfortunately, the provided documents do not contain any information on PTO banking policies, including the possibility of banking PTO indefinitely into the following year. It is recommended to consul"
     },
     {
       "entry_id": "EVAL-025",
@@ -323,7 +323,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "The Gold layer of the lakehouse is meant for certified reporting."
+      "generated_answer_truncated": "The Gold layer is meant for certified reporting."
     },
     {
       "entry_id": "EVAL-026",
@@ -345,7 +345,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "The quarter planning calendar includes an architecture review in week 2, finance guardrails in week 4, and OKR readouts in week 8 of the quarter."
+      "generated_answer_truncated": "The quarter planning cadence includes an architecture review in week 2, finance guardrails in week 4, and OKR readouts in week 8 of the quarter."
     },
     {
       "entry_id": "EVAL-028",
@@ -356,18 +356,18 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "The documents do not cover the topic of the number of customers currently on the Vantage plan. However, if you're interested in learning more about the Vantage plan's benefits, such as its premium SLA"
+      "generated_answer_truncated": "According to the provided documents, customers on the \"Vantage\" plan receive the premium SLA, which guarantees a first response within 1 business hour, including weekend coverage. However, the exact n"
     },
     {
       "entry_id": "EVAL-029",
       "expect_verdict": "pass",
       "is_negative_control": false,
       "marker_recall": true,
-      "retrieval_pass": true,
+      "retrieval_pass": false,
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "The documents do not cover the exact calendar date of the next disaster recovery drill. However, they mention that disaster recovery drills run four times a year and include both regions. If you're lo"
+      "generated_answer_truncated": "Unfortunately, the provided documents do not specify the exact calendar date of the next disaster recovery drill. However, they do indicate that disaster recovery drills run four times a year and incl"
     },
     {
       "entry_id": "EVAL-030",
@@ -400,7 +400,7 @@
       "groundedness_pass": true,
       "completeness_pass": true,
       "judge_error": false,
-      "generated_answer_truncated": "The documents do not cover the topic of Meridian's stock price on the day of the ReveaNet acquisition. However, I can offer to help with a related topic if you're looking for information on Meridian's"
+      "generated_answer_truncated": "There is no information available in the provided content about the ReveaNet acquisition or the closing price of Meridian's shares on the day of such an acquisition."
     },
     {
       "entry_id": "NEG-002",
@@ -408,10 +408,10 @@
       "is_negative_control": true,
       "marker_recall": false,
       "retrieval_pass": false,
-      "groundedness_pass": false,
+      "groundedness_pass": true,
       "completeness_pass": false,
       "judge_error": false,
-      "generated_answer_truncated": "The documents do not cover the fraud team's budget ceiling for 2027. However, I can offer to help with a related topic if you're looking for information on budget ceilings in general or the centralize"
+      "generated_answer_truncated": "Unfortunately, there is no mention of a specific budget ceiling for the fraud team in 2027 in the provided documents. However, I can provide information on the centralized approval gate for budget cha"
     },
     {
       "entry_id": "NEG-003",
@@ -420,9 +420,9 @@
       "marker_recall": false,
       "retrieval_pass": false,
       "groundedness_pass": true,
-      "completeness_pass": true,
+      "completeness_pass": false,
       "judge_error": false,
-      "generated_answer_truncated": "The documents do not cover the topic of PTO accruals for part-time contractors. However, the topic of employee PTO accruals is mentioned in the context snippets. If you're looking for information on e"
+      "generated_answer_truncated": "Unfortunately, the provided documents do not explicitly state the PTO accrual policy for part-time contractors. It is possible that part-time contractors may not be eligible for the same accruals as f"
     }
   ]
 }
