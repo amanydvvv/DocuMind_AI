@@ -318,5 +318,25 @@
     "intent": "groundedness-stress",
     "expect_verdict": "pass",
     "notes": "groundedness stress: the drill policy chunk is real (four times a year, 48h advance notice), but no concrete calendar date exists anywhere in the corpus - an answer supplying a date is fabricated; declining is the correct grounded behavior"
+  },
+  {
+    "id": "EVAL-030",
+    "question": "What is the policy number for the two-wheeler insurance policy?",
+    "expected_chunk_markers": ["D277856892", "two-wheeler insurance policy"],
+    "answer_facts": ["the policy number is D277856892"],
+    "docs": ["eval_corpus.md"],
+    "intent": "filename-vs-content",
+    "expect_verdict": "pass",
+    "notes": "verifies content outweighs raw filename metadata when answering questions"
+  },
+  {
+    "id": "EVAL-031",
+    "question": "What is the on-call acknowledgement deadline for PagerDuty pages?",
+    "expected_chunk_markers": ["acknowledge a page within 5 minutes"],
+    "answer_facts": ["the on-call engineer must acknowledge a page within 5 minutes"],
+    "docs": ["eval_corpus.md"],
+    "intent": "no-meta-leakage",
+    "expect_verdict": "pass",
+    "notes": "verifies that the model answers directly without referencing internal labels like CORPUS METADATA, retrieved context, or chunk"
   }
 ]

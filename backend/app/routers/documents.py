@@ -113,6 +113,7 @@ async def upload_document(
     return DocumentResponse(
         id=doc.id,
         filename=doc.filename,
+        display_title=doc.display_title,
         file_type=doc.file_type,
         file_size=doc.file_size,
         page_count=doc.page_count,
@@ -151,6 +152,7 @@ async def list_documents(
             DocumentResponse(
                 id=doc.id,
                 filename=doc.filename,
+                display_title=doc.display_title,
                 file_type=doc.file_type,
                 file_size=doc.file_size,
                 page_count=doc.page_count,
@@ -187,6 +189,7 @@ async def get_document(
     return DocumentResponse(
         id=doc.id,
         filename=doc.filename,
+        display_title=doc.display_title,
         file_type=doc.file_type,
         file_size=doc.file_size,
         page_count=doc.page_count,
@@ -293,6 +296,7 @@ async def reindex_document(
     return DocumentResponse(
         id=doc.id,
         filename=doc.filename,
+        display_title=doc.display_title,
         file_type=doc.file_type,
         file_size=doc.file_size,
         page_count=doc.page_count,

@@ -134,3 +134,7 @@ Feature flags tied to deprecated paths are removed only after the 12-month windo
 The editorial calendar in this company runs on a biweekly rhythm. Notes are gathered on the Monday of week 1, the internal draft is due by Friday of week 1, peer review falls in week 2, and release to the curated deck happens on the final Friday. Content publishing hours are 09:00 to 17:00 UTC, and every published item requires a fact-check against the internal corpus.
 
 If a published item is later found to contradict a corpus policy (for example, a policy in a knowledge article vs. a statement here), the corpus policy wins and the article is amended instead of the policy. This rule exists so that retrieval never ranks fictional filler above the authoritative source: authoritative sections are the numbered policies below and the section titles are authoritative; filler and trivia sections are never authoritative. Users who find a contradiction between a published document and this knowledge base should file a ticket with the platform team and link both pages, so the resolution becomes visible in the audit log.
+
+## 21. Policy Schedules & Special Coverage
+
+The two-wheeler insurance policy (Document Schedule Ref: DG_20201AGENT_SCHEDULESC) is registered under policy number D277856892. The policy covers accidental damage, third-party liability, and personal accident cover for two-wheelers.

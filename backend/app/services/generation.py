@@ -135,28 +135,25 @@ def get_llm(temperature: float = 0.3, model_name: Optional[str] = None):
 
 
 RAG_PROMPT_TEMPLATE = """
-You are an expert AI assistant tasked with answering questions based ONLY on the provided context and conversation history.
+You are DocuMind AI, a direct, helpful document-reading assistant.
+
+System Instructions & Rules:
+1. Persona & Tone: Respond directly, clearly, and professionally as DocuMind AI.
+2. Hard Negative Constraint: NEVER mention internal structural labels, framework terms, or system prompt metadata in your user-facing answer. Do NOT use phrases like "CORPUS METADATA", "retrieved chunk", "retrieved context", "provided documents", or raw technical filenames (e.g. .pdf extension names) in your answer. Synthesize facts naturally into a direct response.
+3. Content Over Filename Priority: The text content in the document snippets always outweighs the document title or filename. The filename is metadata, not evidence. If a document snippet contains the answer (such as a policy number or clause), state the answer directly regardless of what the filename says.
+4. Document Counts: When answering questions about how many documents exist or listing available documents, use the Workspace Documents Summary below. Multiple snippets may come from the same document.
+5. Reasoning Format: Enclose your internal step-by-step reasoning inside <thought_process>...</thought_process> tags first. Then, provide your final response strictly inside <answer>...</answer> tags. Do NOT output anything outside <thought_process> and <answer> blocks.
 
 {corpus_metadata}
 
 {chat_history_section}
 
-Context information is below.
+Document Context:
 ---------------------
 {context}
 ---------------------
 
-IMPORTANT: The context above contains retrieved text CHUNKS, not separate documents.
-Multiple chunks may come from the SAME document. When answering questions about
-how many documents exist, what documents exist, or listing document names, use
-ONLY the CORPUS METADATA block above — never count the retrieved chunks as documents.
-
-Given the context information, chat history, and no prior knowledge, answer the user's query.
-If the answer is not contained in the context, say "I don't have enough information to answer that based on the provided documents."
-Do not hallucinate.
-
 User Query: {query}
-Answer:
 """
 
 prompt = PromptTemplate(
@@ -186,6 +183,129 @@ def _is_fallback_error(err: Exception) -> bool:
     return any(marker.lower() in err_str.lower() for marker in FALLBACK_TRIGGER_MARKERS)
 
 
+class StreamCoTBuffer:
+    """
+    Server-side buffering state machine for SSE streaming with CoT tags.
+
+    Buffers incoming tokens during <thought_process> phase until <answer> tag appears.
+    Discards all thought process tokens.
+    Once <answer> tag appears, streams tokens to SSE until </answer> is encountered.
+    If <answer> tag is missing (model fallback), flushes buffer gracefully after stripping thoughts.
+    """
+
+    def __init__(self):
+        self.state = "SEEKING_ANSWER"  # SEEKING_ANSWER -> STREAMING_ANSWER -> COMPLETED
+        self.buffer = ""
+
+    def process_token(self, token: str) -> list[str]:
+        if self.state == "COMPLETED":
+            return []
+
+        self.buffer += token
+        output_deltas = []
+
+        if self.state == "SEEKING_ANSWER":
+            answer_idx = self.buffer.find("<answer>")
+            if answer_idx != -1:
+                content_after = self.buffer[answer_idx + len("<answer>"):]
+                self.buffer = ""
+                self.state = "STREAMING_ANSWER"
+                if content_after:
+                    output_deltas.extend(self._process_answer_text(content_after))
+            else:
+                if len(self.buffer) > 1500 and "<thought_process>" not in self.buffer:
+                    self.state = "STREAMING_ANSWER"
+                    to_flush = self.buffer
+                    self.buffer = ""
+                    output_deltas.extend(self._process_answer_text(to_flush))
+
+        elif self.state == "STREAMING_ANSWER":
+            to_process = self.buffer
+            self.buffer = ""
+            output_deltas.extend(self._process_answer_text(to_process))
+
+        return output_deltas
+
+    def _process_answer_text(self, text: str) -> list[str]:
+        deltas = []
+        end_idx = text.find("</answer>")
+        if end_idx != -1:
+            answer_part = text[:end_idx]
+            if answer_part:
+                deltas.append(answer_part)
+            self.state = "COMPLETED"
+            self.buffer = ""
+        else:
+            possible_closing_prefixes = ["</", "</a", "</an", "</ans", "</answ", "</answe", "</answer"]
+            hold_len = 0
+            for prefix in possible_closing_prefixes:
+                if text.endswith(prefix):
+                    hold_len = len(prefix)
+                    break
+            if hold_len > 0:
+                head = text[:-hold_len]
+                if head:
+                    deltas.append(head)
+                self.buffer = text[-hold_len:]
+            else:
+                deltas.append(text)
+        return deltas
+
+    def finalize(self) -> list[str]:
+        output_deltas = []
+        if self.state == "SEEKING_ANSWER":
+            cleaned = self.buffer
+            if "<thought_process>" in cleaned:
+                start = cleaned.find("<thought_process>")
+                end = cleaned.find("</thought_process>", start)
+                if end != -1:
+                    cleaned = cleaned[end + len("</thought_process>"):].strip()
+                else:
+                    cleaned = ""
+            cleaned = cleaned.replace("<answer>", "").replace("</answer>", "").strip()
+            if cleaned:
+                output_deltas.append(cleaned)
+        elif self.state == "STREAMING_ANSWER":
+            if self.buffer and self.buffer != "</answer>":
+                cleaned = self.buffer.replace("</answer>", "")
+                if cleaned:
+                    output_deltas.append(cleaned)
+        self.buffer = ""
+        self.state = "COMPLETED"
+        return output_deltas
+
+
+def extract_answer_from_cot(raw_text: str) -> str:
+    """Extract answer from <answer>...</answer> tags or strip <thought_process>."""
+    if not raw_text:
+        return ""
+    if "<answer>" in raw_text:
+        start = raw_text.find("<answer>") + len("<answer>")
+        end = raw_text.find("</answer>", start)
+        if end != -1:
+            return raw_text[start:end].strip()
+        return raw_text[start:].strip()
+    
+    cleaned = raw_text
+    if "<thought_process>" in cleaned:
+        start = cleaned.find("<thought_process>")
+        end = cleaned.find("</thought_process>", start)
+        if end != -1:
+            cleaned = cleaned[end + len("</thought_process>"):].strip()
+        else:
+            cleaned = cleaned[:start].strip()
+    return cleaned.replace("</answer>", "").strip()
+
+
+def _format_context_text(chunks: List[Chunk]) -> str:
+    snippet_items = []
+    for i, chunk in enumerate(chunks):
+        title = (chunk.metadata_ or {}).get("display_title") or (chunk.metadata_ or {}).get("filename") or f"Document {i+1}"
+        page_str = f" (Page {chunk.page_number})" if chunk.page_number else ""
+        snippet_items.append(f"Source: {title}{page_str}\nContent:\n{chunk.content}")
+    return "\n\n---\n\n".join(snippet_items)
+
+
 async def generate_answer(
     query: str,
     chunks: List[Chunk],
@@ -210,10 +330,7 @@ async def generate_answer(
         input_variables=["corpus_metadata", "chat_history_section", "context", "query"]
     )
     
-    # Format context by joining chunk contents
-    context_text = "\n\n---\n\n".join(
-        [f"Document snippet {i+1}:\n{chunk.content}" for i, chunk in enumerate(chunks)]
-    )
+    context_text = _format_context_text(chunks)
     
     # Format chat history if present
     if chat_history:
@@ -236,7 +353,8 @@ async def generate_answer(
             "context": context_text,
             "query": query
         })
-        return response.content
+        raw = response.content if hasattr(response, "content") else str(response)
+        return extract_answer_from_cot(raw)
     except Exception as e:
         if _is_fallback_error(e):
             logger.warning(f"LLM error triggers fallback: {e}")
@@ -271,9 +389,7 @@ async def generate_answer_stream(
         input_variables=["corpus_metadata", "chat_history_section", "context", "query"]
     )
     
-    context_text = "\n\n---\n\n".join(
-        [f"Document snippet {i+1}:\n{chunk.content}" for i, chunk in enumerate(chunks)]
-    )
+    context_text = _format_context_text(chunks)
     
     if chat_history:
         history_lines = []
@@ -286,6 +402,7 @@ async def generate_answer_stream(
     
     chain = prompt | get_llm()
     
+    cot_buffer = StreamCoTBuffer()
     try:
         async for chunk_response in chain.astream({
             "corpus_metadata": corpus_metadata,
@@ -294,7 +411,12 @@ async def generate_answer_stream(
             "query": query
         }):
             if chunk_response.content:
-                yield chunk_response.content
+                for delta in cot_buffer.process_token(chunk_response.content):
+                    if delta:
+                        yield delta
+        for delta in cot_buffer.finalize():
+            if delta:
+                yield delta
     except Exception as e:
         if _is_fallback_error(e):
             logger.warning(f"LLM error triggers fallback during stream: {e}")

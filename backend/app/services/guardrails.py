@@ -83,15 +83,22 @@ _UNUSUAL_UNICODE_RE = re.compile(
 # Output validation — leaked system-prompt fragments + unsafe keywords
 # ---------------------------------------------------------------------------
 
-# Literal fragments of RAG_PROMPT_TEMPLATE (generation.py). If one of these
-# shows up verbatim in an answer, the system prompt leaked into generation.
-# Keep in sync when the template changes.
+# Literal fragments of the live RAG prompt (generation.py) and of the
+# corpus-metadata block built in chat.py. If one of these shows up verbatim
+# in an answer, the system prompt / internal scaffolding leaked into
+# generation. Keep in sync when the template changes — the tests derive
+# leak samples from RAG_PROMPT_TEMPLATE, so drift fails loudly.
 PROMPT_LEAK_FRAGMENTS = (
-    "You are an expert AI assistant tasked with answering questions",
-    "Context information is below",
-    "Multiple chunks may come from the SAME document",
-    "If the answer is not contained in the context, say",
-    "Do not hallucinate",
+    "You are DocuMind AI, a direct, helpful document-reading assistant",
+    "System Instructions & Rules",
+    "Hard Negative Constraint",
+    "Content Over Filename Priority",
+    "Document Counts",
+    "Document Context:",
+    "Workspace Documents Summary",
+    "CORPUS METADATA",
+    "<thought_process>",
+    "<answer>",
 )
 
 # Unsafe-content blocklist. Scoped as a safety net, not a moderation suite:

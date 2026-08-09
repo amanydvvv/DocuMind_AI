@@ -18,6 +18,7 @@ class DocumentResponse(BaseModel):
     """Document metadata returned from API."""
     id: UUID
     filename: str
+    display_title: Optional[str] = None
     file_type: str
     file_size: int
     page_count: Optional[int] = None
@@ -45,6 +46,7 @@ class Citation(BaseModel):
     chunk_id: UUID
     document_id: UUID
     filename: str
+    display_title: Optional[str] = None
     section: Optional[str] = None
     page_number: Optional[int] = None
     score: float

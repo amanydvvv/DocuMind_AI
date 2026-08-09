@@ -59,8 +59,11 @@ def _guard_input(text: str) -> tuple[str, bool]:
     return sanitized, flagged
 
 
+CORPUS_SUMMARY_LABEL = "Workspace Documents Summary"
+
+
 async def _build_corpus_metadata(db: AsyncSession, user_id) -> str:
-    """Query the user's actual document count and filenames (ground truth for the LLM)."""
+    """Query the user's actual document count and titles (ground truth for the LLM)."""
     count_result = await db.execute(
         select(func.count(Document.id)).where(
             Document.user_id == user_id,
@@ -70,17 +73,15 @@ async def _build_corpus_metadata(db: AsyncSession, user_id) -> str:
     doc_count = count_result.scalar_one()
 
     name_result = await db.execute(
-        select(Document.filename).where(
+        select(Document.filename, Document.display_title).where(
             Document.user_id == user_id,
             Document.status == "completed",
         ).distinct()
     )
-    filenames = [row[0] for row in name_result.all()]
+    titles = [row[1] if row[1] else row[0] for row in name_result.all()]
 
     return (
-        f"CORPUS METADATA (ground truth — use this for any question about how many "
-        f"documents exist or what documents exist, do NOT count retrieved chunks as "
-        f"documents): You have {doc_count} document(s): {', '.join(filenames)}"
+        f"{CORPUS_SUMMARY_LABEL}: You have {doc_count} document(s): {', '.join(titles)}"
     )
 
 
@@ -189,12 +190,14 @@ async def chat(
                     else (chunk.metadata_.get("page_number", None) if chunk.metadata_ else None)
                 )
                 source = chunk.metadata_.get("source", None) if chunk.metadata_ else None
+                display_title = (chunk.metadata_ or {}).get("display_title") or filename
                 similarity_scores.append(score)
                 citations.append(
                     Citation(
                         chunk_id=chunk.id,
                         document_id=chunk.document_id,
                         filename=filename,
+                        display_title=display_title,
                         page_number=page_num,
                         score=score,
                         content_preview=chunk.content[:297] + "..."
@@ -245,6 +248,7 @@ async def chat(
                 "chunk_id": str(c.chunk_id),
                 "document_id": str(c.document_id),
                 "filename": c.filename,
+                "display_title": c.display_title,
                 "page_number": c.page_number,
                 "score": c.score,
                 "content_preview": c.content_preview,
@@ -425,12 +429,14 @@ async def chat_stream(
             else (chunk.metadata_.get("page_number", None) if chunk.metadata_ else None)
         )
         source = chunk.metadata_.get("source", None) if chunk.metadata_ else None
+        display_title = (chunk.metadata_ or {}).get("display_title") or filename
         similarity_scores.append(score)
         citations.append(
             Citation(
                 chunk_id=chunk.id,
                 document_id=chunk.document_id,
                 filename=filename,
+                display_title=display_title,
                 page_number=page_num,
                 score=score,
                 content_preview=chunk.content[:297] + "..."
@@ -455,6 +461,7 @@ async def chat_stream(
             "chunk_id": str(c.chunk_id),
             "document_id": str(c.document_id),
             "filename": c.filename,
+            "display_title": c.display_title,
             "page_number": c.page_number,
             "score": c.score,
             "content_preview": c.content_preview,

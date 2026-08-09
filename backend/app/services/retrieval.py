@@ -369,20 +369,27 @@ async def retrieve_context(
 
         total_retrieval_ms = int((time.time() - start_time) * 1000)
 
-        # 4. Resolve source document filenames
+        # 4. Resolve source document filenames and display_titles
         doc_ids = {chunk.document_id for chunk, _ in reranked_top_k}
         doc_map = {}
         if doc_ids:
             doc_res = await db.execute(
-                select(Document.id, Document.filename).where(Document.id.in_(doc_ids))
+                select(Document.id, Document.filename, Document.display_title).where(Document.id.in_(doc_ids))
             )
-            doc_map = {d_id: fn for d_id, fn in doc_res.all()}
+            doc_map = {}
+            for row in doc_res.all():
+                d_id = row[0]
+                fn = row[1]
+                dt = row[2] if len(row) > 2 and row[2] else fn
+                doc_map[d_id] = (fn, dt)
 
         retrieved = []
         for chunk, score in reranked_top_k:
-            filename = chunk.metadata_.get("filename") or doc_map.get(
-                chunk.document_id, "unknown"
-            )
+            fn, dt = doc_map.get(chunk.document_id, ("unknown", "unknown"))
+            filename = chunk.metadata_.get("filename") or fn
+            display_title = chunk.metadata_.get("display_title") or dt
+            if chunk.metadata_ is not None:
+                chunk.metadata_["display_title"] = display_title
             retrieved.append((chunk, score, filename))
 
         logger.info(

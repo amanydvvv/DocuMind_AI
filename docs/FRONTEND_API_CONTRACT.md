@@ -70,7 +70,7 @@ The streaming response yields discrete events separated by `\n\n`. Each event ha
 Emitted exactly **once** at the start of the stream. Contains the conversation ID and citations found.
 ```text
 event: metadata
-data: {"conversation_id": "uuid", "citations": [{"chunk_id": "uuid", "document_id": "uuid", "filename": "string", "page_number": 1, "score": 0.85, "content_preview": "...", "source": "text"}], "avg_similarity": 0.85}
+data: {"conversation_id": "uuid", "citations": [{"chunk_id": "uuid", "document_id": "uuid", "filename": "string", "display_title": "string (optional, may equal filename)", "page_number": 1, "score": 0.85, "content_preview": "...", "source": "text"}], "avg_similarity": 0.85}
 ```
 
 #### B. Token Event (`event: token`)

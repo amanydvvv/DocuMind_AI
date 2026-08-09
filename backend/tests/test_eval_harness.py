@@ -74,7 +74,7 @@ def _entry(**overrides):
 
 def test_valid_golden_set_loads_cleanly():
     entries = load_golden_set()
-    assert len(entries) == 32
+    assert len(entries) == 34
     assert sum(1 for e in entries if e.expect_verdict == "fail") == 3
 
 

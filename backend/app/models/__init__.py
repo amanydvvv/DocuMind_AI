@@ -39,6 +39,7 @@ class Document(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
     filename: Mapped[str] = mapped_column(String, nullable=False)
+    display_title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     content_hash: Mapped[str] = mapped_column(String, nullable=False)
     file_type: Mapped[str] = mapped_column(String, nullable=False)  # 'pdf' | 'markdown'
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)

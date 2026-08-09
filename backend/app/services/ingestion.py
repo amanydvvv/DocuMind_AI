@@ -230,6 +230,33 @@ def _resolve_file_path(doc: Document, file_path: Optional[str] = None) -> str:
     return str(Path(settings.UPLOAD_DIR) / f"{doc.id}.{ext}")
 
 
+async def _generate_display_title(first_page_text: str, filename: str) -> str:
+    """Generate a short human-readable title for the document using a fast model call."""
+    if not settings.GROQ_API_KEY:
+        return filename
+    try:
+        sample_text = first_page_text[:1500]
+        prompt = (
+            f"Based on the following document sample and filename, generate a concise, human-readable title "
+            f"(3 to 7 words) that describes the document (e.g. 'Two-Wheeler Insurance Policy' or 'Q3 Financial Report'). "
+            f"Return ONLY the title text, with no quotes, explanations, or leading/trailing punctuation.\n\n"
+            f"Filename: {filename}\n"
+            f"Document Sample:\n{sample_text}"
+        )
+        resp = await groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=60,
+            temperature=0.1,
+        )
+        title = resp.choices[0].message.content.strip().strip('"').strip("'")
+        if title:
+            return title
+    except Exception as e:
+        logger.warning(f"Display title generation failed for {filename}: {e}")
+    return filename
+
+
 async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[str] = None) -> None:
     """
     Core chunking + embedding pipeline: parse text, chunk, embed, and insert rows.
@@ -271,6 +298,10 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
     if not pages:
         raise RuntimeError("No readable text found in document. Please upload a searchable PDF or Markdown file.")
 
+    # Generate human-readable display title if missing
+    display_title = await _generate_display_title(pages[0]["text"], doc.filename)
+    doc.display_title = display_title
+
     # 3. Chunking (using dynamic settings)
     optimal_chunk_size = settings.CHUNK_SIZE
     optimal_chunk_overlap = settings.CHUNK_OVERLAP
@@ -292,6 +323,7 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
                 "metadata": {
                     "page_number": page["page_number"],
                     "filename": doc.filename,
+                    "display_title": doc.display_title or doc.filename,
                     "source": page.get("source", "text"),
                 },
                 "index": chunk_index
