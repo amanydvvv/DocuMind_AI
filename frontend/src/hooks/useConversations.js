@@ -118,6 +118,7 @@ export function useConversations() {
     isLoadingHistory,
     isGenerating: isStreaming,
     error,
+    clearError: () => setError(null),
     loadConversationList,
     selectConversation,
     startNewChat,

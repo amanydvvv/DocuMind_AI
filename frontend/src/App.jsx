@@ -16,6 +16,7 @@ function App() {
     isLoadingHistory,
     isGenerating,
     error,
+    clearError,
     selectConversation,
     startNewChat,
     removeConversation,
@@ -87,6 +88,7 @@ function App() {
         isLoadingHistory={isLoadingHistory}
         isGenerating={isGenerating}
         error={error}
+        onDismissError={clearError}
         onSendMessage={sendMessage}
       />
     </Layout>

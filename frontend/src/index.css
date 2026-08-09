@@ -1,8 +1,10 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme {
   --color-primary: #3b82f6;
   --color-primary-dark: #2563eb;
+  --color-primary-hover: #2563eb;
   --color-surface: #ffffff;
   --color-background: #f8fafc;
   --color-text: #1e293b;

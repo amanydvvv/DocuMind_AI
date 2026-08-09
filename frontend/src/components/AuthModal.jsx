@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { loginUser, signupUser } from '../services/api';
+import BrandIcon from '../components/shared/BrandIcon';
 
 export default function AuthModal({ onAuthSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -36,7 +37,7 @@ export default function AuthModal({ onAuthSuccess }) {
     <div style={styles.overlay}>
       <div style={styles.card}>
         <div style={styles.header}>
-          <div style={styles.logoBadge}>✨</div>
+          <div style={styles.logoBadge}><BrandIcon size={34} /></div>
           <h2 style={styles.title}>DocuMind AI</h2>
           <p style={styles.subtitle}>
             {isLogin ? 'Sign in to access your secure knowledge workspace' : 'Create an account to start indexing your docs'}

@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
+import BrandIcon from '../shared/BrandIcon';
 
 export default function MessageList({
   messages,
   isLoadingHistory,
   isGenerating,
   onCitationClick,
+  onSendMessage,
 }) {
   const messagesEndRef = useRef(null);
 
@@ -29,8 +31,8 @@ export default function MessageList({
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8 mt-12">
-        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-3xl mb-4 shadow-sm">
-          🤖
+        <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+          <BrandIcon size={32} />
         </div>
         <h2 className="text-2xl font-bold text-gray-800 mb-2">DocuMind AI Assistant</h2>
         <p className="text-gray-500 max-w-md text-sm mb-6">
@@ -38,12 +40,38 @@ export default function MessageList({
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg w-full text-left">
-          <div className="p-3.5 bg-white border border-border rounded-xl text-xs text-text-muted hover:border-primary/50 transition-colors">
-            💡 <strong className="text-text">Synthesize:</strong> "Summarize the key architectural decisions in the document."
-          </div>
-          <div className="p-3.5 bg-white border border-border rounded-xl text-xs text-text-muted hover:border-primary/50 transition-colors">
-            🔍 <strong className="text-text">Extract:</strong> "Who is the project lead and what is the target completion date?"
-          </div>
+          {[
+            {
+              icon: '💡',
+              label: (
+                <>
+                  <strong className="text-text">Synthesize:</strong> "Summarize the
+                  key architectural decisions in the document."
+                </>
+              ),
+              prompt: 'Summarize the key architectural decisions in the document.',
+            },
+            {
+              icon: '🔍',
+              label: (
+                <>
+                  <strong className="text-text">Extract:</strong> "Who is the project
+                  lead and what is the target completion date?"
+                </>
+              ),
+              prompt:
+                'Who is the project lead and what is the target completion date?',
+            },
+          ].map((suggestion) => (
+            <button
+              key={suggestion.prompt}
+              type="button"
+              onClick={() => onSendMessage && onSendMessage(suggestion.prompt)}
+              className="p-3.5 bg-white border border-border rounded-xl text-xs text-text-muted hover:border-primary hover:bg-blue-50/50 transition-colors text-left cursor-pointer"
+            >
+              {suggestion.icon} {suggestion.label}
+            </button>
+          ))}
         </div>
       </div>
     );

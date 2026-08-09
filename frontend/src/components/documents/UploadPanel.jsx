@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { uploadDocument, getDocument } from '../../lib/api';
+import { uploadDocument, getDocument } from '../../services/api';
 
 export default function UploadPanel({ onUploadComplete }) {
   const [isDragging, setIsDragging] = useState(false);
