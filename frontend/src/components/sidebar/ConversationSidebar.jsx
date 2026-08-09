@@ -1,4 +1,5 @@
 import ConversationItem from './ConversationItem';
+import Icon from '../shared/Icon';
 
 export default function ConversationSidebar({
   conversations,
@@ -10,13 +11,13 @@ export default function ConversationSidebar({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Top New Chat Button */}
-      <div className="p-3 border-b border-border bg-white">
+      <div className="p-3 border-b border-border bg-surface">
         <button
           onClick={onStartNewChat}
           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-primary text-white font-medium rounded-xl hover:bg-primary-hover shadow-sm transition-colors text-sm"
         >
-          <span>💬</span>
-          <span>+ New Chat</span>
+          <Icon name="plus" size={16} />
+          <span>New Chat</span>
         </button>
       </div>
 

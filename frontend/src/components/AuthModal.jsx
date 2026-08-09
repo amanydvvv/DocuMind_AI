@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { loginUser, signupUser } from '../services/api';
 import BrandIcon from '../components/shared/BrandIcon';
 
@@ -33,51 +33,76 @@ export default function AuthModal({ onAuthSuccess }) {
     }
   };
 
+  const inputClass =
+    'border border-border rounded-lg bg-background px-3.5 py-3 text-sm text-text ' +
+    'placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 ' +
+    'focus:border-primary transition-colors';
+
   return (
-    <div style={styles.overlay}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <div style={styles.logoBadge}><BrandIcon size={34} /></div>
-          <h2 style={styles.title}>DocuMind AI</h2>
-          <p style={styles.subtitle}>
-            {isLogin ? 'Sign in to access your secure knowledge workspace' : 'Create an account to start indexing your docs'}
+    <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-[420px] bg-surface border border-border rounded-2xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="text-center mb-6">
+          <div className="flex justify-center mb-2">
+            <BrandIcon size={36} />
+          </div>
+          <h2 className="text-2xl font-bold text-text">DocuMind AI</h2>
+          <p className="text-sm text-text-muted mt-2">
+            {isLogin
+              ? 'Sign in to access your secure knowledge workspace'
+              : 'Create an account to start indexing your docs'}
           </p>
         </div>
 
-        {error && <div style={styles.errorAlert}>{error}</div>}
+        {error && (
+          <div className="bg-danger-soft border border-danger-border rounded-lg px-3 py-2.5 text-sm text-danger-text mb-5">
+            {error}
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Work Email</label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="auth-email" className="text-[13px] font-semibold text-text-secondary">
+              Work Email
+            </label>
             <input
+              id="auth-email"
               type="email"
               required
+              autoComplete="email"
               placeholder="user@organization.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={styles.input}
+              className={inputClass}
             />
           </div>
 
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Password</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="auth-password" className="text-[13px] font-semibold text-text-secondary">
+              Password
+            </label>
             <input
+              id="auth-password"
               type="password"
               required
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={styles.input}
+              className={inputClass}
             />
           </div>
 
-          <button type="submit" disabled={loading} style={styles.submitBtn}>
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-1 py-3 bg-primary text-white font-semibold rounded-lg text-[15px] hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
             {loading ? 'Authenticating...' : isLogin ? 'Sign In' : 'Create Account'}
           </button>
         </form>
 
-        <div style={styles.footer}>
-          <span style={styles.footerText}>
+        <div className="mt-6 text-center text-sm flex justify-center gap-2">
+          <span className="text-text-muted">
             {isLogin ? "Don't have an account?" : 'Already have an account?'}
           </span>
           <button
@@ -86,7 +111,7 @@ export default function AuthModal({ onAuthSuccess }) {
               setIsLogin(!isLogin);
               setError('');
             }}
-            style={styles.toggleBtn}
+            className="font-semibold text-primary-light hover:text-primary-hover cursor-pointer"
           >
             {isLogin ? 'Sign Up' : 'Log In'}
           </button>
@@ -95,115 +120,3 @@ export default function AuthModal({ onAuthSuccess }) {
     </div>
   );
 }
-
-const styles = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-    backdropFilter: 'blur(8px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 9999,
-  },
-  card: {
-    backgroundColor: '#0F172A',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '16px',
-    padding: '36px',
-    width: '100%',
-    maxWidth: '420px',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
-  },
-  header: {
-    textAlign: 'center',
-    marginBottom: '24px',
-  },
-  logoBadge: {
-    fontSize: '32px',
-    marginBottom: '8px',
-  },
-  title: {
-    margin: 0,
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#F8FAFC',
-    letterSpacing: '-0.02em',
-  },
-  subtitle: {
-    margin: '8px 0 0 0',
-    fontSize: '14px',
-    color: '#94A3B8',
-    lineHeight: '1.4',
-  },
-  errorAlert: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
-    color: '#FCA5A5',
-    padding: '12px',
-    borderRadius: '8px',
-    fontSize: '13px',
-    marginBottom: '20px',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-  },
-  fieldGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  label: {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#CBD5E1',
-  },
-  input: {
-    padding: '12px 14px',
-    backgroundColor: '#1E293B',
-    border: '1px solid #334155',
-    borderRadius: '8px',
-    color: '#F8FAFC',
-    fontSize: '14px',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-  },
-  submitBtn: {
-    marginTop: '8px',
-    padding: '12px',
-    backgroundColor: '#6366F1',
-    color: '#FFFFFF',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '15px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-  },
-  footer: {
-    marginTop: '24px',
-    textAlign: 'center',
-    fontSize: '14px',
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '8px',
-  },
-  footerText: {
-    color: '#94A3B8',
-  },
-  toggleBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#818CF8',
-    fontWeight: '600',
-    cursor: 'pointer',
-    padding: 0,
-    fontSize: '14px',
-  },
-};

@@ -136,13 +136,82 @@ cleanly onto dark surfaces. No light/dark toggle is in scope.
 | Phase | Scope | Effort | Status |
 |---|---|---|---|
 | 1 | Tokens/animations live; brand (title/meta/jargon); suggestion cards clickable; F13 dead-code removal; banner dismiss; upload-hint copy | S | **SHIPPED** |
-| 2 | Full dark theme: single token family, component migration, AuthModal onto the system, one icon language | M | Pending |
+| 2 | Full dark theme: single token family, component migration, AuthModal onto the system, one icon language | M | **SHIPPED** |
 | 3 | Mobile drawer + touch-visible deletes + in-app delete confirm | M | Pending |
 | 4 | Shared dialog primitive (focus trap, Escape, aria-modal), labels, live region for streaming | M | Pending |
 | 5 | Streaming idle cue, PDF "Loading document…" state, docs-list skeletons | S | Pending |
 
 Acceptance per phase: `npm run lint`, `npm test`, `npm run build` stay green; no
 backend/contract changes.
+
+---
+
+## 6. Phase 2 — token system (shipped; written record of the design system)
+
+Single source of truth: `frontend/src/index.css` `@theme`. All components (including
+the former inline-styled AuthModal) now consume only these tokens; the old light
+palette and AuthModal's hardcoded dark slate values no longer exist as a second
+system. Verified by grep: the only non-token color usage left is `text-white` on
+accent fills and `black` modal overlays — both intentional.
+
+### 6.1 Token values & semantics
+
+| Token | Value | Purpose |
+|---|---|---|
+| `background` | `#0f172a` | App canvas / page background |
+| `surface` | `#1e293b` | Cards, bubbles, panels, inputs, sidebar |
+| `surface-muted` | `#293548` | Hover fills, tab track, soft panels, code/PDF backdrops |
+| `border` | `#334155` | Default borders |
+| `border-subtle` | `#2a3a52` | Hairline dividers inside cards (e.g., Sources rule) |
+| `border-strong` | `#475569` | Chips, strong edges |
+| `text` | `#e2e8f0` | Primary text |
+| `text-secondary` | `#cbd5e1` | Labels, sub-headings |
+| `text-muted` | `#94a3b8` | Metadata (times, hint text) |
+| `primary` | `#5457e6` | Action fills (buttons, user bubble, links) |
+| `primary-hover` | `#6a6df0` | Accent hover (lightens — dark UI convention) |
+| `primary-dark` | `#3f43c9` | Pressed / gradient end |
+| `primary-light` | `#c7d2fe` | Accent text on dark surfaces (pills, links, active tab) |
+| `primary-soft` | `rgba(99,102,241,0.16)` | Accent-tinted fills (badges, drag state, active row) |
+| `primary-border` | `rgba(99,102,241,0.4)` | Tinted borders for accent chips |
+| `danger*` | `#fca5a5` / `#f87171` / soft / border | Error text / fills / tinted surfaces |
+| `success*` | `#86efac` / `#4ade80` / soft / border | Completed states |
+| `warning*` | `#fcd34d` / `#fbbf24` / soft / border | Pending states, OCR badges |
+
+### 6.2 WCAG contrast (measured, WCAG 2.1 formula)
+
+| Pair | Ratio | Verdict |
+|---|---|---|
+| text `#e2e8f0` on background `#0f172a` | 14.48:1 | AAA |
+| text `#e2e8f0` on surface `#1e293b` | 11.87:1 | AAA |
+| text-secondary `#cbd5e1` on surface | 9.85:1 | AAA |
+| text-muted `#94a3b8` on surface | 5.71:1 | AA |
+| text-muted `#94a3b8` on surface-muted | 4.83:1 | AA |
+| white on primary `#5457e6` (button labels) | 5.41:1 | AA |
+| primary-light `#c7d2fe` on surface (accent text) | 9.81:1 | AAA |
+| danger-text `#fca5a5` on surface | 7.71:1 | AAA |
+| success-text `#86efac` on surface | 10.42:1 | AAA |
+| warning-text `#fcd34d` on surface | 10.15:1 | AAA |
+
+All body/label/status text ≥ 4.5:1 (AA); heading/graphical pairs far exceed AA.
+Hover states (`primary-hover` 4.4:1 label contrast) are transient and exempt from
+AA, per WCAG guidance on interaction states.
+
+### 6.3 Markdown rendering (dead-`prose` fix)
+
+`@tailwindcss/typography` was never a dependency — every `prose prose-slate`/
+`prose-invert` class in chat bubbles and the citation viewer was inert, so markdown
+content (headings, lists, code, tables, links) rendered unstyled. Replaced with a
+scoped `.markdown` component layer in `index.css` (token-driven, dark-native). This
+is a Phase-2 self-finding (F14), fixed without adding a dependency (keeps D2).
+
+### 6.4 Icon language
+
+No icon library is installed; the app now standardizes on **inline SVG stroke icons**
+(`frontend/src/components/shared/Icon.jsx` — chat, docs, plus, trash, x, warning,
+target, grid, send) for all interactive chrome: tabs, new-chat, deletes, citation
+pills, page/chunk metadata, close buttons, banner glyphs. Emoji remain only inside
+prose content (suggestion-card metaphors), not as UI chrome. `BrandIcon` (Phase 1)
+now consumes token colors via CSS variables.
 
 ---
 

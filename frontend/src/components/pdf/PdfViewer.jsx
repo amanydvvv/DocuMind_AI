@@ -3,6 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { buildDocumentFileRequest } from '../../services/api';
+import Icon from '../shared/Icon';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -12,9 +13,9 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 function ErrorState({ message, onRetry, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 text-center animate-in zoom-in-95 duration-200">
-        <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-3">
-          ⚠️
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 text-center animate-in zoom-in-95 duration-200">
+        <div className="w-12 h-12 bg-danger-soft text-danger rounded-full flex items-center justify-center mx-auto mb-3">
+          <Icon name="warning" size={26} />
         </div>
         <h3 className="font-semibold text-text text-lg">Document unavailable</h3>
         <p className="text-sm text-text-muted mt-1 mb-5 whitespace-pre-wrap">{message}</p>
@@ -27,7 +28,7 @@ function ErrorState({ message, onRetry, onClose }) {
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-white border border-border text-text text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+            className="px-4 py-2 bg-surface border border-border text-text text-sm font-medium rounded-lg hover:bg-surface-muted transition-colors shadow-sm"
           >
             Close
           </button>
@@ -84,25 +85,26 @@ export default function PdfViewer({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-gray-50/50">
+        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-surface-muted/40">
           <h3 className="font-semibold text-text text-lg truncate">{filename}</h3>
           <button
             onClick={onClose}
-            className="p-2 text-text-muted hover:text-text hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 text-text-muted hover:text-text hover:bg-surface-muted rounded-full transition-colors"
+            aria-label="Close PDF viewer"
           >
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </div>
 
         {/* Page navigation */}
         {numPages > 0 && (
-          <div className="px-6 py-2 flex items-center justify-between bg-white border-b border-border">
+          <div className="px-6 py-2 flex items-center justify-between bg-surface border-b border-border">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={!page || page <= 1}
-              className="px-3 py-1 text-xs font-medium bg-gray-100 text-text rounded-md hover:bg-gray-200 disabled:opacity-40 transition-colors"
+              className="px-3 py-1 text-xs font-medium bg-surface-muted text-text rounded-md hover:bg-border disabled:opacity-40 transition-colors"
             >
               ← Prev
             </button>
@@ -112,7 +114,7 @@ export default function PdfViewer({
             <button
               onClick={() => setPage((p) => Math.min(numPages, p + 1))}
               disabled={!page || page >= numPages}
-              className="px-3 py-1 text-xs font-medium bg-gray-100 text-text rounded-md hover:bg-gray-200 disabled:opacity-40 transition-colors"
+              className="px-3 py-1 text-xs font-medium bg-surface-muted text-text rounded-md hover:bg-border disabled:opacity-40 transition-colors"
             >
               Next →
             </button>
@@ -120,7 +122,7 @@ export default function PdfViewer({
         )}
 
         {/* PDF canvas */}
-        <div className="flex-1 overflow-auto bg-gray-100 p-4">
+        <div className="flex-1 overflow-auto bg-surface-muted p-4">
           <Document
             key={`${documentId}:${attempt}`}
             file={file}
@@ -132,10 +134,10 @@ export default function PdfViewer({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-border bg-gray-50 flex justify-end">
+        <div className="px-6 py-3 border-t border-border bg-surface-muted/40 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-white border border-border text-text text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+            className="px-4 py-2 bg-surface border border-border text-text text-sm font-medium rounded-lg hover:bg-surface-muted transition-colors shadow-sm"
           >
             Close
           </button>

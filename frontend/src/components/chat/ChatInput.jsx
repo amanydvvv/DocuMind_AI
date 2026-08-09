@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Icon from '../shared/Icon';
 
 export default function ChatInput({ onSendMessage, disabled }) {
   const [message, setMessage] = useState('');
@@ -26,16 +27,17 @@ export default function ChatInput({ onSendMessage, disabled }) {
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask a question about your documents..."
-          className="flex-1 max-h-32 min-h-[50px] p-3 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none transition-all shadow-sm"
+          className="flex-1 max-h-32 min-h-[50px] p-3 rounded-xl border border-border bg-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none transition-all shadow-sm placeholder:text-text-muted"
           rows={1}
           disabled={disabled}
         />
         <button
           type="submit"
           disabled={!message.trim() || disabled}
-          className="h-[50px] px-6 bg-primary text-white font-medium rounded-xl hover:bg-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center"
+          className="h-[50px] px-6 bg-primary text-white font-medium rounded-xl hover:bg-primary-hover disabled:bg-surface-muted disabled:text-text-muted disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center gap-2"
         >
           Send
+          <Icon name="send" size={16} />
         </button>
       </div>
     </form>

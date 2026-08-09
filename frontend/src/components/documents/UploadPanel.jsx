@@ -90,8 +90,8 @@ export default function UploadPanel({ onUploadComplete }) {
     <div className="mb-6">
       <div 
         className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors
-          ${isDragging ? 'border-primary bg-blue-50' : 'border-border'}
-          ${uploadState === 'error' ? 'border-red-400 bg-red-50' : ''}
+          ${isDragging ? 'border-primary bg-primary-soft' : 'border-border'}
+          ${uploadState === 'error' ? 'border-danger-border bg-danger-soft' : ''}
         `}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -108,7 +108,7 @@ export default function UploadPanel({ onUploadComplete }) {
         {uploadState === 'idle' && (
           <div className="cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             <p className="text-sm font-medium text-text">Drag & drop a file here</p>
-            <p className="text-xs text-text-muted mt-1">or click to browse (.pdf, .md)</p>
+            <p className="text-xs text-text-muted mt-1">or click to browse (.pdf, .md, .txt)</p>
           </div>
         )}
 
@@ -127,10 +127,10 @@ export default function UploadPanel({ onUploadComplete }) {
 
         {uploadState === 'error' && (
           <div>
-            <p className="text-sm font-medium text-red-600">Error uploading {currentFile?.name}</p>
-            <p className="text-xs text-red-500 mt-1">{errorMessage}</p>
+            <p className="text-sm font-medium text-danger-text">Error uploading {currentFile?.name}</p>
+            <p className="text-xs text-danger-text mt-1">{errorMessage}</p>
             <button 
-              className="mt-3 text-xs bg-red-100 hover:bg-red-200 text-red-700 py-1 px-3 rounded transition-colors"
+              className="mt-3 text-xs bg-danger-soft hover:bg-danger-border text-danger-text py-1 px-3 rounded transition-colors"
               onClick={() => { setUploadState('idle'); setErrorMessage(''); setCurrentFile(null); }}
             >
               Try Again

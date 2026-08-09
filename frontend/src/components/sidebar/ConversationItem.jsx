@@ -1,3 +1,5 @@
+import Icon from '../shared/Icon';
+
 export default function ConversationItem({
   conversation,
   isActive,
@@ -29,8 +31,8 @@ export default function ConversationItem({
       onClick={() => onSelect(conversation.id)}
       className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${
         isActive
-          ? 'bg-blue-50 border-blue-200 text-blue-900 font-medium shadow-sm'
-          : 'bg-white border-transparent hover:bg-gray-100 text-text'
+          ? 'bg-primary-soft border-primary-border text-primary-light font-medium shadow-sm'
+          : 'bg-surface border-transparent hover:bg-surface-muted text-text'
       }`}
     >
       <div className="flex-1 min-w-0 pr-2">
@@ -44,10 +46,11 @@ export default function ConversationItem({
 
       <button
         onClick={handleDelete}
-        className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-red-500 rounded transition-opacity"
+        className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger rounded transition-opacity"
+        aria-label={`Delete conversation: ${conversation.title || 'New Chat'}`}
         title="Delete conversation"
       >
-        🗑️
+        <Icon name="trash" size={15} />
       </button>
     </div>
   );

@@ -143,4 +143,4 @@ This is a living execution tracker structured around development phases.
 - [x] Eval no-regression gate: full 32-entry harness run vs baseline — 0.0% delta on all four dimensions, zero per-entry flag changes, zero negative-control violations, stress entries EVAL-028/029 unchanged (guardrails confined to `chat.py`; the harness calls services directly, so no interference path); recorded in `docs/PLAN_EVAL_GUARDRAILS.md` §"Phase 2 closed"
 
 ## Frontend UX (Phase 1 shipped; audited plan approved — full dark theme locked for Phase 2)
-- [ ] UI/UX improvement plan: `docs/PLAN_UI_IMPROVEMENTS.md` (Phase 1 corrections shipped; Phase 2 full dark theme, Phase 3 mobile drawer + touch deletes, Phase 4 a11y dialogs/labels, Phase 5 micro-UX — each independently shippable)
+- [ ] UI/UX improvement plan: `docs/PLAN_UI_IMPROVEMENTS.md` (Phase 1 corrections + Phase 2 full dark theme token system shipped — single `@theme` source, AuthModal de-hardcoded, `prose`-dead-class fix via scoped markdown, inline-SVG icon language; Phase 3 mobile drawer + touch deletes, Phase 4 a11y dialogs/labels, Phase 5 micro-UX — each independently shippable)

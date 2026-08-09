@@ -1,15 +1,49 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/*
+ * DocuMind AI — design tokens (single source of truth; Phase 2 of the UI plan).
+ *
+ * Dark palette. Pairs are WCAG-AA checked (see docs/PLAN_UI_IMPROVEMENTS.md
+ * §Phase 2 — tokens & contrast): body text >= 4.5:1 on its surface, status
+ * text >= 4.5:1, button label (white on --color-primary) 5.41:1.
+ */
 @theme {
-  --color-primary: #3b82f6;
-  --color-primary-dark: #2563eb;
-  --color-primary-hover: #2563eb;
-  --color-surface: #ffffff;
-  --color-background: #f8fafc;
-  --color-text: #1e293b;
-  --color-text-muted: #64748b;
-  --color-border: #e2e8f0;
+  /* Surfaces */
+  --color-background: #0f172a;   /* app canvas, page background            */
+  --color-surface: #1e293b;      /* cards, bubbles, panels, inputs        */
+  --color-surface-muted: #293548;/* subtle fills: hover tiles, tab track, */
+                                 /* soft panels, code/PDF backdrops       */
+  --color-border: #334155;       /* default borders                       */
+  --color-border-subtle: #2a3a52;/* hairline dividers inside cards        */
+  --color-border-strong: #475569;/* chips, focus-adjacent accents         */
+
+  /* Text */
+  --color-text: #e2e8f0;         /* primary text (>= 11.9:1 on surface)   */
+  --color-text-secondary: #cbd5e1;/* labels, second-level headings        */
+  --color-text-muted: #94a3b8;   /* muted metadata (>= 5.7:1 on surface)  */
+
+  /* Accent (brand indigo) */
+  --color-primary: #5457e6;      /* action fills — white label 5.41:1    */
+  --color-primary-hover: #6a6df0;/* lighter on hover (dark UI convention) */
+  --color-primary-dark: #3f43c9; /* pressed / visited                     */
+  --color-primary-light: #c7d2fe;/* accent text on dark surfaces          */
+  --color-primary-soft: rgba(99, 102, 241, 0.16);  /* badge / chip fills */
+  --color-primary-border: rgba(99, 102, 241, 0.4); /* tinted borders     */
+
+  /* Status */
+  --color-danger-text: #fca5a5;      /* error text (>=7.7:1)            */
+  --color-danger: #f87171;           /* danger fills / icons           */
+  --color-danger-soft: rgba(248, 113, 113, 0.12);
+  --color-danger-border: rgba(248, 113, 113, 0.35);
+  --color-success-text: #86efac;    /* >=10.4:1                        */
+  --color-success: #4ade80;
+  --color-success-soft: rgba(74, 222, 128, 0.12);
+  --color-success-border: rgba(74, 222, 128, 0.35);
+  --color-warning-text: #fcd34d;   /* >=10.2:1                         */
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(251, 191, 36, 0.1);
+  --color-warning-border: rgba(251, 191, 36, 0.32);
 }
 
 body {
@@ -18,4 +52,71 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
   padding: 0;
+}
+
+/*
+ * Scoped markdown rendering (replaces the previously dead `prose` classes —
+ * @tailwindcss/typography was never installed). Lightweight, token-driven,
+ * dark-native.
+ */
+@layer components {
+  .markdown {
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+  }
+  .markdown p { margin: 0.45em 0; }
+  .markdown h1, .markdown h2, .markdown h3, .markdown h4 {
+    font-weight: 600;
+    margin: 0.9em 0 0.4em;
+    color: var(--color-text);
+  }
+  .markdown h1 { font-size: 1.25em; }
+  .markdown h2 { font-size: 1.12em; }
+  .markdown h3, .markdown h4 { font-size: 1em; }
+  .markdown ul { list-style: disc; padding-left: 1.3em; margin: 0.5em 0; }
+  .markdown ol { list-style: decimal; padding-left: 1.3em; margin: 0.5em 0; }
+  .markdown li { margin: 0.15em 0; }
+  .markdown a {
+    color: var(--color-primary-light);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .markdown strong { color: var(--color-text); }
+  .markdown code {
+    background: var(--color-surface-muted);
+    border-radius: 0.3em;
+    padding: 0.1em 0.35em;
+    font-size: 0.9em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .markdown pre {
+    background: var(--color-surface-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5em;
+    padding: 0.75em 1em;
+    overflow-x: auto;
+    margin: 0.6em 0;
+  }
+  .markdown pre code {
+    background: transparent;
+    padding: 0;
+    font-size: 0.9em;
+  }
+  .markdown blockquote {
+    border-left: 3px solid var(--color-border-strong);
+    padding-left: 1em;
+    margin: 0.5em 0;
+    color: var(--color-text-secondary);
+  }
+  .markdown hr {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    margin: 1em 0;
+  }
+  .markdown table { border-collapse: collapse; width: 100%; margin: 0.6em 0; }
+  .markdown th, .markdown td {
+    border: 1px solid var(--color-border);
+    padding: 0.35em 0.6em;
+    text-align: left;
+  }
 }

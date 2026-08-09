@@ -2,6 +2,7 @@ import { Suspense, lazy, useState } from 'react';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 import CitationViewer from '../shared/CitationViewer';
+import Icon from '../shared/Icon';
 
 const PdfViewer = lazy(() => import('../pdf/PdfViewer'));
 
@@ -27,26 +28,29 @@ export default function ChatContainer({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 relative overflow-hidden">
+    <div className="flex flex-col h-full bg-background relative overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-border p-4 flex items-center justify-between shadow-sm z-10">
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 truncate max-w-md">
+      <div className="bg-surface border-b border-border p-4 flex items-center justify-between shadow-sm z-10">
+        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-light to-primary-hover truncate max-w-md">
           {activeConversation?.title || 'New Chat'}
         </h1>
       </div>
 
       {/* Error Banner */}
       {error && (
-        <div className="bg-red-50 border-b border-red-200 text-red-700 px-4 py-2 text-xs flex justify-between items-center gap-3">
-          <span>⚠️ {error}</span>
+        <div className="bg-danger-soft border-b border-danger-border text-danger-text px-4 py-2 text-xs flex justify-between items-center gap-3">
+          <span className="flex items-center gap-1.5">
+            <Icon name="warning" size={14} />
+            {error}
+          </span>
           {onDismissError && (
             <button
               onClick={onDismissError}
-              className="flex-shrink-0 px-1.5 text-red-400 hover:text-red-700 hover:bg-red-100 rounded transition-colors"
+              className="flex-shrink-0 p-1 text-danger-text/70 hover:text-danger-text hover:bg-white/10 rounded transition-colors"
               aria-label="Dismiss error"
               title="Dismiss"
             >
-              ✕
+              <Icon name="x" size={12} />
             </button>
           )}
         </div>
@@ -64,7 +68,7 @@ export default function ChatContainer({
       </div>
 
       {/* Input Area */}
-      <div className="bg-white border-t border-border">
+      <div className="bg-surface border-t border-border">
         <ChatInput onSendMessage={onSendMessage} disabled={isGenerating || isLoadingHistory} />
       </div>
 
@@ -82,7 +86,7 @@ export default function ChatContainer({
         <Suspense
           fallback={
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-              <div className="bg-white rounded-xl px-6 py-4 shadow-xl animate-in zoom-in-95 duration-200">
+              <div className="bg-surface rounded-xl px-6 py-4 shadow-xl animate-in zoom-in-95 duration-200">
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                 <p className="text-sm font-medium text-text-muted">Loading PDF viewer...</p>
               </div>

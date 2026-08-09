@@ -20,8 +20,8 @@ export default function BrandIcon({ size = 24, className = '' }) {
           y2="20"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="#3b82f6" />
-          <stop offset="1" stopColor="#6366f1" />
+          <stop stopColor="var(--color-primary)" />
+          <stop offset="1" stopColor="var(--color-primary-hover)" />
         </linearGradient>
       </defs>
       <path

@@ -60,7 +60,7 @@ function App() {
 
   if (checkingAuth) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white font-medium">
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-text font-medium">
         Loading DocuMind AI...
       </div>
     );

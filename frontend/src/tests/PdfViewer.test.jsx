@@ -110,7 +110,7 @@ describe('CitationViewer view-in-document action', () => {
       <CitationViewer citation={citation} onClose={() => {}} onViewDocument={onViewDocument} />
     );
 
-    fireEvent.click(screen.getByText('📄 View in document'));
+    fireEvent.click(screen.getByText('View in document'));
     expect(onViewDocument).toHaveBeenCalledWith(citation);
   });
 });
