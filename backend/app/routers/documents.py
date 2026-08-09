@@ -6,11 +6,12 @@ Upload, list, detail, delete, and reindex documents with user tenant isolation.
 import hashlib
 import logging
 import os
+import tempfile
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -84,14 +85,9 @@ async def upload_document(
             detail="This document has already been uploaded to your workspace.",
         )
 
-    # Save file to the OS-level temporary directory
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    # Create document record with raw bytes stored in DB
     file_id = uuid.uuid4()
     ext = file.filename.rsplit(".", 1)[-1].lower()
-    file_path = UPLOAD_DIR / f"{file_id}.{ext}"
-    file_path.write_bytes(content)
-
-    # Create document record
     doc = Document(
         id=file_id,
         user_id=current_user.id,
@@ -100,6 +96,7 @@ async def upload_document(
         file_type=_file_type(file.filename),
         file_size=file_size,
         status="pending",
+        raw_bytes=content,  # Persist PDF bytes in database
     )
     db.add(doc)
     await db.flush()
@@ -107,8 +104,13 @@ async def upload_document(
     # Corpus changed: cached retrieval results for this tenant are stale.
     query_cache.invalidate_user(current_user.id)
 
-    # Queue background ingestion with the absolute on-disk path
-    background_tasks.add_task(ingest_document, str(file_id), str(file_path))
+    # Create temp file ONLY for ingestion pipeline (auto-cleanup by ingestion worker)
+    with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+        tmp.write(content)
+        temp_path = tmp.name
+
+    # Queue background ingestion with the temporary file path
+    background_tasks.add_task(ingest_document, str(file_id), temp_path)
 
     return DocumentResponse(
         id=doc.id,
@@ -224,18 +226,24 @@ async def get_document_file(
             status_code=415, detail="Only PDF documents can be viewed in the document viewer."
         )
 
-    file_path = UPLOAD_DIR / f"{doc.id}.pdf"
-    if not file_path.exists():
-        logger.warning("PDF file missing on disk for document %s (user %s)", doc.id, current_user.id)
-        raise HTTPException(
-            status_code=410,
-            detail="The source file for this document is no longer available. It may have been removed from storage.",
-        )
+    if not doc.raw_bytes:
+        # Legacy fallback — mainly useful for anything the rescue script missed,
+        # not the primary recovery path
+        legacy_path = UPLOAD_DIR / f"{doc.id}.pdf"
+        if legacy_path.exists():
+            doc.raw_bytes = legacy_path.read_bytes()
+            await db.commit()
+        else:
+            logger.warning("PDF bytes missing in DB and no legacy file for document %s (user %s)", doc.id, current_user.id)
+            raise HTTPException(
+                status_code=410,
+                detail="The source file for this document is no longer available.",
+            )
 
-    return FileResponse(
-        file_path,
+    return Response(
+        content=doc.raw_bytes,
         media_type="application/pdf",
-        filename=doc.filename,
+        headers={"Content-Disposition": f'inline; filename="{doc.filename}"'},
     )
 
 
@@ -252,11 +260,6 @@ async def delete_document(
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-
-    ext = doc.file_type if doc.file_type != "markdown" else "md"
-    file_path = UPLOAD_DIR / f"{doc.id}.{ext}"
-    if file_path.exists():
-        os.remove(file_path)
 
     await db.delete(doc)
     await db.commit()
@@ -280,6 +283,12 @@ async def reindex_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    if not doc.raw_bytes:
+        raise HTTPException(
+            status_code=410,
+            detail="Cannot reindex: source file bytes not available in storage.",
+        )
+
     await db.execute(delete(Chunk).where(Chunk.document_id == document_id))
     doc.status = "pending"
     doc.error_message = None
@@ -288,10 +297,13 @@ async def reindex_document(
     # Chunks replaced: cached retrieval results for this tenant are stale.
     query_cache.invalidate_user(current_user.id)
 
-    # Pass the absolute path so ingestion does not re-derive it from a local dir
+    # Write raw_bytes to a temp file for ingestion pipeline
     ext = doc.file_type if doc.file_type != "markdown" else "md"
-    file_path = UPLOAD_DIR / f"{doc.id}.{ext}"
-    background_tasks.add_task(ingest_document, str(document_id), str(file_path))
+    with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+        tmp.write(doc.raw_bytes)
+        temp_path = tmp.name
+
+    background_tasks.add_task(ingest_document, str(document_id), temp_path)
 
     return DocumentResponse(
         id=doc.id,

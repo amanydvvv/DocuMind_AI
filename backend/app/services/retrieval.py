@@ -289,8 +289,8 @@ def _phrase_coverage_rerank(
     if not fused_candidates:
         return []
 
-    raw_vecs = [item["raw_vec_score"] for item in fused_candidates]
-    raw_lexs = [item["raw_lex_score"] for item in fused_candidates]
+    raw_vecs = [item.get("raw_vec_score", 0.0) for item in fused_candidates]
+    raw_lexs = [item.get("raw_lex_score", 0.0) for item in fused_candidates]
     raw_phrases = [_compute_independent_phrase_coverage(query, item["chunk"].content) for item in fused_candidates]
 
     norm_vecs = _min_max_normalize(raw_vecs)
@@ -307,6 +307,13 @@ def _phrase_coverage_rerank(
             + (WEIGHT_PHRASE_NORM * norm_phrases[i]),
             4,
         )
+        # Surface the pre-normalization raw similarity for transparent
+        # affordance-upstream diagnostics (citations display, eval reports).
+        # Best-effort: RRF items always carry it; phase-coverage add-ons may
+        # not, in which case the raw similarity is skipped, not fabricated.
+        if chunk.metadata_ is not None and "raw_similarity" not in chunk.metadata_:
+            if "raw_vec_score" in item:
+                chunk.metadata_["raw_similarity"] = round(item["raw_vec_score"], 4)
         reranked.append((chunk, final_score))
 
     reranked.sort(key=lambda x: x[1], reverse=True)

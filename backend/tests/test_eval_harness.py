@@ -74,8 +74,19 @@ def _entry(**overrides):
 
 def test_valid_golden_set_loads_cleanly():
     entries = load_golden_set()
-    assert len(entries) == 34
-    assert sum(1 for e in entries if e.expect_verdict == "fail") == 3
+    assert len(entries) == 37
+    assert sum(1 for e in entries if e.expect_verdict == "fail") == 4
+
+
+def test_multiturn_entries_carry_fields():
+    entries = {e.id: e for e in load_golden_set()}
+    assert entries["EVAL-032"].prior_turns == [
+        "Which AWS region hosts the primary control plane?"
+    ]
+    assert entries["EVAL-033"].prior_turns
+    assert entries["EVAL-033"].forbidden_topics == []
+    assert entries["EVAL-034"].prior_turns == []
+    assert "Finance & Planning" in entries["EVAL-034"].forbidden_topics
 
 
 def test_valid_entry_loads_from_other_path(tmp_path):
@@ -380,6 +391,174 @@ def test_marker_recall_empty_marker_list_never_hits():
 
 
 # ---------------------------------------------------------------------------
+# Step 4b - multi-turn follow-up rewriting (query_override reaches retrieval)
+# ---------------------------------------------------------------------------
+
+
+class QueryCaptureSpy(StageSpy):
+    """Stage-1 spy that also records the query each retriever received."""
+
+    def __init__(self, chunks):
+        super().__init__(chunks)
+        self.queries = []
+
+    async def vector(self, **kwargs):
+        self.queries.append(("vector", kwargs.get("query")))
+        return await super().vector(**kwargs)
+
+    async def lexical(self, **kwargs):
+        self.queries.append(("lexical", kwargs.get("query")))
+        return await super().lexical(**kwargs)
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_rewrites_followup_and_retrieves_resolved(monkeypatch):
+    chunks = [FakeChunk("The cap of $75 applies.")]
+    spy = QueryCaptureSpy(chunks)
+    monkeypatch.setattr(retrieval, "_retrieve_vector_candidates", spy.vector)
+    monkeypatch.setattr(retrieval, "_retrieve_lexical_candidates", spy.lexical)
+
+    captured = {}
+
+    async def fake_rewrite(question, chat_history):
+        captured["question"] = question
+        captured["history"] = list(chat_history)
+        return "Where does the disaster-recovery replica for us-east-1 run?"
+
+    import app.services.evaluation as evaluation
+    monkeypatch.setattr(evaluation, "rewrite_followup", fake_rewrite)
+
+    generated = []
+
+    async def fake_generate(query, chunks, **kwargs):
+        generated.append((query, kwargs.get("resolved_query")))
+        return "The disaster-recovery replica runs in eu-west-1."
+
+    monkeypatch.setattr(generation, "generate_answer", fake_generate)
+
+    judge = FakeJudgeLLM([
+        '{"retrieval_pass": true, "groundedness_pass": true, '
+        '"completeness_pass": true}'
+    ])
+    _stub_judge(monkeypatch, judge)
+
+    entry = GoldenEntry(**_entry(
+        id="MT-001",
+        prior_turns=["Which AWS region hosts the primary control plane?"],
+    ))
+    report = await run_evaluation([entry], session=BoomDB(), user_id=uuid.uuid4())
+
+    q = report.questions[0]
+    assert captured["question"] == entry.question
+    assert [m.role for m in captured["history"]] == ["user"]
+    # Both Stage-1 retrievers ran on the resolved follow-up, never the raw text.
+    assert all(query == "Where does the disaster-recovery replica for us-east-1 run?"
+               for _, query in spy.queries)
+    assert generated == [
+        (entry.question, "Where does the disaster-recovery replica for us-east-1 run?")
+    ]
+    assert q.rewritten_query == "Where does the disaster-recovery replica for us-east-1 run?"
+    assert report.llm_calls == 3  # 1 rewrite + 1 generation + 1 judge attempt
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_no_rewrite_without_prior_turns(monkeypatch):
+    chunks = [FakeChunk("The cap of $75 applies.")]
+    spy = QueryCaptureSpy(chunks)
+    monkeypatch.setattr(retrieval, "_retrieve_vector_candidates", spy.vector)
+    monkeypatch.setattr(retrieval, "_retrieve_lexical_candidates", spy.lexical)
+
+    async def boom_rewrite(question, chat_history):
+        raise AssertionError("no prior turns -> rewrite must not be called")
+
+    import app.services.evaluation as evaluation
+    monkeypatch.setattr(evaluation, "rewrite_followup", boom_rewrite)
+    _stub_stages(monkeypatch, chunks)
+    _stub_judge(monkeypatch, FakeJudgeLLM([
+        '{"retrieval_pass": true, "groundedness_pass": true, '
+        '"completeness_pass": true}'
+    ]))
+
+    entry = GoldenEntry(**_entry())
+    report = await run_evaluation([entry], session=BoomDB(), user_id=uuid.uuid4())
+
+    q = report.questions[0]
+    assert q.rewritten_query is None
+    assert all(query == entry.question for _, query in spy.queries)
+    assert report.llm_calls == 2  # no rewrite: generation + judge only
+
+
+# ---------------------------------------------------------------------------
+# Step 4c - deterministic topic-leak check (forbidden topics in answers)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_topic_leak_detected_and_flagged_on_control(monkeypatch):
+    chunks = [FakeChunk("The cap of $75 applies.")]
+    _stub_stages(monkeypatch, chunks)
+    _stub_judge(monkeypatch, FakeJudgeLLM([
+        '{"retrieval_pass": false, "groundedness_pass": false, '
+        '"completeness_pass": false}'
+    ]))
+
+    leaking_answers = {
+        "What is the meal cap?": "The documents do not cover that. You could "
+                                 "ask about our Workforce & People Policies instead.",
+        "What is the travel cap?": "No such policy exists. Maybe check "
+                                   "Finance & Planning.",
+    }
+
+    async def fake_generate_answer(query, chunks, **kwargs):
+        return leaking_answers[query]
+
+    monkeypatch.setattr(generation, "generate_answer", fake_generate_answer)
+
+    entry_ok = GoldenEntry(**_entry(
+        id="L-001",
+        question="What is the meal cap?",
+        forbidden_topics=["Workforce & People Policies", "Trust & Security"],
+    ))
+    entry_leak = GoldenEntry(**_entry(
+        id="L-002",
+        question="What is the travel cap?",
+        forbidden_topics=["Finance & Planning"],
+        expect_verdict="fail",
+    ))
+    report = await run_evaluation(
+        [entry_ok, entry_leak], session=BoomDB(), user_id=uuid.uuid4()
+    )
+
+    by_id = {q.entry_id: q for q in report.questions}
+    assert by_id["L-001"].topic_leak is True
+    assert by_id["L-002"].topic_leak is True
+
+    summary = report.summary()
+    assert summary["negative_control_violations"] == ["L-002"]
+    assert summary["negative_controls"]["L-002"]["topic_leak"] is True
+    # topic_leak_pass counts pass-type entries that did not leak; L-001 did.
+    assert summary["pass_rates"]["topic_leak_pass"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_topic_leak_clean_answer_passes_dimension(monkeypatch):
+    chunks = [FakeChunk("The cap of $75 applies.")]
+    _stub_stages(monkeypatch, chunks)
+    _stub_judge(monkeypatch, FakeJudgeLLM([
+        '{"retrieval_pass": true, "groundedness_pass": true, '
+        '"completeness_pass": true}'
+    ]))
+
+    entry = GoldenEntry(**_entry(
+        forbidden_topics=["Workforce & People Policies"],
+    ))
+    report = await run_evaluation([entry], session=BoomDB(), user_id=uuid.uuid4())
+
+    assert report.questions[0].topic_leak is False
+    assert report.summary()["pass_rates"]["topic_leak_pass"] == 1.0
+
+
+# ---------------------------------------------------------------------------
 # Step 5 - judge pipeline (stubbed LLMs; no network in the default suite)
 # ---------------------------------------------------------------------------
 
@@ -412,7 +591,7 @@ def _stub_stages(monkeypatch, chunks):
 
     generated = []
 
-    async def fake_generate(query, chunks):
+    async def fake_generate(query, chunks, **kwargs):
         generated.append(query)
         return "The meal cap is $75."
 

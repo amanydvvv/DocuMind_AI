@@ -388,3 +388,131 @@ When an interviewer asks you about your technical decisions on DocuMind AI, use 
 
 #### Q: "How do you handle LLM prompt-leakage and hidden Chain-of-Thought (CoT) reasoning under an SSE streaming constraint?"
 > *"I solved this with a three-layer defense: prompt engineering, ingestion preprocessing, and a server-side streaming buffering state machine. First, the system prompt enforces a persona line, hard negative constraints prohibiting internal labels (`CORPUS METADATA`, `chunk`, `retrieved context`, raw filenames as evidence), and content-over-filename priority rules. Second, during document ingestion, a fast model call generates a clean human-readable `display_title` (e.g., 'Two-Wheeler Insurance Policy') stored in metadata, preventing the LLM from seeing messy raw filenames (e.g., `DG_20201AGENT_...pdf`). Third, to prevent internal reasoning from flashing to the client over Server-Sent Events (SSE), the LLM outputs reasoning in `<thought_process>` and final answers in `<answer>`. A server-side `StreamCoTBuffer` state machine buffers incoming SSE token deltas during the `<thought_process>` phase, discards them, and only starts yielding `token` events to the client once the `<answer>` tag appears, guaranteeing zero thought leakage without waiting for full stream completion."*
+
+---
+
+## Phase 10: Ephemeral vs. Persistent Storage on PaaS Platforms
+
+### The Incident: HTTP 410 Gone After Render Restarts
+
+**Symptom:** Users upload PDF documents successfully. The ingestion pipeline completes, chunks are embedded, and RAG queries work perfectly. But hours or days later, clicking a citation pill in the chat returns `HTTP 410: The source file for this document is no longer available.`
+
+**Root Cause:** The application stored uploaded PDF files on the local container filesystem (`/tmp/documind_uploads`), while document metadata lived in Supabase PostgreSQL. Render web services use **ephemeral container filesystems** — every deploy, restart, or free-tier sleep cycle wipes the entire container disk. The database survives; the files don't.
+
+**Why Tests Missed It:** Integration tests upload a document and immediately call `GET /file` in the same process. They never simulate a container restart between write and read. The test passes because the file is still on disk — the bug only manifests across process boundaries.
+
+**The Fix: Database-Backed BYTEA Storage**
+
+```python
+# Migration: add raw_bytes column to documents
+op.add_column('documents', sa.Column('raw_bytes', sa.LargeBinary(), nullable=True))
+
+# Upload: persist bytes directly in the Document row
+doc = Document(
+    id=file_id,
+    user_id=current_user.id,
+    filename=file.filename,
+    content_hash=content_hash,
+    file_type=_file_type(file.filename),
+    file_size=file_size,
+    status="pending",
+    raw_bytes=content,  # PDF bytes stored atomically with metadata
+)
+db.add(doc)
+
+# Ingestion still needs a file path — create a SHORT-LIVED temp file
+with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+    tmp.write(content)
+    temp_path = tmp.name
+background_tasks.add_task(ingest_document, str(file_id), temp_path)
+
+# Ingestion worker cleans up its temp file in a finally block
+finally:
+    if is_temp_file and file_path and os.path.exists(file_path):
+        os.unlink(file_path)
+
+# Serve: read from DB, with legacy disk fallback for pre-migration docs
+if not doc.raw_bytes:
+    legacy_path = UPLOAD_DIR / f"{doc.id}.pdf"
+    if legacy_path.exists():
+        doc.raw_bytes = legacy_path.read_bytes()
+        await db.commit()
+    else:
+        raise HTTPException(410, ...)
+return Response(content=doc.raw_bytes, media_type="application/pdf", ...)
+```
+
+**Key Architectural Lessons:**
+
+1. **Ephemeral disk ≠ persistent storage** — On any PaaS (Render, Railway, Fly.io, Heroku free tiers), the container filesystem is temporary. Assume it disappears on every deploy.
+
+2. **Test the restart boundary** — Add a test that: uploads → clears the upload directory → reads. This catches the ephemeral storage bug that same-process tests miss.
+
+3. **Co-locate bytes with metadata** — Storing PDF bytes in the same PostgreSQL row as the document metadata gives you atomicity (no orphaned files/rows), zero new infrastructure, and transactional consistency. At 50MB/file cap, this is well within PostgreSQL's 1GB TOAST limit.
+
+4. **Rescue before deploy** — The deploy *is* a restart. Before shipping code that changes the storage path, run a one-off script against the *currently running* instance to backfill whatever files are still on disk. Once the new container comes up, those files are gone forever.
+
+5. **Streaming vs. loading** — At 50MB, `Response(content=bytes)` is fine. Don't fake-stream with a single-chunk generator — the ORM already loaded the full BYTEA into memory. Real streaming matters at GB scale; here it adds code without benefit.
+
+**Interview Talking Point:**
+> *"In our RAG system, we initially stored uploaded PDFs on the local container disk while metadata lived in PostgreSQL. This worked in development and tests, but failed in production on Render because their container filesystem is ephemeral — every deploy wipes the disk. The fix was moving PDF bytes into a `BYTEA` column on the same `documents` table. This gave us atomic persistence with zero new infrastructure. The key insight: tests that don't simulate a process restart between write and read will never catch this class of bug. We added a test that uploads, clears the temp directory, then reads — proving the database is now the source of truth."*
+
+
+---
+
+## Phase 11: Deictic Follow-up Queries Break Single-Turn RAG Retrieval
+
+### The Incident: Follow-ups Randomly Miss
+
+Multi-turn conversations worked at the *answer* level (history is on the
+prompt) but *retrieval* always ran on the last message verbatim. A follow-up
+like "And what about its RPO? and "How many times does it retie that?"
+are deictic: the referent ("it", "that region") lives in earlier turns, so
+the isolated query retrieves the wrong chunks or nothing at all. The
+conversation understood the intent; the retrieval layer never did.
+
+### The Fix: Fail-Closed Follow-Up Query Rewriting
+
+A small rewrite layer (pp/services/rewrite.py) runs before retrieval
+when the conversation already has a prior user turn:
+
+1. **Standalone query out**: a strict-JSON prompt asks the LLM (temperature
+   0, 2.5s timeout) to rewrite the follow-up into a self-contained retrieval
+   query, resolving pronouns/typos from the last few history turns.
+2. **Fail-closed everywhere**: no history, timeout, LLM error, malformed
+   JSON, low-confidence flag, or over-length output any falls back to the
+   raw question text. The fallback is byte-identical to pre-feature
+   behavior, so this layer can never degrade retrieval below baseline.
+3. **Separation of concerns**: retrieval runs on the resolved query while
+   the visible User Query stays the user's own words; a
+   Resolved Query: section is only injected into the generation prompt
+   when the two differ, so the model never misreads the deictic text.
+4. **The threshold stays honest**: the decline-offer rule now requires a
+   clearly related topic with pre-normalization raw similarity >= 0.45
+   (surfaced per snippet as Raw relevance) before a declining answer may
+   offer anything; unsupported topic lists were the leak class that
+   produced offered topics that never appeared in context.
+
+### Why Unit Tests Alone Missed It
+
+Retrieval correctness for deictic turns can't be proven without either a
+real corpus + live model (the eval harness) or asserting the wiring: which
+string reaches Stage-1 retrieval must equal the rewritten query, not the
+raw follow-up. The harness therefore grew a multi-turn intent: golden
+entries with prior_turns trigger the same rewrite path as production
+(un_evaluation always rewrites when prior turns exist), and
+orbidden_topics add a deterministic topic-leak dimension: any forbidden
+phrase appearing in the generated answer is a leak, flagged on negative
+controls as a harness-validity violation.
+
+### Interview Talking Point
+
+> *"Our RAG answers were multi-turn aware but retrieval wasn't � every turn
+> was retrieved as a standalone query, so deictic follow-ups ('what about
+> its RPO?') missed the chunk the conversation was about. I added a
+> fail-closed rewrite layer: it resolves the follow-up against history into
+> a standalone query when a prior user turn exists, and returns the raw text
+> on any timeout, parse error, or low-confidence output, so retrieval can
+> never regress below the no-rewrite baseline. The eval harness exercises
+> the exact same runner path through prior_turns entries, plus a
+> deterministic forbidden-topic leak check on generated answers."*

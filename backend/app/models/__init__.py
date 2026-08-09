@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     text,
+    LargeBinary,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -43,6 +44,7 @@ class Document(Base):
     content_hash: Mapped[str] = mapped_column(String, nullable=False)
     file_type: Mapped[str] = mapped_column(String, nullable=False)  # 'pdf' | 'markdown'
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    raw_bytes: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

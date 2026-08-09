@@ -46,12 +46,14 @@ import logging
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List, Mapping, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 from app.config import get_settings
 from app.services import generation, retrieval
+from app.services.rewrite import rewrite_followup
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -80,8 +82,10 @@ class GoldenEntry(BaseModel):
     intent: str = ""
     notes: str = ""
     expect_verdict: str = "pass"
+    prior_turns: List[str] = Field(default_factory=list)
+    forbidden_topics: List[str] = Field(default_factory=list)
 
-    @field_validator("expected_chunk_markers", "answer_facts", "docs")
+    @field_validator("expected_chunk_markers", "answer_facts", "docs", "prior_turns", "forbidden_topics")
     @classmethod
     def _strip_blank_entries(cls, values: List[str]) -> List[str]:
         """Drop empty/whitespace-only strings from the list fields."""
@@ -223,6 +227,7 @@ async def run_retrieval_for_entry(
     user_id=None,
     document_id=None,
     overrides: Optional[Mapping[str, Any]] = None,
+    query_override: Optional[str] = None,
 ) -> RetrievalRunResult:
     """
     Run the hybrid retrieval pipeline for one golden entry.
@@ -231,19 +236,24 @@ async def run_retrieval_for_entry(
     directly instead of going through the cache-wrapped retrieve_context(),
     so cache state can never influence eval results. Knob overrides patch
     current module-level constants explicitly at call time.
+
+    `query_override` is the standalone (rewritten) retrieval query for
+    multi-turn entries: retrieval runs on the resolved follow-up while the
+    golden `question` stays the generation/judge ground truth.
     """
     overrides = dict(overrides or {})
+    query = query_override if query_override is not None else entry.question
 
     with _knob_override(retrieval_module=retrieval, overrides=overrides):
         vector_candidates = await retrieval._retrieve_vector_candidates(
-            query=entry.question,
+            query=query,
             db=session,
             document_id=document_id,
             user_id=user_id,
             limit=retrieval.VECTOR_TOP_N,
         )
         lexical_candidates = await retrieval._retrieve_lexical_candidates(
-            query=entry.question,
+            query=query,
             db=session,
             document_id=document_id,
             user_id=user_id,
@@ -258,9 +268,9 @@ async def run_retrieval_for_entry(
         )
         reranked = retrieval._phrase_coverage_rerank(
             fused_candidates=fused,
-            query=entry.question,
+            query=query,
             final_top_k=retrieval.FINAL_TOP_K,
-)
+        )
 
     retrieved = [
         RetrievedChunk(
@@ -273,12 +283,12 @@ async def run_retrieval_for_entry(
             page_number=getattr(chunk, "page_number", None),
             metadata_=dict(getattr(chunk, "metadata_", None) or {}),
         )
-        for chunk, score in reranked
+for chunk, score in reranked
     ]
 
     return RetrievalRunResult(
         entry_id=entry.id,
-        question=entry.question,
+        question=query,
         expected_chunk_markers=entry.expected_chunk_markers,
         retrieved=retrieved,
         knobs_applied=overrides,
@@ -455,6 +465,8 @@ class QuestionResult:
     judge_error: bool
     generated_answer: str
     knobs_applied: Dict[str, Any]
+    topic_leak: bool = False
+    rewritten_query: Optional[str] = None
 
 
 @dataclass
@@ -467,10 +479,11 @@ class EvalReport:
     def summary(self) -> Dict[str, Any]:
         """Collapse the report into a printable/assertable summary dict.
 
-        Pass rates are computed over pass-type entries only; negative
+Pass rates are computed over pass-type entries only; negative
         controls are reported separately (per-id dimension outcomes) and a
         control is flagged as a harness-validity violation only when its
-        fabricated info is retrievable (marker_recall or retrieval_pass) -
+        fabricated info is retrievable (marker_recall or retrieval_pass) or
+        its forbidden topics leak into the generated answer (topic_leak) -
         see the violations computation below for the groundedness nuance.
         """
         dims = ("marker_recall",) + JUDGE_DIMENSIONS
@@ -485,19 +498,34 @@ class EvalReport:
             else:
                 pass_rates[dim] = None
 
+        # Deterministic counterpart to the judge dimensions: the answer never
+        # mentions an entry's forbidden topics. Only meaningful for entries
+        # that declare them; entries with none cannot leak by construction.
+        if pass_type:
+            pass_rates["topic_leak_pass"] = sum(
+                1 for q in pass_type if not q.topic_leak
+            ) / len(pass_type)
+        else:
+            pass_rates["topic_leak_pass"] = None
+
         negative_controls = {
-            q.entry_id: {dim: getattr(q, dim) for dim in dims} for q in neg_controls
+            q.entry_id: {
+                **{dim: getattr(q, dim) for dim in dims},
+                "topic_leak": q.topic_leak,
+            }
+            for q in neg_controls
         }
         # A control is only ever "passed" by the harness when its FABRICATED
         # information is actually retrievable (marker_recall or retrieval_pass
-        # True). groundedness/completeness on a control are informational: an
-        # answer that honestly refuses to confirm the fabricated facts is
-        # legitimately grounded in the unrelated context the retriever found,
-        # so a True there is not a validity problem and must not trip exit 2.
+        # True) or leaks into the answer (topic_leak True). groundedness/
+        # completeness on a control are informational: an answer that
+        # honestly refuses to confirm the fabricated facts is legitimately
+        # grounded in the unrelated context the retriever found, so a True
+        # there is not a validity problem and must not trip exit 2.
         violations = [
             q.entry_id
             for q in neg_controls
-            if q.marker_recall or q.retrieval_pass
+            if q.marker_recall or q.retrieval_pass or q.topic_leak
         ]
 
         return {
@@ -525,17 +553,23 @@ async def run_evaluation(
     The entry list is a parameter (not "load all 32"): callers may pass a
     subset for sampling/ablation without refactoring this function.
 
-    Per entry:
-      (a) composed retrieval (Step 3 runner) -> chunks
+Per entry:
+      (a) composed retrieval (Step 3 runner) -> chunks; for entries with
+          prior_turns, the follow-up is first rewritten against fake turns
+          (the same fail-closed rewrite_followup() the live chat path uses)
+          and retrieval runs on the standalone query, never the deictic text
       (b) generation.generate_answer() on those chunks - the real generation
           cascade at default temperature 0.3 - this is the 2nd LLM call that
           single-call eval designs miss; calling it is mandatory, retrieval
           alone is never judged
-      (c) judge on EVAL_JUDGE_MODEL at temperature=0 with strict JSON
+      (c) topic_leak check: deterministic - any forbidden_topics substring
+          present in the generated answer is a leak (fail-closed: no
+          substrings declared means no leak possible)
+      (d) judge on EVAL_JUDGE_MODEL at temperature=0 with strict JSON
           parsing (one retry, then fail-closed)
 
-    LLM calls are counted (generation + judge + retries) and returned in the
-    report for budget visibility; no limit is enforced here.
+    LLM calls are counted (generation + judge + retries + rewrites) and
+    returned in the report for budget visibility; no limit is enforced here.
     """
     llm_calls = 0
     judge_llm = generation.get_llm(
@@ -545,12 +579,28 @@ async def run_evaluation(
 
     questions: List[QuestionResult] = []
     for entry in entries:
+        rewritten = None
+        retrieval_query = entry.question
+        if entry.prior_turns:
+            # Lightweight stand-ins: history items only need role/content.
+            prior_msgs = [
+                SimpleNamespace(role="user", content=turn)
+                for turn in entry.prior_turns
+            ]
+            rewritten = await rewrite_followup(entry.question, prior_msgs)
+            llm_calls += 1
+            if rewritten and rewritten != entry.question:
+                retrieval_query = rewritten
+            else:
+                rewritten = None
+
         retrieval_result = await run_retrieval_for_entry(
             entry,
             session,
             user_id=user_id,
             document_id=document_id,
             overrides=overrides,
+            query_override=retrieval_query,
         )
 
         recall = marker_recall_at_k(
@@ -558,9 +608,14 @@ async def run_evaluation(
         )
 
         answer = await generation.generate_answer(
-            entry.question, retrieval_result.retrieved
+            entry.question, retrieval_result.retrieved, resolved_query=rewritten
         )
         llm_calls += 1
+
+        answer_lower = answer.lower()
+        topic_leak = any(
+            topic.lower() in answer_lower for topic in entry.forbidden_topics
+        )
 
         dimensions, judge_error, attempts = await _judge_answer(
             judge_llm, entry, answer, retrieval_result.retrieved
@@ -579,6 +634,8 @@ async def run_evaluation(
                 judge_error=judge_error,
                 generated_answer=answer,
                 knobs_applied=dict(overrides or {}),
+                topic_leak=topic_leak,
+                rewritten_query=rewritten,
             )
         )
 

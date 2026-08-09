@@ -14,6 +14,13 @@ settings = get_settings()
 
 MAX_HISTORY_TOKENS = 3000
 
+# Minimum pre-normalization vector similarity a related-topic offer (rule 6)
+# may reference. Offers are permitted only for a clearly related topic that
+# appears in the retrieved context and whose raw similarity clears this
+# floor - anything weaker reads as speculation, so declining stays the
+# default.
+ALLOWED_OFFER_MIN_SIMILARITY = 0.45
+
 
 def build_token_budgeted_history(messages: List[Message]) -> List[Message]:
     """
@@ -143,7 +150,7 @@ System Instructions & Rules:
 3. Content Over Filename Priority: The text content in the document snippets always outweighs the document title or filename. The filename is metadata, not evidence. If a document snippet contains the answer (such as a policy number or clause), state the answer directly regardless of what the filename says.
 4. Document Counts: When answering questions about how many documents exist or listing available documents, use the Workspace Documents Summary below. Multiple snippets may come from the same document.
 5. Reasoning Format: Enclose your internal step-by-step reasoning inside <thought_process>...</thought_process> tags first. Then, provide your final response strictly inside <answer>...</answer> tags. Do NOT output anything outside <thought_process> and <answer> blocks.
-6. Content Boundaries: If the retrieved context does not contain the answer, state plainly that the documents do not cover that topic. Do not speculate about unstated facts or possibilities. When declining, make an offer ONLY if a clearly related topic appears in the provided context snippets; never reference topics, policies, or procedures that do not appear in the context snippets, and name the specific topic you're offering.
+6. Content Boundaries: If the retrieved context does not contain the answer, state plainly that the documents do not cover that topic. Do not speculate about unstated facts or possibilities. When declining, make an offer ONLY if a clearly related topic appears in the provided context snippets with a Raw relevance of at least 0.45; never reference topics, policies, or procedures that do not appear in the context snippets, and name the specific topic you're offering. If the context snippets have no related topic above that threshold, decline without an offer.
 
 {corpus_metadata}
 
@@ -155,11 +162,12 @@ Document Context:
 ---------------------
 
 User Query: {query}
+{resolved_query_section}
 """
 
 prompt = PromptTemplate(
     template=RAG_PROMPT_TEMPLATE,
-    input_variables=["corpus_metadata", "chat_history_section", "context", "query"]
+    input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section"]
 )
 
 class RateLimitError(Exception):
@@ -303,8 +311,22 @@ def _format_context_text(chunks: List[Chunk]) -> str:
     for i, chunk in enumerate(chunks):
         title = (chunk.metadata_ or {}).get("display_title") or (chunk.metadata_ or {}).get("filename") or f"Document {i+1}"
         page_str = f" (Page {chunk.page_number})" if chunk.page_number else ""
-        snippet_items.append(f"Source: {title}{page_str}\nContent:\n{chunk.content}")
+        raw_sim = (chunk.metadata_ or {}).get("raw_similarity")
+        sim_str = f"\nRaw relevance: {raw_sim}" if raw_sim is not None else ""
+        snippet_items.append(f"Source: {title}{page_str}{sim_str}\nContent:\n{chunk.content}")
     return "\n\n---\n\n".join(snippet_items)
+
+
+def _build_resolved_query_section(query: str, resolved_query: Optional[str]) -> str:
+    """Prompt section carrying the standalone (rewritten) retrieval query.
+
+    Included only when a rewrite actually happened; otherwise the empty
+    string keeps the template shape unchanged. The section is plain query
+    content, never an instruction block, so it cannot override the rules.
+    """
+    if resolved_query and resolved_query.strip() and resolved_query.strip() != query:
+        return f"Resolved Query: {resolved_query.strip()}"
+    return ""
 
 
 async def generate_answer(
@@ -313,9 +335,15 @@ async def generate_answer(
     chat_history: Optional[List[Message]] = None,
     corpus_metadata: str = "",
     conversation_summary: Optional[str] = None,
+    resolved_query: Optional[str] = None,
 ) -> str:
     """
     Generate an answer using the provided chunks as context and prior chat history.
+
+    `resolved_query` is the standalone retrieval query the chunks were found
+    with (see app.services.rewrite); when it differs from `query`, it is
+    surfaced to the model so it does not misread a deictic follow-up in
+    isolation.
     """
     logger.info("Generating answer based on retrieved context and conversation history...")
     
@@ -328,7 +356,7 @@ async def generate_answer(
     template = memory_prefix + RAG_PROMPT_TEMPLATE
     prompt = PromptTemplate(
         template=template,
-        input_variables=["corpus_metadata", "chat_history_section", "context", "query"]
+        input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section"]
     )
     
     context_text = _format_context_text(chunks)
@@ -352,7 +380,8 @@ async def generate_answer(
             "corpus_metadata": corpus_metadata,
             "chat_history_section": chat_history_section,
             "context": context_text,
-            "query": query
+            "query": query,
+            "resolved_query_section": _build_resolved_query_section(query, resolved_query),
         })
         raw = response.content if hasattr(response, "content") else str(response)
         return extract_answer_from_cot(raw)
@@ -372,9 +401,13 @@ async def generate_answer_stream(
     chat_history: Optional[List[Message]] = None,
     corpus_metadata: str = "",
     conversation_summary: Optional[str] = None,
+    resolved_query: Optional[str] = None,
 ):
     """
     Stream answer tokens as they arrive from the LLM provider.
+
+    `resolved_query` semantics match generate_answer(): the standalone
+    retrieval query, shown to the model only when it differs from `query`.
     """
     logger.info("Streaming answer tokens from LLM...")
     
@@ -387,7 +420,7 @@ async def generate_answer_stream(
     template = memory_prefix + RAG_PROMPT_TEMPLATE
     prompt = PromptTemplate(
         template=template,
-        input_variables=["corpus_metadata", "chat_history_section", "context", "query"]
+        input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section"]
     )
     
     context_text = _format_context_text(chunks)
@@ -409,7 +442,8 @@ async def generate_answer_stream(
             "corpus_metadata": corpus_metadata,
             "chat_history_section": chat_history_section,
             "context": context_text,
-            "query": query
+            "query": query,
+            "resolved_query_section": _build_resolved_query_section(query, resolved_query),
         }):
             if chunk_response.content:
                 for delta in cot_buffer.process_token(chunk_response.content):

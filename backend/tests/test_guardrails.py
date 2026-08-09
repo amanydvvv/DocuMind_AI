@@ -488,7 +488,7 @@ async def test_chat_route_sanitizes_pii_before_llm(client, monkeypatch, noop_sum
 
     llm_queries: list[str] = []
 
-    async def fake_generate_answer(query, chunks, chat_history, corpus_metadata, conversation_summary):
+    async def fake_generate_answer(query, chunks, chat_history, corpus_metadata, conversation_summary, **kwargs):
         llm_queries.append(query)
         return "The refund policy allows 30 days."
 
@@ -532,7 +532,7 @@ async def test_chat_stream_sanitizes_pii_before_llm(client, monkeypatch, noop_su
 
     llm_queries: list[str] = []
 
-    async def fake_generate_answer_stream(query, chunks, chat_history, corpus_metadata, conversation_summary):
+    async def fake_generate_answer_stream(query, chunks, chat_history, corpus_metadata, conversation_summary, **kwargs):
         llm_queries.append(query)
         for token in ["The ", "refund ", "is ", "30 ", "days."]:
             yield token

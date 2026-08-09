@@ -338,5 +338,38 @@
     "intent": "no-meta-leakage",
     "expect_verdict": "pass",
     "notes": "verifies that the model answers directly without referencing internal labels like CORPUS METADATA, retrieved context, or chunk"
+  },
+  {
+    "id": "EVAL-032",
+    "question": "Where does the replica for that region run?",
+    "prior_turns": ["Which AWS region hosts the primary control plane?"],
+    "expected_chunk_markers": ["eu-west-1 runs the disaster-recovery replica"],
+    "answer_facts": ["the disaster-recovery replica runs in eu-west-1"],
+    "docs": ["eval_corpus.md"],
+    "intent": "multi-turn-followup",
+    "expect_verdict": "pass",
+    "notes": "deictic follow-up: 'that region' refers to the primary control plane from the prior turn; retrieval must run on the rewritten standalone query, not the bare follow-up"
+  },
+  {
+    "id": "EVAL-033",
+    "question": "How many times does it retie a failed batch step?",
+    "prior_turns": ["How many times does Kestrel retry a failed batch step?"],
+    "expected_chunk_markers": ["retries failed steps twice", "called Kestrel"],
+    "answer_facts": ["Kestrel retries each failed step twice"],
+    "docs": ["eval_corpus.md"],
+    "intent": "multi-turn-followup",
+    "expect_verdict": "pass",
+    "notes": "garbled deictic follow-up: 'it' + typo 'retie' resolve to Kestrel only through the prior turn; a rewrite miss must fail marker recall"
+  },
+  {
+    "id": "EVAL-034",
+    "question": "What are the full-stack engneering stanards for the knowlege hub?",
+    "expected_chunk_markers": ["full-stack engineering standards", "knowledge hub"],
+    "answer_facts": ["the knowledge hub lists full-stack engineering standards"],
+    "forbidden_topics": ["Workforce & People Policies", "Trust & Security", "Finance & Planning"],
+    "docs": ["eval_corpus.md"],
+    "intent": "no-topic-leak",
+    "expect_verdict": "fail",
+    "notes": "unsupported garbled topic with no history: the correct answer declines without naming unrelated policy sections; naming Workforce & People Policies, Trust & Security, or Finance & Planning while declining is a forbidden-topic leak (topic_leak violation)"
   }
 ]

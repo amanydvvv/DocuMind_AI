@@ -14,6 +14,7 @@ import pytest
 from app.services.retrieval import (
     RRF_K,
     RRF_FUSED_TOP_K,
+    _phrase_coverage_rerank,
     _reciprocal_rank_fusion,
 )
 
@@ -112,3 +113,31 @@ async def test_rrf_respects_top_fused_limit():
 
 def test_rrf_default_k_constant():
     assert RRF_K == 60
+
+
+def _chunk_with_metadata(content: str) -> SimpleNamespace:
+    return SimpleNamespace(id=uuid.uuid4(), content=content, metadata_={})
+
+
+def test_phrase_rerank_surfaces_raw_similarity_on_metadata():
+    chunk_a = _chunk_with_metadata("alpha topic")
+    chunk_b = _chunk_with_metadata("beta unrelated")
+    fused = [
+        {"chunk": chunk_a, "raw_vec_score": 0.87, "raw_lex_score": 0.5},
+        {"chunk": chunk_b, "raw_vec_score": 0.11, "raw_lex_score": 0.2},
+    ]
+
+    reranked = _phrase_coverage_rerank(fused, query="alpha topic", final_top_k=5)
+
+    by_id = {c.id: c for c, _ in reranked}
+    assert by_id[chunk_a.id].metadata_["raw_similarity"] == 0.87
+    assert by_id[chunk_b.id].metadata_["raw_similarity"] == 0.11
+
+
+def test_phrase_rerank_skips_raw_similarity_when_key_missing():
+    chunk = SimpleNamespace(id=uuid.uuid4(), content="orphan", metadata_={})
+    fused = [{"chunk": chunk, "raw_lex_score": 0.5}]
+
+    reranked = _phrase_coverage_rerank(fused, query="orphan", final_top_k=5)
+
+    assert "raw_similarity" not in reranked[0][0].metadata_

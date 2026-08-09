@@ -250,8 +250,6 @@ async def test_account_deletion_requires_correct_password(async_client: AsyncCli
 @pytest.mark.asyncio
 async def test_account_deletion_purges_user_and_cascade_data(async_client: AsyncClient):
     """Verify DELETE /api/auth/me purges user, docs, chunks, conversations, messages, query_logs, refresh token, and files."""
-    from pathlib import Path
-    from app.services.ingestion import _resolve_file_path
     from app.models import User, Document, Chunk, Conversation, Message, QueryLog
     from app.database import async_session
     from sqlalchemy import select, func
@@ -284,11 +282,10 @@ async def test_account_deletion_purges_user_and_cascade_data(async_client: Async
     assert upload_res.status_code == 201
     doc_id = uuid.UUID(upload_res.json()["id"])
 
-    # Resolve physical on-disk file path
+    # Verify document bytes are stored in DB (no local file anymore)
     async with async_session() as db:
         doc_obj = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one()
-        file_path = Path(_resolve_file_path(doc_obj))
-    assert file_path.exists()
+        assert doc_obj.raw_bytes == file_content, "Document bytes should be stored in raw_bytes column"
 
     # Create conversation
     chat_res = await async_client.post(
@@ -339,8 +336,7 @@ async def test_account_deletion_purges_user_and_cascade_data(async_client: Async
     # Old refresh token is invalid because the jti lives on the users row, now gone
     # (already asserted via /api/auth/refresh above)
 
-    # Physical file must be deleted from disk
-    assert not file_path.exists()
+    # No physical file to check — raw_bytes goes away with the row
 
 
 @pytest.mark.asyncio

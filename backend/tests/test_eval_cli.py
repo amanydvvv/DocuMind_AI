@@ -300,7 +300,7 @@ def test_run_action_writes_report_with_mocked_pipeline(
     assert payload["summary"]["llm_calls"] == 4
     assert payload["header"]["knobs_overridden"] == {"FINAL_TOP_K": 4}
     printed = capsys.readouterr().out
-    assert "budget: base 8" in printed  # 2 calls x (1 pass + 3 controls)
+    assert "budget: base 10" in printed  # 2 calls x (1 pass + 4 controls)
     assert "NEG-001" in printed  # negative controls rendered in the summary
 
 

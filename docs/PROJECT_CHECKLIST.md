@@ -133,7 +133,7 @@ This is a living execution tracker structured around development phases.
 
 ## Eval Harness: Retrieval Eval Harness (DONE — Part 1 of plan v3) — I/O Guardrails (DONE — Steps 2-5; regression gate passed 2026-08-08)
 - [x] **Implementation plan approved**: `docs/PLAN_EVAL_GUARDRAILS.md` (v3) — eval harness first (baseline), guardrails second (regression gate); injection defense **blocks known literal-phrase patterns only — it does not prevent prompt injection in general**.
-- [x] Author eval corpus + 32 golden pairs (incl. 3 negative controls) — `backend/tests/eval/`
+- [x] Author eval corpus + 37 golden pairs (incl. 4 negative controls) — `backend/tests/eval/` (32 pairs as planned + EVAL-032/033 multi-turn rewrite probes + EVAL-034 topic-leak control)
 - [x] Harness: schema/validator, retrieval-composition runner, marker recall@k, generation+judge (strict JSON, retry, fail-closed), aggregation — `backend/app/services/evaluation.py`
 - [x] CLI `--seed / --validate-golden / --run / --sample N / --diff A B` + arched reports — `backend/scripts/run_eval.py`
 - [x] Plumbing tests (`backend/tests/test_eval_harness.py`, `test_eval_cli.py`) + baseline archival (`backend/results/baseline.json`, 32 entries: 89.7% marker recall / 86.2% retrieval / 96.6% groundedness / 89.7% completeness; 0 negative-control violations)

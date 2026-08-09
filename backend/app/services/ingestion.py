@@ -1,5 +1,6 @@
 import asyncio
 import os
+import tempfile
 import uuid
 import logging
 from pathlib import Path
@@ -270,99 +271,111 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
     if not os.path.exists(file_path):
         raise RuntimeError(f"File not found: {file_path}")
 
-    # 2. Parse text
-    logger.info(f"Parsing file: {file_path}")
-    pages = []
-    if doc.file_type == "pdf":
-        with pymupdf.open(file_path) as pdf:
-            doc.page_count = len(pdf)
-            for i, page in enumerate(pdf):
-                text = page.get_text()
-                source = "text"
-                if not text or not text.strip():
-                    logger.info(f"Page {i+1} has no vector text, running Groq OCR fallback...")
-                    text = await _ocr_pdf_page(page)
-                    source = "ocr"
+    # Track if this is a temp file we should clean up (only files under system temp dir)
+    is_temp_file = file_path.startswith(tempfile.gettempdir())
 
+    try:
+        # 2. Parse text
+        logger.info(f"Parsing file: {file_path}")
+        pages = []
+        if doc.file_type == "pdf":
+            with pymupdf.open(file_path) as pdf:
+                doc.page_count = len(pdf)
+                for i, page in enumerate(pdf):
+                    text = page.get_text()
+                    source = "text"
+                    if not text or not text.strip():
+                        logger.info(f"Page {i+1} has no vector text, running Groq OCR fallback...")
+                        text = await _ocr_pdf_page(page)
+                        source = "ocr"
+
+                    if text and text.strip():
+                        pages.append({"text": text.strip(), "page_number": i + 1, "source": source})
+        elif doc.file_type == "markdown":
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
                 if text and text.strip():
-                    pages.append({"text": text.strip(), "page_number": i + 1, "source": source})
-    elif doc.file_type == "markdown":
-        with open(file_path, "r", encoding="utf-8") as f:
-            text = f.read()
-            if text and text.strip():
-                pages.append({"text": text.strip(), "page_number": 1, "source": "text"})
-            doc.page_count = 1
-    else:
-        raise RuntimeError(f"Unsupported file type: {doc.file_type}")
+                    pages.append({"text": text.strip(), "page_number": 1, "source": "text"})
+                doc.page_count = 1
+        else:
+            raise RuntimeError(f"Unsupported file type: {doc.file_type}")
 
-    if not pages:
-        raise RuntimeError("No readable text found in document. Please upload a searchable PDF or Markdown file.")
+        if not pages:
+            raise RuntimeError("No readable text found in document. Please upload a searchable PDF or Markdown file.")
 
-    # Generate human-readable display title if missing
-    display_title = await _generate_display_title(pages[0]["text"], doc.filename)
-    doc.display_title = display_title
+        # Generate human-readable display title if missing
+        display_title = await _generate_display_title(pages[0]["text"], doc.filename)
+        doc.display_title = display_title
 
-    # 3. Chunking (using dynamic settings)
-    optimal_chunk_size = settings.CHUNK_SIZE
-    optimal_chunk_overlap = settings.CHUNK_OVERLAP
+        # 3. Chunking (using dynamic settings)
+        optimal_chunk_size = settings.CHUNK_SIZE
+        optimal_chunk_overlap = settings.CHUNK_OVERLAP
 
-    logger.info(f"Chunking document with size={optimal_chunk_size}, overlap={optimal_chunk_overlap}")
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=optimal_chunk_size,
-        chunk_overlap=optimal_chunk_overlap,
-        separators=["\n\n", "\n", " ", ""]
-    )
+        logger.info(f"Chunking document with size={optimal_chunk_size}, overlap={optimal_chunk_overlap}")
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=optimal_chunk_size,
+            chunk_overlap=optimal_chunk_overlap,
+            separators=["\n\n", "\n", " ", ""]
+        )
 
-    chunks_data = []
-    chunk_index = 0
-    for page in pages:
-        page_chunks = text_splitter.split_text(page["text"])
-        for chunk in page_chunks:
-            chunks_data.append({
-                "text": chunk,
-                "metadata": {
-                    "page_number": page["page_number"],
-                    "filename": doc.filename,
-                    "display_title": doc.display_title or doc.filename,
-                    "source": page.get("source", "text"),
-                },
-                "index": chunk_index
-            })
-            chunk_index += 1
+        chunks_data = []
+        chunk_index = 0
+        for page in pages:
+            page_chunks = text_splitter.split_text(page["text"])
+            for chunk in page_chunks:
+                chunks_data.append({
+                    "text": chunk,
+                    "metadata": {
+                        "page_number": page["page_number"],
+                        "filename": doc.filename,
+                        "display_title": doc.display_title or doc.filename,
+                        "source": page.get("source", "text"),
+                    },
+                    "index": chunk_index
+                })
+                chunk_index += 1
 
-    if not chunks_data:
-        raise RuntimeError("No readable text chunks could be extracted.")
+        if not chunks_data:
+            raise RuntimeError("No readable text chunks could be extracted.")
 
-    logger.info(f"Extracted {len(chunks_data)} chunks from document {doc.id}")
+        logger.info(f"Extracted {len(chunks_data)} chunks from document {doc.id}")
 
-    # 4. Generate Embeddings & 5. Insert into DB
-    logger.info(f"Generating embeddings for {len(chunks_data)} chunks...")
-    batch_size = 100
-    total_inserted = 0
+        # 4. Generate Embeddings & 5. Insert into DB
+        logger.info(f"Generating embeddings for {len(chunks_data)} chunks...")
+        batch_size = 100
+        total_inserted = 0
 
-    for i in range(0, len(chunks_data), batch_size):
-        batch_chunks = chunks_data[i:i + batch_size]
-        texts = [c["text"] for c in batch_chunks]
+        for i in range(0, len(chunks_data), batch_size):
+            batch_chunks = chunks_data[i:i + batch_size]
+            texts = [c["text"] for c in batch_chunks]
 
-        # Generate embeddings (retried on transient rate limits/network errors)
-        vectors = await _embed_texts(texts)
+            # Generate embeddings (retried on transient rate limits/network errors)
+            vectors = await _embed_texts(texts)
 
-        # Insert chunks
-        for data, vector in zip(batch_chunks, vectors):
-            db_chunk = Chunk(
-                document_id=doc.id,
-                chunk_index=data["index"],
-                content=data["text"],
-                page_number=data["metadata"].get("page_number"),
-                metadata_=data["metadata"],
-                embedding=_normalize_embedding(vector, settings.EMBEDDING_DIMENSION),
-                token_count=len(data["text"]) // 4  # Rough token estimation
-            )
-            db.add(db_chunk)
+            # Insert chunks
+            for data, vector in zip(batch_chunks, vectors):
+                db_chunk = Chunk(
+                    document_id=doc.id,
+                    chunk_index=data["index"],
+                    content=data["text"],
+                    page_number=data["metadata"].get("page_number"),
+                    metadata_=data["metadata"],
+                    embedding=_normalize_embedding(vector, settings.EMBEDDING_DIMENSION),
+                    token_count=len(data["text"]) // 4  # Rough token estimation
+                )
+                db.add(db_chunk)
 
-        total_inserted += len(batch_chunks)
+            total_inserted += len(batch_chunks)
 
-    logger.info(f"Successfully prepared {total_inserted} embeddings for pgvector.")
+        logger.info(f"Successfully prepared {total_inserted} embeddings for pgvector.")
+    finally:
+        # Clean up temp file created for ingestion (only if under system temp dir)
+        if is_temp_file and file_path and os.path.exists(file_path):
+            try:
+                os.unlink(file_path)
+                logger.debug(f"Cleaned up temp ingestion file: {file_path}")
+            except OSError as e:
+                logger.warning(f"Failed to clean up temp file {file_path}: {e}")
 
 
 async def ingest_document(document_id: str, file_path: Optional[str] = None):

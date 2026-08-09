@@ -4,7 +4,12 @@ Verifies server-side StreamCoTBuffer state machine and CoT extraction logic.
 """
 
 import pytest
-from app.services.generation import StreamCoTBuffer, extract_answer_from_cot, _format_context_text
+from app.services.generation import (
+    StreamCoTBuffer,
+    extract_answer_from_cot,
+    _build_resolved_query_section,
+    _format_context_text,
+)
 from app.models import Chunk
 
 
@@ -87,3 +92,36 @@ def test_format_context_text_uses_display_title():
     context_str = _format_context_text([chunk])
     assert "Two-Wheeler Insurance Policy" in context_str
     assert "DG_20201AGENT_SCHEDULESC" not in context_str
+
+
+def test_format_context_text_surfaces_raw_relevance_when_present():
+    chunk = Chunk(
+        content="Policy D277856892 covers two-wheelers.",
+        page_number=1,
+        metadata_={"display_title": "Two-Wheeler Insurance Policy", "raw_similarity": 0.7317},
+    )
+    context_str = _format_context_text([chunk])
+    assert "Raw relevance: 0.7317" in context_str
+
+
+def test_format_context_text_omits_raw_relevance_when_absent():
+    chunk = Chunk(
+        content="Policy D277856892 covers two-wheelers.",
+        page_number=1,
+        metadata_={"display_title": "Two-Wheeler Insurance Policy"},
+    )
+    context_str = _format_context_text([chunk])
+    assert "Raw relevance" not in context_str
+
+
+def test_build_resolved_query_section_only_when_different():
+    assert _build_resolved_query_section("Where is it?", "") == ""
+    assert _build_resolved_query_section("Where is it?", None) == ""
+    assert (
+        _build_resolved_query_section(
+            "Where is it?", "Where does the replica for us-east-1 run?"
+        )
+        == "Resolved Query: Where does the replica for us-east-1 run?"
+    )
+    # Same as the raw query: no rewrite happened, no section.
+    assert _build_resolved_query_section("Where is it?", "Where is it?") == ""

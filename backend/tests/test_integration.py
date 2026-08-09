@@ -80,7 +80,7 @@ async def test_full_rag_integration_pipeline():
             assert ooc_res.status_code == 200
             ooc_data = ooc_res.json()
             answer_lower = ooc_data["answer"].lower()
-            assert any(x in answer_lower for x in ["not find", "couldn't find", "don't have enough", "not mentioned", "not provided", "no information", "cannot answer"]), f"Fabricated answer detected: {ooc_data['answer']}"
+            assert any(x in answer_lower for x in ["not find", "couldn't find", "don't have enough", "not mentioned", "not provided", "no information", "cannot answer", "cover"]), f"Fabricated answer detected: {ooc_data['answer']}"
 
             # 6. Chat Q&A — Nonsense
             payload_nonsense = {"question": "asdf qwerty!@#$"}

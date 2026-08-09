@@ -113,13 +113,16 @@ def collect_knob_overrides(args) -> Dict[str, Any]:
     return overrides
 
 
-def forecast_calls(selected_count: int) -> str:
-    """Budget visibility: 2 per question (generation + judge), worst case +1
-    retry per entry for malformed judge JSON."""
+def forecast_calls(selected_count: int, rewrite_count: int = 0) -> str:
+    """Budget visibility: 2 per question (generation + judge) plus one
+    follow-up rewrite per multi-turn entry, worst case +1 retry per entry
+    for malformed judge JSON."""
+    base = (2 * selected_count) + rewrite_count
     return (
-        f"budget: base {2 * selected_count} LLM calls "
-        f"({selected_count} generation + {selected_count} judge), "
-        f"worst case {3 * selected_count} (one retry per entry)"
+        f"budget: base {base} LLM calls "
+        f"({selected_count} generation + {selected_count} judge"
+        + (f" + {rewrite_count} rewrite" if rewrite_count else "")
+        + f"), worst case {base + selected_count} (one retry per entry)"
     )
 
 
@@ -133,6 +136,8 @@ def _question_dict(q) -> Dict[str, Any]:
         "groundedness_pass": q.groundedness_pass,
         "completeness_pass": q.completeness_pass,
         "judge_error": q.judge_error,
+        "topic_leak": q.topic_leak,
+        "rewritten_query": q.rewritten_query,
         "generated_answer_truncated": q.generated_answer[:200],
     }
 
@@ -238,6 +243,12 @@ def render_summary_markdown(payload: dict) -> str:
               "", "| entry | marker_recall |", "|---|---|"]
     for q in payload["questions"]:
         lines.append(f"| {q['entry_id']} | {q['marker_recall']} |")
+
+    leak_entries = [q for q in payload["questions"] if q["topic_leak"]]
+    if leak_entries:
+        lines += ["", "## Topic leaks (forbidden topics named in answers)", ""]
+        for q in leak_entries:
+            lines.append(f"> - {q['entry_id']}: {q['generated_answer_truncated']!r}")
 
     lines += ["", "## Negative controls (must all fail)", "", "| id | dims |", "|---|---|"]
     for cid, dims in summary["negative_controls"].items():
@@ -362,7 +373,8 @@ async def run_cmd(args, golden_file: Path) -> dict:
     if args.sample is not None:
         print(f"sample: first {stats['sample_size']} of {stats['pass_total']} pass entries "
               f"+ all {stats['control_total']} negative controls = {len(selected)} total")
-    print(forecast_calls(len(selected)))
+    rewrite_count = sum(1 for e in selected if e.prior_turns)
+    print(forecast_calls(len(selected), rewrite_count))
 
     overrides = collect_knob_overrides(args)
     if overrides:

@@ -22,6 +22,7 @@ from app.core.security import get_current_user
 from app.config import get_settings
 from app.schemas import ChatRequest, ChatResponse, Citation
 from app.services.retrieval import retrieve_context
+from app.services.rewrite import rewrite_followup
 from app.services.memory import update_conversation_summary
 from app.services.guardrails import (
     INJECTION_REFUSAL_MESSAGE,
@@ -169,9 +170,13 @@ async def chat(
             # 4. Query corpus metadata (ground truth for the LLM)
             corpus_metadata = await _build_corpus_metadata(db, current_user.id)
 
-            # 5. Retrieve relevant chunks from pgvector scoped to current user
+            # 5. Retrieve relevant chunks from pgvector scoped to current user.
+            # A conversational follow-up is rewritten against the history
+            # into a standalone query first, so deictic turns ("what about
+            # its RPO?") retrieve on the resolved intent, not the bare text.
+            retrieval_query = await rewrite_followup(question, chat_history)
             retrieved_items = await retrieve_context(
-                query=question,
+                query=retrieval_query,
                 db=db,
                 document_id=request_body.document_id,
                 user_id=current_user.id,
@@ -226,6 +231,7 @@ async def chat(
                     chat_history=chat_history,
                     corpus_metadata=corpus_metadata,
                     conversation_summary=conv.context_summary,
+                    resolved_query=retrieval_query,
                 )
 
             # Output guardrail: replace a flagged answer, but log the flag
@@ -410,9 +416,11 @@ async def chat_stream(
     # 4. Query corpus metadata (ground truth for the LLM)
     corpus_metadata = await _build_corpus_metadata(db, current_user.id)
 
-    # 5. Retrieve context chunks scoped to user
+    # 5. Retrieve context chunks scoped to user. Same conversational
+    # follow-up rewrite as the non-stream path (fail-closed to raw text).
+    retrieval_query = await rewrite_followup(question, chat_history)
     retrieved_items = await retrieve_context(
-        query=question,
+        query=retrieval_query,
         db=db,
         document_id=request_body.document_id,
         user_id=current_user.id,
@@ -493,6 +501,7 @@ async def chat_stream(
                     chat_history=chat_history,
                     corpus_metadata=corpus_metadata,
                     conversation_summary=conv.context_summary,
+                    resolved_query=retrieval_query,
                 ):
                     full_answer.append(token)
                     token_payload = dumps({"delta": token})

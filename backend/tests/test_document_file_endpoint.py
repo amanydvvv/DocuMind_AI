@@ -2,7 +2,7 @@
 DocuMind AI — Document File Endpoint Test Suite
 Covers the tenant-scoped GET /api/documents/{id}/file route used by the
 PDF citation viewer: success, content type, cross-tenant isolation (404),
-unsupported type (415), and missing on-disk source (410).
+unsupported type (415), and persistence across restarts (DB-backed storage).
 """
 
 import asyncio
@@ -128,17 +128,29 @@ async def test_get_file_cross_tenant_is_404(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_file_missing_on_disk_410(client: AsyncClient):
-    """File removed from storage (but row intact) surfaces as a clear 410."""
+async def test_get_file_persists_across_restart(client: AsyncClient):
+    """PDF served from DB survives container restart (simulated by clearing upload dir)."""
     await _signup_user(client)
     doc_id = await _upload_pdf(client)
 
-    disk_file = Path(get_settings().UPLOAD_DIR) / f"{doc_id}.pdf"
-    assert disk_file.exists(), "Uploaded PDF should exist on disk before test"
-    disk_file.unlink()
-
+    # Verify initial access works
     resp = await client.get(f"/api/documents/{doc_id}/file")
-    assert resp.status_code == 410, f"Expected 410, got {resp.status_code}: {resp.text}"
+    assert resp.status_code == 200
+    original_content = resp.content
+
+    # Simulate container restart: clear the legacy upload directory
+    # (new uploads never write there, but this proves DB is source of truth)
+    upload_dir = Path(get_settings().UPLOAD_DIR)
+    if upload_dir.exists():
+        for f in upload_dir.iterdir():
+            f.unlink()
+
+    # File should still be accessible from DB storage
+    resp = await client.get(f"/api/documents/{doc_id}/file")
+    assert resp.status_code == 200, f"Expected 200 after restart simulation, got {resp.status_code}: {resp.text}"
+    assert resp.content == original_content, "PDF content changed after restart simulation"
+    assert resp.headers["content-type"].startswith("application/pdf")
+    assert "scanned_test_person_2026.pdf" in resp.headers.get("content-disposition", "")
 
 
 async def main():
