@@ -41,6 +41,7 @@ Step 5 (generation + judge pipeline):
   visibility.
 """
 
+import asyncio
 import json
 import logging
 from contextlib import contextmanager
@@ -438,6 +439,7 @@ async def _judge_answer(
             raw = await _invoke_judge(judge_llm, text)
         except Exception as exc:
             logger.warning("judge call failed for %s: %s", entry.id, exc)
+            await asyncio.sleep(5)
             raw = ""
         parsed = _parse_judge_json(raw)
         if parsed is not None:

@@ -11,7 +11,7 @@ import time
 from typing import List, Optional, Tuple, Dict
 from uuid import UUID
 
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
@@ -185,20 +185,10 @@ async def _retrieve_lexical_candidates(
     rows = result.all()
 
     if not rows:
-        tokens = [t for t in clean_query.split() if len(t) > 2]
-        if tokens:
-            conditions = [Chunk.content.ilike(f"%{t}%") for t in tokens[:3]]
-            stmt_fallback = select(Chunk).where(or_(*conditions))
-            if user_id is not None or document_id is not None:
-                stmt_fallback = stmt_fallback.join(Document, Chunk.document_id == Document.id)
-            if user_id is not None:
-                stmt_fallback = stmt_fallback.where(Document.user_id == user_id)
-            if document_id is not None:
-                stmt_fallback = stmt_fallback.where(Chunk.document_id == document_id)
-            stmt_fallback = stmt_fallback.limit(limit)
-            res_fb = await db.execute(stmt_fallback)
-            fb_chunks = res_fb.scalars().all()
-            return [(chunk, 0.5) for chunk in fb_chunks]
+        logger.info(
+            "FTS returned 0 rows for query %r; skipping lexical path (vector-only fallback)",
+            clean_query,
+        )
         return []
 
     candidates = []
