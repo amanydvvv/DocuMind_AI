@@ -89,16 +89,27 @@ _UNUSUAL_UNICODE_RE = re.compile(
 # generation. Keep in sync when the template changes — the tests derive
 # leak samples from RAG_PROMPT_TEMPLATE, so drift fails loudly.
 PROMPT_LEAK_FRAGMENTS = (
-    "You are DocuMind AI, a direct, helpful document-reading assistant",
-    "System Instructions & Rules",
-    "Hard Negative Constraint",
-    "Content Over Filename Priority",
-    "Document Counts",
-    "Document Context:",
-    "Workspace Documents Summary",
-    "CORPUS METADATA",
+    "You are DocuMind AI, an intelligent document analysis assistant",
+    "GUIDELINES:",
+    "Do NOT mention page numbers",
+    "Do NOT hedge or state",
+    "According to the document",
+    "The text provided says",
+    "Prior Context:",
+    "Context:",
+    "User Question:",
     "<thought_process>",
     "<answer>",
+    "retrieved context",
+    "vector database",
+    "page ",
+    "Source chunk",
+    "The document states that",
+    "Based on the provided text",
+    "The context indicates",
+    "The provided context shows",
+    "CORPUS METADATA",
+    "Workspace Documents Summary",
 )
 
 # Unsafe-content blocklist. Scoped as a safety net, not a moderation suite:

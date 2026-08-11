@@ -95,22 +95,30 @@ def test_format_context_text_uses_display_title():
 
 
 def test_format_context_text_surfaces_raw_relevance_when_present():
+    """Test that the new context format includes the display title and content."""
     chunk = Chunk(
         content="Policy D277856892 covers two-wheelers.",
         page_number=1,
         metadata_={"display_title": "Two-Wheeler Insurance Policy", "raw_similarity": 0.7317},
     )
     context_str = _format_context_text([chunk])
-    assert "Raw relevance: 0.7317" in context_str
+    # New format: [Title]\nContent
+    assert "Two-Wheeler Insurance Policy" in context_str
+    assert "Policy D277856892 covers two-wheelers." in context_str
+    # Raw relevance is no longer included in the context (prevents leakage)
+    assert "Raw relevance" not in context_str
 
 
 def test_format_context_text_omits_raw_relevance_when_absent():
+    """Test that the new context format works without raw_similarity."""
     chunk = Chunk(
         content="Policy D277856892 covers two-wheelers.",
         page_number=1,
         metadata_={"display_title": "Two-Wheeler Insurance Policy"},
     )
     context_str = _format_context_text([chunk])
+    assert "Two-Wheeler Insurance Policy" in context_str
+    assert "Policy D277856892 covers two-wheelers." in context_str
     assert "Raw relevance" not in context_str
 
 

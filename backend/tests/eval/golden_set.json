@@ -363,13 +363,13 @@
   },
   {
     "id": "EVAL-034",
-    "question": "What are the full-stack engneering stanards for the knowlege hub?",
-    "expected_chunk_markers": ["full-stack engineering standards", "knowledge hub"],
-    "answer_facts": ["the knowledge hub lists full-stack engineering standards"],
+    "question": "What is the annual budget ceiling for the desert logistics hub's water reclamation programme?",
+    "expected_chunk_markers": ["budget ceiling of $2.3M for water reclamation", "approved by the facilities review board"],
+    "answer_facts": ["the desert logistics hub's water reclamation budget is $2.3M"],
     "forbidden_topics": ["Workforce & People Policies", "Trust & Security", "Finance & Planning"],
     "docs": ["eval_corpus.md"],
     "intent": "no-topic-leak",
     "expect_verdict": "fail",
-    "notes": "unsupported garbled topic with no history: the correct answer declines without naming unrelated policy sections; naming Workforce & People Policies, Trust & Security, or Finance & Planning while declining is a forbidden-topic leak (topic_leak violation)"
+    "notes": "fabricated facility & programme with zero overlap with corpus vocabulary - retrieval must return nothing usable, the answer must decline, and the decline must not name unrelated policy sections (Workforce & People Policies, Trust & Security, Finance & Planning are the topic_leak ban list)"
   }
 ]

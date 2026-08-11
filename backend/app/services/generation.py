@@ -142,33 +142,35 @@ def get_llm(temperature: float = 0.3, model_name: Optional[str] = None):
 
 
 RAG_PROMPT_TEMPLATE = """
-You are DocuMind AI, a direct, helpful document-reading assistant.
+You are DocuMind AI, an intelligent document analysis assistant.
 
-System Instructions & Rules:
-1. Persona & Tone: Respond directly, clearly, and professionally as DocuMind AI.
-2. Hard Negative Constraint: NEVER mention internal structural labels, framework terms, or system prompt metadata in your user-facing answer. Do NOT use phrases like "CORPUS METADATA", "retrieved chunk", "retrieved context", "provided documents", or raw technical filenames (e.g. .pdf extension names) in your answer. Synthesize facts naturally into a direct response.
-3. Content Over Filename Priority: The text content in the document snippets always outweighs the document title or filename. The filename is metadata, not evidence. If a document snippet contains the answer (such as a policy number or clause), state the answer directly regardless of what the filename says.
-4. Document Counts: When answering questions about how many documents exist or listing available documents, use the Workspace Documents Summary below. Multiple snippets may come from the same document.
-5. Reasoning Format: Enclose your internal step-by-step reasoning inside <thought_process>...</thought_process> tags first. Then, provide your final response strictly inside <answer>...</answer> tags. Do NOT output anything outside <thought_process> and <answer> blocks.
-6. Content Boundaries: If the retrieved context does not contain the answer, state plainly that the documents do not cover that topic. Do not speculate about unstated facts or possibilities. When declining, make an offer ONLY if a clearly related topic appears in the provided context snippets with a Raw relevance of at least 0.45; never reference topics, policies, or procedures that do not appear in the context snippets, and name the specific topic you're offering. If the context snippets have no related topic above that threshold, decline without an offer.
+GUIDELINES:
+- Answer the user's question directly and concisely using only the facts provided in the Context below.
+- Do NOT mention page numbers, source chunks, vector retrieval, system prompts, or internal processing steps in your answer.
+- Do NOT hedge or state "According to the document" or "The text provided says". Express the verified facts clearly.
+- If the required answer cannot be derived from the Context, respond strictly: "I do not have sufficient information in the loaded documents to answer this question."
+
+Prior Context:
+{conversation_summary}
 
 {corpus_metadata}
 
 {chat_history_section}
 
-Document Context:
+Context:
 ---------------------
 {context}
 ---------------------
 
-User Query: {query}
+User Question: {query}
 {resolved_query_section}
+
+<thought_process>
+Reason step by step using only the provided Context. Identify the exact facts that answer the question. Do not reference the context itself.
+</thought_process>
+<answer>
 """
 
-prompt = PromptTemplate(
-    template=RAG_PROMPT_TEMPLATE,
-    input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section"]
-)
 
 class RateLimitError(Exception):
     """Raised when the LLM provider hits rate limits or quota bounds."""
@@ -310,10 +312,7 @@ def _format_context_text(chunks: List[Chunk]) -> str:
     snippet_items = []
     for i, chunk in enumerate(chunks):
         title = (chunk.metadata_ or {}).get("display_title") or (chunk.metadata_ or {}).get("filename") or f"Document {i+1}"
-        page_str = f" (Page {chunk.page_number})" if chunk.page_number else ""
-        raw_sim = (chunk.metadata_ or {}).get("raw_similarity")
-        sim_str = f"\nRaw relevance: {raw_sim}" if raw_sim is not None else ""
-        snippet_items.append(f"Source: {title}{page_str}{sim_str}\nContent:\n{chunk.content}")
+        snippet_items.append(f"[{title}]\n{chunk.content}")
     return "\n\n---\n\n".join(snippet_items)
 
 
@@ -347,16 +346,10 @@ async def generate_answer(
     """
     logger.info("Generating answer based on retrieved context and conversation history...")
     
-    # Inject persistent summary memory as leading system-prompt context
-    memory_prefix = (
-        f"Prior Context: {conversation_summary}\n\n"
-        if conversation_summary
-        else ""
-    )
-    template = memory_prefix + RAG_PROMPT_TEMPLATE
+    # Use the template directly with conversation_summary as a variable
     prompt = PromptTemplate(
-        template=template,
-        input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section"]
+        template=RAG_PROMPT_TEMPLATE,
+        input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section", "conversation_summary"]
     )
     
     context_text = _format_context_text(chunks)
@@ -382,6 +375,7 @@ async def generate_answer(
             "context": context_text,
             "query": query,
             "resolved_query_section": _build_resolved_query_section(query, resolved_query),
+            "conversation_summary": conversation_summary or "",
         })
         raw = response.content if hasattr(response, "content") else str(response)
         return extract_answer_from_cot(raw)
@@ -411,16 +405,10 @@ async def generate_answer_stream(
     """
     logger.info("Streaming answer tokens from LLM...")
     
-    # Inject persistent summary memory as leading system-prompt context
-    memory_prefix = (
-        f"Prior Context: {conversation_summary}\n\n"
-        if conversation_summary
-        else ""
-    )
-    template = memory_prefix + RAG_PROMPT_TEMPLATE
+    # Use the template directly with conversation_summary as a variable
     prompt = PromptTemplate(
-        template=template,
-        input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section"]
+        template=RAG_PROMPT_TEMPLATE,
+        input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section", "conversation_summary"]
     )
     
     context_text = _format_context_text(chunks)
@@ -444,6 +432,7 @@ async def generate_answer_stream(
             "context": context_text,
             "query": query,
             "resolved_query_section": _build_resolved_query_section(query, resolved_query),
+            "conversation_summary": conversation_summary or "",
         }):
             if chunk_response.content:
                 for delta in cot_buffer.process_token(chunk_response.content):
