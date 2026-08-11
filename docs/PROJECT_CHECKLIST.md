@@ -168,3 +168,11 @@ This is a living execution tracker structured around development phases.
 ## Documentation [✅ COMPLETE]
 - [x] Agent handover document: `docs/HANDOVER_2026-08-10.md` — architecture map, commit history, uncommitted WIP description, eval numbers, gotchas, suggested next steps
 
+## Jules REST API Autonomous Agent Integration [✅ COMPLETE]
+- [x] Settings: `JULES_API_KEY` and `JULES_BASE_URL` in `backend/app/config.py` + `.env.example`
+- [x] Service Client: `JulesClient` async client (`list_sources`, `create_session`, `get_session`, `list_sessions`, `send_message`, `approve_plan`, `list_activities`) — `backend/app/services/jules.py`
+- [x] Schemas: Pydantic models for session creation, requests, and outputs — `backend/app/schemas/__init__.py`
+- [x] Admin Router: Expose `/api/admin/jules/*` endpoints with JWT admin auth — `backend/app/routers/jules.py`
+- [x] Automated Tests: 6 test cases covering client & router methods with mocked HTTP transport — `backend/tests/test_jules.py` (all 120 suite tests passing)
+
+

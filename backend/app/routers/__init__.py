@@ -3,6 +3,7 @@ from app.routers.chat import router as chat_router
 from app.routers.conversations import router as conversations_router
 from app.routers.analytics import router as analytics_router
 from app.routers.auth import router as auth_router
+from app.routers.jules import router as jules_router
 
 __all__ = [
     "documents_router",
@@ -10,4 +11,5 @@ __all__ = [
     "conversations_router",
     "analytics_router",
     "auth_router",
+    "jules_router",
 ]

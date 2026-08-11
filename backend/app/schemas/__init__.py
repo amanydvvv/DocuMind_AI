@@ -149,3 +149,39 @@ class HealthResponse(BaseModel):
     database: str
     llm_provider: str
     version: str
+
+
+# ──────────────────────────────────────────────
+#  Jules API Integration
+# ──────────────────────────────────────────────
+
+class JulesCreateSessionRequest(BaseModel):
+    """Request payload to create a Jules AI coding session."""
+    prompt: str = Field(..., min_length=1, max_length=4000)
+    source: str = Field(..., description="Target source e.g. sources/github/owner/repo")
+    starting_branch: str = Field(default="main")
+    automation_mode: str = Field(default="AUTO_CREATE_PR", description="AUTO_CREATE_PR or NONE")
+    title: Optional[str] = Field(default=None, max_length=200)
+    require_plan_approval: bool = False
+
+
+class JulesSendMessageRequest(BaseModel):
+    """Send a follow-up message to an active Jules session."""
+    prompt: str = Field(..., min_length=1, max_length=4000)
+
+
+class JulesSessionResponse(BaseModel):
+    """Jules session status and outputs."""
+    name: str
+    id: str
+    title: Optional[str] = None
+    prompt: Optional[str] = None
+    state: Optional[str] = None
+    outputs: Optional[list[dict]] = None
+
+
+class JulesSourceListResponse(BaseModel):
+    """Connected sources list."""
+    sources: list[dict]
+    next_page_token: Optional[str] = None
+

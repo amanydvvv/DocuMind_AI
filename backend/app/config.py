@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str | None = None
     GOOGLE_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
+    JULES_API_KEY: str | None = None
+    JULES_BASE_URL: str = "https://jules.googleapis.com/v1alpha"
     EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_DIMENSION: int = 768
     GENERATIVE_MODEL: str = "llama-3.1-8b-instant"
