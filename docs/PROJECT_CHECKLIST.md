@@ -136,12 +136,35 @@ This is a living execution tracker structured around development phases.
 - [x] Author eval corpus + 37 golden pairs (incl. 4 negative controls) — `backend/tests/eval/` (32 pairs as planned + EVAL-032/033 multi-turn rewrite probes + EVAL-034 topic-leak control)
 - [x] Harness: schema/validator, retrieval-composition runner, marker recall@k, generation+judge (strict JSON, retry, fail-closed), aggregation — `backend/app/services/evaluation.py`
 - [x] CLI `--seed / --validate-golden / --run / --sample N / --diff A B` + arched reports — `backend/scripts/run_eval.py`
-- [x] Plumbing tests (`backend/tests/test_eval_harness.py`, `test_eval_cli.py`) + baseline archival (`backend/results/baseline.json`, 32 entries: 89.7% marker recall / 86.2% retrieval / 96.6% groundedness / 89.7% completeness; 0 negative-control violations)
-- **Denominator convention note:** the rates in the previous bullet are **Convention B — EVAL-only, harness `summary.pass_rates` field, NEG controls excluded** (denominator 29). Convention A tables (all entries including NEG controls, e.g. the 81.2%/78.1% table in `docs/PLAN_EVAL_GUARDRAILS.md` §"Phase 2 closed") are NOT interchangeable with Convention B — never diff a table from one convention against a table from the other without converting first.
+- [x] Plumbing tests (`backend/tests/test_eval_harness.py`, `test_eval_cli.py`) + baseline archival (`backend/results/baseline.json`, 37 entries: 87.9% marker recall / 87.9% retrieval / 100% groundedness / 87.9% completeness; 0 negative-control violations)
+- **Denominator convention note:** the rates in the previous bullet are **Convention B — EVAL-only, harness `summary.pass_rates` field, NEG controls excluded** (denominator 33). Convention A tables (all entries including NEG controls, e.g. the 81.2%/78.1% table in `docs/PLAN_EVAL_GUARDRAILS.md` §"Phase 2 closed") are NOT interchangeable with Convention B — never diff a table from one convention against a table from the other without converting first.
 - [x] Input guardrails: pure functions — `sanitize_pii()` / `is_injection()` (incl. `GUARDRAILS_STRICT` obfuscation gate) — `backend/app/services/guardrails.py`; wired into `/api/chat` + `/api/chat/stream` pre-persist: sanitized text drives Message/QueryLog persistence, retrieval, cache key, history and LLM; injection short-circuits with a canned refusal (normal-shaped turn, empty citations, avg_similarity 0) — `backend/app/routers/chat.py`
 - [x] Output guardrails: `validate_output()` pure rules; non-stream replaces a flagged answer (logged with reasons); stream appends a disclaimer delta after all tokens, before `done` (no token retraction; persisted content = emitted + disclaimer); `GUARDRAILS_ENABLED=false` restores pre-guardrail behavior exactly
-- [x] Tests: 63 cases in `backend/tests/test_guardrails.py` (pure table-driven + live-route: PII-before-LLM, non-call short-circuit, output-flag replacement/disclaimer, kill switches with mocked retrieval/generation/cache-key spy)
-- [x] Eval no-regression gate: full 32-entry harness run vs baseline — 0.0% delta on all four dimensions, zero per-entry flag changes, zero negative-control violations, stress entries EVAL-028/029 unchanged (guardrails confined to `chat.py`; the harness calls services directly, so no interference path); recorded in `docs/PLAN_EVAL_GUARDRAILS.md` §"Phase 2 closed"
+- [x] Tests: 88 cases in `backend/tests/test_guardrails.py` (pure table-driven + live-route: PII-before-LLM, non-call short-circuit, output-flag replacement/disclaimer, kill switches with mocked retrieval/generation/cache-key spy) + `backend/tests/test_rag_quality.py` (3-class RAG response quality: leak blocking, hedging blocking, fallback-phrase allowlisting, fragment-completeness)
+- [x] Eval no-regression gate: full 32-entry harness run vs baseline — 0.0% delta on all four dimensions, zero per-entry flag changes, zero negative-control violations, stress entries EVAL-028/029 unchanged; recorded in `docs/PLAN_EVAL_GUARDRAILS.md` §"Phase 2 closed"
 
-## Frontend UX (Phase 1 shipped; audited plan approved — full dark theme locked for Phase 2)
-- [ ] UI/UX improvement plan: `docs/PLAN_UI_IMPROVEMENTS.md` (Phase 1 corrections + Phase 2 full dark theme token system shipped — single `@theme` source, AuthModal de-hardcoded, `prose`-dead-class fix via scoped markdown, inline-SVG icon language; Phase 3 mobile drawer + touch deletes, Phase 4 a11y dialogs/labels, Phase 5 micro-UX — each independently shippable)
+## Prompt Template v2 + Anti-Leak Context Formatting [✅ COMPLETE]
+- [x] Rewrite `RAG_PROMPT_TEMPLATE`: compact `GUIDELINES:` block, `<thought_process>`/`<answer>` scaffold, hard-coded decline phrase, `conversation_summary` as proper `PromptTemplate` variable (no more string-concat memory injection)
+- [x] `_format_context_text`: emit `[display_title]\n{content}` only — removed page numbers and raw relevance from LLM context (anti-leak; citation SSE path is fully decoupled, page-jump unaffected)
+- [x] Expand `PROMPT_LEAK_FRAGMENTS` to 21 entries for new template — `backend/app/services/guardrails.py`
+- [x] Leak-fragment drift test (`test_guardrails.py::test_validate_output_leak_fragments_track_live_template`) and exact-set fragment-coverage test (`test_rag_quality.py::test_all_fragments_have_test_coverage`) guard against silent template/test divergence
+- [x] Remove dead module-level `prompt = PromptTemplate(...)` from `generation.py` (was shadowed by function-local copies)
+- [x] Re-baseline: 37-entry golden set (`EVAL-034` replaced with harder fabricated-facility negative control); `backend/results/baseline.json` + snapshot `baseline_20260810_37entries.json`
+
+## Follow-Up Query Rewriting [✅ COMPLETE]
+- [x] `backend/app/services/rewrite.py`: deictic follow-up rewriting for multi-turn retrieval (fail-closed: timeout/error/low-confidence returns raw question unchanged)
+- [x] Wired into both `/api/chat` and `/api/chat/stream` pre-retrieval; retrieval query cache keys on post-rewrite text
+- [x] Eval harness composes rewrite at orchestration layer only (for `prior_turns` entries); Stage-1 retrieval composition never invokes rewrite (verified isolation)
+
+## Persistent PDF Storage (`raw_bytes`) [✅ COMPLETE]
+- [x] Alembic migration `3d4e5f6a7b8c_add_raw_bytes_to_documents` — adds `raw_bytes` column to `documents` table
+- [x] `backend/app/services/ingestion.py` refactored: `_resolve_file_path` resolves temp files from `doc.raw_bytes` when on-disk file is missing
+- [x] `scripts/rescue_pdf_bytes.py`: one-off backfill for legacy rows without `raw_bytes`
+
+## Frontend UX (Phase 1 + Phase 2 shipped; Phase 3–5 planned)
+- [x] UI/UX improvement plan: `docs/PLAN_UI_IMPROVEMENTS.md` — Phase 1 corrections + Phase 2 full dark theme token system shipped (single `@theme` source, AuthModal de-hardcoded, `prose`-dead-class fix via scoped markdown, inline-SVG icon language)
+- [ ] Phase 3 mobile drawer + touch deletes, Phase 4 a11y dialogs/labels, Phase 5 micro-UX — each independently shippable
+
+## Documentation [✅ COMPLETE]
+- [x] Agent handover document: `docs/HANDOVER_2026-08-10.md` — architecture map, commit history, uncommitted WIP description, eval numbers, gotchas, suggested next steps
+
