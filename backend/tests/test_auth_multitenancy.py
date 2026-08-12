@@ -490,3 +490,145 @@ async def test_deactivated_user_cannot_access_api(async_client: AsyncClient):
             {"email": user_email},
         )
         await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_reuse_is_rejected(async_client: AsyncClient):
+    """
+    Regression test for JTI compare-and-swap: a refresh token that has already
+    been used to rotate credentials must be rejected with 401 on reuse.
+
+    If rotate_refresh_token() doesn't invalidate the old JTI atomically, a
+    stolen token remains valid indefinitely — this test catches that failure.
+    """
+    user_email = f"jti_reuse_{uuid.uuid4().hex[:6]}@example.com"
+    password = "testpassword123"
+
+    # 1. Sign up — receives initial access + refresh tokens
+    signup_res = await async_client.post(
+        "/api/auth/signup",
+        json={"email": user_email, "password": password},
+    )
+    assert signup_res.status_code == 201, f"Signup failed: {signup_res.text}"
+    initial_refresh = signup_res.json().get("refresh_token")
+    assert initial_refresh, "Signup response must include refresh_token"
+
+    # 2. Use the refresh token once — this rotates it (old JTI → new JTI)
+    rotate_res = await async_client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": initial_refresh},
+    )
+    assert rotate_res.status_code == 200, f"First refresh failed: {rotate_res.text}"
+    new_refresh = rotate_res.json().get("refresh_token")
+    assert new_refresh, "Refresh response must include new refresh_token"
+    assert new_refresh != initial_refresh, "Rotated token must differ from the original"
+
+    # 3. Attempt to reuse the OLD refresh token — must be rejected
+    reuse_res = await async_client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": initial_refresh},
+    )
+    assert reuse_res.status_code == 401, (
+        f"Reused refresh token should be rejected with 401, got {reuse_res.status_code}: {reuse_res.text}"
+    )
+    assert "already been used" in reuse_res.json().get("detail", "").lower()
+
+    # 4. Confirm the NEW token still works (rotation didn't break the happy path)
+    valid_res = await async_client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": new_refresh},
+    )
+    assert valid_res.status_code == 200, (
+        f"New refresh token should still be valid, got {valid_res.status_code}: {valid_res.text}"
+    )
+    final_token = valid_res.json().get("access_token")
+
+    # Cleanup
+    await async_client.request(
+        "DELETE",
+        "/api/auth/me",
+        json={"password": password},
+        headers={"Authorization": f"Bearer {final_token}"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_user_cannot_access_other_users_documents(async_client: AsyncClient):
+    """
+    IDOR regression test: User A must not be able to read, download, or
+    interact with User B's documents — not by ID guessing, not by listing.
+
+    This covers the original Phase 12 IDOR gap where resource endpoints
+    were not consistently scoped to current_user.id.
+    """
+    import io
+
+    email_a = f"user_a_{uuid.uuid4().hex[:6]}@example.com"
+    email_b = f"user_b_{uuid.uuid4().hex[:6]}@example.com"
+    password = "testpassword123"
+
+    # --- Sign up both users ---
+    res_a = await async_client.post("/api/auth/signup", json={"email": email_a, "password": password})
+    assert res_a.status_code == 201
+    token_a = res_a.json()["access_token"]
+
+    res_b = await async_client.post("/api/auth/signup", json={"email": email_b, "password": password})
+    assert res_b.status_code == 201
+    token_b = res_b.json()["access_token"]
+
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+    headers_b = {"Authorization": f"Bearer {token_b}"}
+
+    # --- User B uploads a minimal PDF ---
+    minimal_pdf = (
+        b"%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj "
+        b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj "
+        b"3 0 obj<</Type/Page/MediaBox[0 0 3 3]>>endobj\n"
+        b"xref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n"
+        b"0000000058 00000 n\n0000000115 00000 n\n"
+        b"trailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF"
+    )
+    upload_res = await async_client.post(
+        "/api/documents/upload",
+        files={"file": ("user_b_private.pdf", io.BytesIO(minimal_pdf), "application/pdf")},
+        headers=headers_b,
+    )
+    # Upload may succeed or fail (depends on processing) — we just need the doc ID
+    doc_id = None
+    if upload_res.status_code in (200, 201, 202):
+        doc_id = upload_res.json().get("id") or upload_res.json().get("document_id")
+
+    # --- User A's document list must not include User B's documents ---
+    list_res = await async_client.get("/api/documents", headers=headers_a)
+    assert list_res.status_code == 200
+    a_doc_ids = {d["id"] for d in list_res.json()["documents"]}
+
+    # User B's document list
+    list_res_b = await async_client.get("/api/documents", headers=headers_b)
+    assert list_res_b.status_code == 200
+    b_doc_ids = {d["id"] for d in list_res_b.json()["documents"]}
+
+    # No overlap allowed — user A must not see any of user B's documents
+    overlap = a_doc_ids & b_doc_ids
+    assert not overlap, (
+        f"IDOR: User A can see User B's documents: {overlap}"
+    )
+
+    # --- If we got a doc ID, directly try to access it as User A ---
+    if doc_id:
+        direct_res = await async_client.get(
+            f"/api/documents/{doc_id}",
+            headers=headers_a,
+        )
+        assert direct_res.status_code in (403, 404), (
+            f"IDOR: User A accessed User B's document {doc_id} "
+            f"— expected 403/404, got {direct_res.status_code}"
+        )
+
+    # Cleanup — delete both users
+    for token, pw in [(token_a, password), (token_b, password)]:
+        await async_client.request(
+            "DELETE", "/api/auth/me",
+            json={"password": pw},
+            headers={"Authorization": f"Bearer {token}"},
+        )

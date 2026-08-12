@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str | None = None
     JULES_API_KEY: str | None = None
     JULES_BASE_URL: str = "https://jules.googleapis.com/v1alpha"
+    # Feature flag: set JULES_ENABLED=false in any env to disable the admin
+    # Jules router without touching source code. Defaults True because the
+    # key and router are already live in production. This is internal admin
+    # tooling only — never expose Jules endpoints to end users.
+    JULES_ENABLED: bool = True
     EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_DIMENSION: int = 768
     GENERATIVE_MODEL: str = "llama-3.1-8b-instant"
