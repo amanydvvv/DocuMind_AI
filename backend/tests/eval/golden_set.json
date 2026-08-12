@@ -3,11 +3,11 @@
     "id": "EVAL-001",
     "question": "How many days of PTO do employees accrue each year?",
     "expected_chunk_markers": ["accrue 25 days of paid leave", "maximum annual accrual cap is 25 days"],
-    "answer_facts": ["annual PTO accrual is 25 days", "the accrual cap is 25 days"],
+    "answer_facts": ["annual PTO accrual is 25 days"],
     "docs": ["eval_corpus.md"],
     "intent": "lexical-exact",
     "expect_verdict": "pass",
-    "notes": "numeric fact — exercises FTS number matching"
+    "notes": "numeric fact — exercises FTS number matching; answer_facts scoped to the question as written (accrual only; the cap is covered by EVAL-020)"
   },
   {
     "id": "EVAL-002",
@@ -43,11 +43,11 @@
     "id": "EVAL-005",
     "question": "How long after an incident must the postmortem be delivered?",
     "expected_chunk_markers": ["blameless postmortem within 3 business days"],
-    "answer_facts": ["a postmortem is required for every incident", "the deadline is 3 business days"],
+    "answer_facts": ["the deadline is 3 business days"],
     "docs": ["eval_corpus.md"],
     "intent": "lexical-exact",
     "expect_verdict": "pass",
-    "notes": "exact deadline phrase"
+    "notes": "exact deadline phrase; answer_facts scoped to the question as written (deadline only, not the every-incident requirement)"
   },
   {
     "id": "EVAL-006",

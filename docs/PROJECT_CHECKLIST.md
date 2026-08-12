@@ -150,6 +150,7 @@ This is a living execution tracker structured around development phases.
 - [x] Leak-fragment drift test (`test_guardrails.py::test_validate_output_leak_fragments_track_live_template`) and exact-set fragment-coverage test (`test_rag_quality.py::test_all_fragments_have_test_coverage`) guard against silent template/test divergence
 - [x] Remove dead module-level `prompt = PromptTemplate(...)` from `generation.py` (was shadowed by function-local copies)
 - [x] Re-baseline: 37-entry golden set (`EVAL-034` replaced with harder fabricated-facility negative control); `backend/results/baseline.json` + snapshot `baseline_20260810_37entries.json`
+- [x] Re-baseline (2026-08-12): narrow EVAL-001/005 `answer_facts` to question scope (accrual only; deadline only); `baseline.json` + snapshot `baseline_20260812_37entries.json` — 100.0% marker recall / 93.9% retrieval / 100.0% groundedness / 93.9% completeness (Convention B, N=33); 0 regressions vs prior baseline, 0 negative-control violations, 0 judge errors
 
 ## Follow-Up Query Rewriting [✅ COMPLETE]
 - [x] `backend/app/services/rewrite.py`: deictic follow-up rewriting for multi-turn retrieval (fail-closed: timeout/error/low-confidence returns raw question unchanged)
