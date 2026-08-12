@@ -45,10 +45,10 @@ def build_token_budgeted_history(messages: List[Message]) -> List[Message]:
 def get_llm(temperature: float = 0.3, model_name: Optional[str] = None):
     """
     Build a resilient LLM with a fallback cascade:
-      1. Groq  llama-3.1-8b-instant   (fast, low-latency — primary)
-      2. Groq  llama-3.3-70b-versatile (higher capacity pool)
-      3. Groq  qwen3-32b              (different model family, separate queue)
-      4. Gemini 1.5 Flash              (cross-provider safety net)
+      1. Groq  settings.GENERATIVE_MODEL  (fast, primary — configured via env var)
+      2. Groq  llama-3.3-70b-versatile    (higher capacity pool)
+      3. Groq  qwen3-32b                  (different model family, separate queue)
+      4. Gemini 1.5 Flash                 (cross-provider safety net)
 
     If any model returns a 503, 429, or any other error, LangChain's
     with_fallbacks() automatically tries the next one in the chain.
@@ -58,6 +58,9 @@ def get_llm(temperature: float = 0.3, model_name: Optional[str] = None):
     single ChatGroq instance pinned to that model — used by the eval harness
     judge, which must grade on its own model (EVAL_JUDGE_MODEL) at
     temperature=0 rather than the generation cascade.
+
+    NOTE: To change the primary model, set GENERATIVE_MODEL in .env.
+    Never hardcode a model name here — that's what caused the Phase 13 fire drill.
     """
     groq_key = os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY
     gemini_key = os.getenv("GEMINI_API_KEY") or settings.GEMINI_API_KEY
@@ -82,12 +85,13 @@ def get_llm(temperature: float = 0.3, model_name: Optional[str] = None):
 
     fallbacks = []
 
-    # --- Primary: Groq llama-3.1-8b-instant ---
+    # --- Primary: Configured via settings.GENERATIVE_MODEL (env var) ---
+    # NEVER hardcode the model name here. Change GENERATIVE_MODEL in .env instead.
     primary = None
     if groq_key:
         primary = ChatGroq(
             api_key=groq_key,
-            model_name="llama-3.1-8b-instant",
+            model_name=settings.GENERATIVE_MODEL,
             temperature=temperature,
             max_retries=1,  # one retry with backoff before cascading
         )

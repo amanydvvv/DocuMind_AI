@@ -147,7 +147,8 @@ class HealthResponse(BaseModel):
     """Server health check response."""
     status: str  # 'healthy' | 'degraded' | 'unhealthy'
     database: str
-    llm_provider: str
+    llm_provider: str           # embedding model (Gemini)
+    generative_model: str = "unconfigured"  # chat generation model (Groq cascade)
     version: str
 
 

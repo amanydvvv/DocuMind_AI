@@ -426,3 +426,67 @@ async def test_rate_limit_direct_origin_without_cf_header_cannot_be_bypassed(asy
             )
 
 
+
+
+@pytest.mark.asyncio
+async def test_deactivated_user_cannot_access_api(async_client: AsyncClient):
+    """
+    A deactivated account (is_active=False) must be rejected with 403 on all
+    bearer-token-protected endpoints — even when presenting a valid, unexpired JWT.
+
+    Security gap fixed: get_current_user() previously only checked user existence,
+    not is_active. A deactivated account with a valid token could still access the API.
+    """
+    from sqlalchemy import text
+    from app.database import async_session
+
+    user_email = f"deactivated_{uuid.uuid4().hex[:6]}@example.com"
+    password = "testpassword123"
+
+    # 1. Create a valid account and confirm it works before deactivation
+    signup_res = await async_client.post(
+        "/api/auth/signup",
+        json={"email": user_email, "password": password},
+    )
+    assert signup_res.status_code == 201, f"Signup failed: {signup_res.text}"
+    token = signup_res.json()["access_token"]
+
+    me_res = await async_client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert me_res.status_code == 200
+
+    # 2. Directly deactivate the account via DB (simulates an admin/ops action)
+    async with async_session() as session:
+        await session.execute(
+            text("UPDATE users SET is_active = FALSE WHERE email = :email"),
+            {"email": user_email},
+        )
+        await session.commit()
+
+    # 3. Same valid token must now return 403 — not 200, not 401
+    me_after = await async_client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert me_after.status_code == 403, (
+        f"Expected 403 for deactivated account, got {me_after.status_code}: {me_after.text}"
+    )
+    assert "deactivated" in me_after.json().get("detail", "").lower()
+
+    # 4. Documents endpoint must also reject — confirms the fix lives in the shared
+    #    get_current_user() dependency, not just /api/auth/me
+    docs_res = await async_client.get(
+        "/api/documents",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert docs_res.status_code == 403
+
+    # Cleanup: remove the test user
+    async with async_session() as session:
+        await session.execute(
+            text("DELETE FROM users WHERE email = :email"),
+            {"email": user_email},
+        )
+        await session.commit()

@@ -30,10 +30,39 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle hooks."""
-    # Startup
+    import asyncio
+
+    # --- Database ---
     await init_db()
+
+    # --- Startup model smoke-test ---
+    # Runs in non-development environments only. Fails loudly (CRITICAL log)
+    # but does NOT crash the server — a degraded server (DB up, LLM temporarily
+    # unreachable) is preferable to a hard 502 for every user on Render.
+    # The /api/health endpoint will report generative_model: "unreachable" so
+    # monitoring alerts fire without taking the whole service down.
+    if settings.ENVIRONMENT.lower() != "development":
+        try:
+            from app.services.generation import get_llm
+            llm = get_llm()
+            await asyncio.wait_for(
+                asyncio.to_thread(llm.invoke, "Reply with one word: OK"),
+                timeout=10.0,
+            )
+            logger.info(
+                "Startup smoke-test PASSED — primary model: %s",
+                settings.GENERATIVE_MODEL,
+            )
+        except Exception as e:
+            logger.critical(
+                "Startup smoke-test FAILED for model %s: %s — "
+                "server starting in degraded mode. Check GENERATIVE_MODEL env var.",
+                settings.GENERATIVE_MODEL,
+                e,
+            )
+
     yield
-    # Shutdown
+    # --- Shutdown ---
     await close_db()
 
 
@@ -89,26 +118,25 @@ app.include_router(jules_router)
 
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])
 async def health_check():
-    """Check server, database, and LLM provider connectivity."""
-
+    """Check server, database, embedding provider, and generative model connectivity."""
+    import asyncio
     from sqlalchemy import text
     from app.database import async_session
 
-    # Database check
+    # --- Database check ---
     db_status = "unhealthy"
     try:
         async with async_session() as session:
             await session.execute(text("SELECT 1"))
             db_status = "healthy"
     except Exception as e:
-        print("DB HEALTH ERROR:", type(e), e)
+        logger.warning("DB health check failed: %s", e)
         db_status = "unhealthy"
 
-    # LLM Provider live check via embedding test
+    # --- Embedding provider check (Gemini) ---
     llm_status = "unhealthy"
     if settings.GEMINI_API_KEY:
         try:
-            import asyncio
             from app.services.retrieval import embeddings
             await asyncio.wait_for(
                 asyncio.to_thread(
@@ -122,13 +150,34 @@ async def health_check():
         except Exception:
             llm_status = "unreachable"
 
-    overall = "healthy" if db_status == "healthy" else "unhealthy"
-    if llm_status != "healthy":
-        overall = "degraded" if overall == "healthy" else overall
+    # --- Generative model check (Groq cascade primary) ---
+    # Short prompt, 5s timeout — tests the configured GENERATIVE_MODEL specifically.
+    gen_status = "unconfigured"
+    if settings.GROQ_API_KEY or settings.GEMINI_API_KEY:
+        try:
+            from app.services.generation import get_llm
+            llm = get_llm()
+            await asyncio.wait_for(
+                asyncio.to_thread(llm.invoke, "Reply with one word: OK"),
+                timeout=5.0,
+            )
+            gen_status = "healthy"
+        except Exception as e:
+            logger.warning("Generative model health check failed: %s", e)
+            gen_status = "unreachable"
+
+    # --- Overall status ---
+    if db_status != "healthy":
+        overall = "unhealthy"
+    elif llm_status != "healthy" or gen_status not in ("healthy", "unconfigured"):
+        overall = "degraded"
+    else:
+        overall = "healthy"
 
     return HealthResponse(
         status=overall,
         database=db_status,
         llm_provider=llm_status,
+        generative_model=gen_status,
         version=settings.APP_VERSION,
     )
