@@ -45,3 +45,12 @@ claude-skills/
 # Eval run artifacts: timestamped reports are ignored; results/baseline.json
 # is tracked on purpose (the comparison anchor for --diff).
 backend/results/eval_*.json
+
+# Personal & Internal Study/Project Docs
+docs/STUDY_GUIDE.md
+docs/PROJECT_LOG.md
+docs/ENGINEERING_CHECKLIST.md
+docs/PROJECT_CHECKLIST.md
+docs/HANDOVER_*.md
+docs/PLAN_*.md
+
