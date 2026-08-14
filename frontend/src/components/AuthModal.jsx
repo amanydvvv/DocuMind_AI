@@ -34,20 +34,20 @@ export default function AuthModal({ onAuthSuccess }) {
   };
 
   const inputClass =
-    'w-full border border-border rounded-xl bg-background/80 px-3.5 py-2.5 text-xs text-text ' +
+    'w-full border border-border rounded-xl bg-surface-well px-3.5 py-2.5 text-xs text-text ' +
     'placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary-border ' +
-    'focus:border-primary transition-all duration-150 shadow-inner';
+    'focus:border-primary transition-all duration-150 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]';
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
+    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
       <div className="w-full max-w-[390px] glass-card-elevated rounded-3xl p-7 animate-in zoom-in-95 duration-200">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-surface-muted border border-primary-border flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+            <div className="w-12 h-12 rounded-2xl bg-surface border border-primary-border flex items-center justify-center shadow-[0_0_24px_rgba(245,158,11,0.25)]">
               <BrandIcon size={24} />
             </div>
           </div>
-          <h2 className="text-lg font-semibold text-text tracking-tight">KueryCore AI</h2>
+          <h2 className="text-lg font-bold text-text tracking-tight">KueryCore AI</h2>
           <p className="text-xs text-text-muted mt-1 leading-normal">
             {isLogin
               ? 'Enter your credentials to enter the workspace'
@@ -97,9 +97,9 @@ export default function AuthModal({ onAuthSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 py-2.5 bg-primary text-white font-semibold rounded-xl text-xs hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 tactile-btn cursor-pointer shadow-[0_2px_12px_rgba(79,70,229,0.3),inset_0_1px_0_0_rgba(255,255,255,0.2)]"
+            className="mt-2 py-2.5 clay-btn rounded-xl text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {loading ? 'Authenticating...' : isLogin ? 'Sign In' : 'Create Workspace'}
+            {loading ? 'Authenticating...' : isLogin ? 'Sign In →' : 'Create Workspace →'}
           </button>
         </form>
 
@@ -113,7 +113,7 @@ export default function AuthModal({ onAuthSuccess }) {
               setIsLogin(!isLogin);
               setError('');
             }}
-            className="font-semibold text-primary-light hover:text-primary transition-colors cursor-pointer"
+            className="font-semibold text-primary hover:text-primary-hover transition-colors cursor-pointer"
           >
             {isLogin ? 'Sign Up' : 'Log In'}
           </button>

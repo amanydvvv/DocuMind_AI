@@ -31,27 +31,32 @@ export default function ConversationItem({
       onClick={() => onSelect(conversation.id)}
       className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 border ${
         isActive
-          ? 'bg-surface-elevated border-border-strong text-text font-medium shadow-[0_2px_8px_rgba(0,0,0,0.25)]'
+          ? 'bg-surface-elevated border-primary-border text-text font-medium shadow-[0_4px_12px_rgba(0,0,0,0.4)]'
           : 'bg-transparent border-transparent hover:bg-surface-muted/60 text-text-secondary hover:text-text'
       }`}
     >
-      {/* Active Left Indicator Pill */}
+      {/* Active Left Indicator Bar */}
       {isActive && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-r-full shadow-[0_0_8px_rgba(99,102,241,0.6)]"></div>
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-r-full shadow-[0_0_8px_rgba(245,158,11,0.6)]"></div>
       )}
 
-      <div className="flex-1 min-w-0 pr-2 pl-1">
-        <p className="text-xs truncate font-medium">
-          {conversation.title || 'New Chat'}
-        </p>
-        <p className="text-[10px] text-text-muted mt-0.5 font-normal">
-          {formatTime(conversation.updated_at || conversation.created_at)}
-        </p>
+      <div className="flex-1 min-w-0 pr-2 pl-1.5 flex items-center gap-2">
+        <span className={`text-[10px] flex-shrink-0 ${isActive ? 'text-primary' : 'text-text-muted group-hover:text-text-secondary'}`}>
+          {isActive ? '◆' : '◇'}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs truncate font-medium">
+            {conversation.title || 'New Chat'}
+          </p>
+          <p className="text-[10px] text-text-muted mt-0.5 font-normal">
+            {formatTime(conversation.updated_at || conversation.created_at)}
+          </p>
+        </div>
       </div>
 
       <button
         onClick={handleDelete}
-        className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger hover:bg-danger-soft rounded-md transition-all duration-150 cursor-pointer"
+        className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger-text hover:bg-danger-soft rounded-md transition-all duration-150 cursor-pointer"
         aria-label={`Delete conversation: ${conversation.title || 'New Chat'}`}
         title="Delete conversation"
       >

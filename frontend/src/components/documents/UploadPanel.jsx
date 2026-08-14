@@ -149,12 +149,12 @@ export default function UploadPanel({ onUploadComplete }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Quiet Luxury Drop Zone */}
+      {/* Tactile Clay Drop Zone */}
       <div
         className={`relative border-2 border-dashed rounded-2xl p-5 text-center transition-all duration-200 cursor-pointer ${
           isDragging 
-            ? 'border-primary bg-primary-soft/50 shadow-[0_0_20px_rgba(99,102,241,0.2)]' 
-            : 'border-border bg-surface/50 hover:border-border-strong hover:bg-surface/80'
+            ? 'border-primary bg-primary-soft shadow-[0_0_24px_rgba(245,158,11,0.25)]' 
+            : 'border-border bg-surface hover:border-primary-border hover:bg-surface-elevated'
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -170,22 +170,23 @@ export default function UploadPanel({ onUploadComplete }) {
           multiple
         />
         <div className="flex flex-col items-center justify-center pointer-events-none">
-          <div className="w-9 h-9 rounded-xl bg-surface-muted border border-border flex items-center justify-center text-text-secondary mb-2.5 shadow-sm">
-            <Icon name="plus" size={16} className="text-primary-light" />
+          <div className="w-9 h-9 rounded-xl bg-surface-muted border border-primary-border flex items-center justify-center text-primary mb-2.5 shadow-sm text-sm font-bold">
+            ◈
           </div>
-          <p className="text-xs font-medium text-text">Drag &amp; drop files here</p>
+          <p className="text-xs font-semibold text-text">Drag &amp; drop files here</p>
           <p className="text-[11px] text-text-muted mt-0.5">or click to browse (.pdf, .md, .txt)</p>
         </div>
       </div>
 
       {/* Queue Progress & List */}
       {fileQueue.length > 0 && (
-        <div className="p-3 rounded-xl bg-surface/80 border border-border flex flex-col gap-2.5">
+        <div className="p-3 rounded-xl bg-surface border border-border flex flex-col gap-2.5 shadow-sm">
           {/* Overall Progress Bar */}
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center text-[11px]">
-              <span className="font-medium text-text-secondary">
-                Queue: {completedCount}/{fileQueue.length} files
+              <span className="font-semibold text-text-secondary flex items-center gap-1">
+                <span className="text-primary text-[9px]">▣</span>
+                <span>Queue: {completedCount}/{fileQueue.length} files</span>
               </span>
               <button
                 className="text-[10px] text-text-muted hover:text-text px-2 py-0.5 rounded-md hover:bg-surface-muted transition-colors cursor-pointer"
@@ -207,10 +208,11 @@ export default function UploadPanel({ onUploadComplete }) {
             {fileQueue.map(item => (
               <li 
                 key={item.id} 
-                className="flex items-center justify-between p-2 rounded-lg bg-background/80 border border-border-subtle text-xs"
+                className="flex items-center justify-between p-2 rounded-lg bg-surface-muted border border-border-subtle text-xs"
               >
                 <div className="flex-1 min-w-0 pr-2">
                   <div className="flex items-center gap-1.5">
+                    <span className="text-primary text-[10px]">◇</span>
                     <span className="font-medium text-text truncate" title={item.name}>
                       {item.name}
                     </span>
@@ -227,7 +229,7 @@ export default function UploadPanel({ onUploadComplete }) {
 
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {item.status === 'queued' && (
-                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-surface-muted text-text-muted border border-border-subtle">
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-surface text-text-muted border border-border-subtle">
                       Queued
                     </span>
                   )}

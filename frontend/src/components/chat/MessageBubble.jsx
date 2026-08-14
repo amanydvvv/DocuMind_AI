@@ -10,7 +10,7 @@ export default function MessageBubble({ message, onCitationClick }) {
       <div 
         className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-5 py-4 ${
           isUser 
-            ? 'bg-primary text-white rounded-br-xs shadow-[0_4px_16px_rgba(79,70,229,0.25),inset_0_1px_0_0_rgba(255,255,255,0.2)]' 
+            ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-medium rounded-br-xs shadow-[0_4px_16px_rgba(245,158,11,0.25),inset_0_1px_1px_rgba(255,255,255,0.4)]' 
             : 'glass-card text-text rounded-bl-xs'
         }`}
       >
@@ -24,7 +24,7 @@ export default function MessageBubble({ message, onCitationClick }) {
         {!isUser && message.citations && message.citations.length > 0 && (
           <div className="mt-4 pt-3 border-t border-border-subtle">
             <div className="flex items-center gap-1.5 mb-2">
-              <Icon name="target" size={12} className="text-primary-light" />
+              <span className="text-primary text-xs font-bold">◈</span>
               <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">
                 Grounding Sources ({message.citations.length})
               </span>
@@ -34,10 +34,10 @@ export default function MessageBubble({ message, onCitationClick }) {
                 <button
                   key={idx}
                   onClick={() => onCitationClick && onCitationClick(cit)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-surface-muted/80 text-text-secondary hover:text-text hover:bg-surface-elevated hover:border-primary-border rounded-lg transition-all duration-150 border border-border-subtle tactile-btn cursor-pointer shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-surface-muted text-text-secondary hover:text-text hover:bg-surface-elevated hover:border-primary-border rounded-lg transition-all duration-150 border border-border tactile-btn cursor-pointer shadow-xs"
                   title={cit.source === 'ocr' ? 'Extracted via Vision OCR from document scan' : `Relevance Score: ${((cit.score || 0) * 100).toFixed(1)}%`}
                 >
-                  <Icon name="docs" size={12} className="text-primary-light" />
+                  <span className="text-primary text-[11px]">⬡</span>
                   <span className="truncate max-w-[140px]">
                     {cit.filename || cit.metadata?.filename || 'Document'}
                   </span>
@@ -47,8 +47,9 @@ export default function MessageBubble({ message, onCitationClick }) {
                     </span>
                   )}
                   {cit.source === 'ocr' && (
-                    <span className="px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider bg-warning-soft text-warning-text rounded border border-warning-border">
-                      OCR
+                    <span className="px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300 rounded border border-amber-500/30 flex items-center gap-0.5">
+                      <span>◬</span>
+                      <span>OCR</span>
                     </span>
                   )}
                 </button>

@@ -1,7 +1,4 @@
-import { useId } from 'react';
-
 export default function BrandIcon({ size = 24, className = '' }) {
-  const gradientId = useId();
   return (
     <svg
       width={size}
@@ -12,27 +9,28 @@ export default function BrandIcon({ size = 24, className = '' }) {
       className={className}
     >
       <defs>
-        <linearGradient
-          id={gradientId}
-          x1="4"
-          y1="4"
-          x2="20"
-          y2="20"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="var(--color-primary)" />
-          <stop offset="1" stopColor="var(--color-primary-hover)" />
+        <linearGradient id="solar-amber-core" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FDE68A" />
+          <stop offset="0.5" stopColor="#F59E0B" />
+          <stop offset="1" stopColor="#B45309" />
         </linearGradient>
       </defs>
-      <path
-        d="M12 2.5l2.1 6.1 6.1 2.1-6.1 2.1L12 19l-2.1-6.2L3.8 10.7l6.1-2.1L12 2.5z"
-        fill={`url(#${gradientId})`}
+      {/* Outer Geometric Diamond Rhombus */}
+      <polygon
+        points="12,2 21,12 12,22 3,12"
+        stroke="url(#solar-amber-core)"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+        fill="rgba(245, 158, 11, 0.1)"
       />
-      <path
-        d="M18.5 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7.7-2z"
-        fill={`url(#${gradientId})`}
-        opacity="0.7"
+      {/* Inner Facet Node */}
+      <polygon
+        points="12,6 18,12 12,18 6,12"
+        fill="url(#solar-amber-core)"
+        opacity="0.85"
       />
+      {/* Core Optical Point */}
+      <circle cx="12" cy="12" r="1.5" fill="#FFFFFF" />
     </svg>
   );
 }

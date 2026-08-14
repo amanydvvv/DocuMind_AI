@@ -65,10 +65,11 @@ export default function DocumentSidebar() {
       {/* Indexed Library Section */}
       <div className="flex-1 flex flex-col min-h-0">
         <div className="flex items-center justify-between px-1 py-1 mb-2">
-          <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-            Indexed Corpus
+          <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-primary text-[10px]">▣</span>
+            <span>Indexed Corpus</span>
           </span>
-          <span className="text-[10px] font-medium text-text-muted px-1.5 py-0.5 rounded-full bg-surface-muted border border-border-subtle">
+          <span className="text-[10px] font-semibold text-primary-light px-1.5 py-0.5 rounded-full bg-primary-soft border border-primary-border">
             {documents.length}
           </span>
         </div>
@@ -91,12 +92,12 @@ export default function DocumentSidebar() {
             {documents.map((doc) => (
               <div 
                 key={doc.id} 
-                className="group relative p-3 rounded-xl bg-surface/70 border border-border hover:border-border-strong hover:bg-surface transition-all duration-150 shadow-sm"
+                className="group relative p-3 rounded-xl bg-surface border border-border hover:border-primary-border transition-all duration-150 shadow-sm"
               >
                 <div className="flex justify-between items-start gap-2 mb-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-6 h-6 rounded-lg bg-surface-muted flex items-center justify-center flex-shrink-0 text-text-secondary border border-border-subtle">
-                      <Icon name="docs" size={13} />
+                    <div className="w-6 h-6 rounded-lg bg-surface-muted flex items-center justify-center flex-shrink-0 text-primary border border-border-subtle text-[11px]">
+                      ▣
                     </div>
                     <h4 className="text-xs font-medium text-text truncate" title={doc.filename}>
                       {doc.filename}

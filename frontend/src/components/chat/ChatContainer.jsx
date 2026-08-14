@@ -29,20 +29,21 @@ export default function ChatContainer({
 
   return (
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
-      {/* Quiet Luxury Studio Header */}
-      <header className="h-14 px-6 border-b border-border bg-surface/40 backdrop-blur-md flex items-center justify-between z-10 select-none">
+      {/* Hardware Studio Header */}
+      <header className="h-14 px-6 border-b border-border bg-surface flex items-center justify-between z-10 select-none shadow-sm">
         <div className="flex items-center gap-3 min-w-0">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
           <h1 className="text-sm font-semibold text-text truncate max-w-md tracking-tight">
             {activeConversation?.title || 'New Research Thread'}
           </h1>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted/60 border border-border-subtle text-[11px] text-text-muted">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-muted border border-border text-[11px]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span className="font-medium text-text-secondary">Hybrid RAG</span>
+            <span className="font-medium text-text">◈ Hybrid RAG</span>
             <span className="text-text-muted/60">•</span>
-            <span>Cascade LLM</span>
+            <span className="text-primary-light font-medium">Cascade LLM</span>
           </div>
         </div>
       </header>

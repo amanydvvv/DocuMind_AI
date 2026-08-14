@@ -32,18 +32,18 @@ export default function MessageList({
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 max-w-2xl mx-auto select-none">
-        {/* Subtle Ambient Brand Glow */}
+        {/* Ambient Solar Amber Core */}
         <div className="relative mb-6">
-          <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
-          <div className="relative w-14 h-14 rounded-2xl bg-surface-elevated border border-primary-border flex items-center justify-center shadow-[0_0_24px_rgba(99,102,241,0.25)]">
+          <div className="absolute inset-0 bg-primary/25 rounded-full blur-2xl animate-pulse"></div>
+          <div className="relative w-14 h-14 rounded-2xl bg-surface-elevated border border-primary-border flex items-center justify-center shadow-[0_0_28px_rgba(245,158,11,0.3)]">
             <BrandIcon size={28} />
           </div>
         </div>
 
-        <h2 className="text-xl md:text-2xl font-semibold text-text mb-2 tracking-tight">
+        <h2 className="text-xl md:text-2xl font-bold text-text mb-2 tracking-tight">
           What would you like to uncover?
         </h2>
-        <p className="text-xs md:text-sm text-text-muted max-w-md mb-8 leading-relaxed">
+        <p className="text-xs md:text-sm text-text-secondary max-w-md mb-8 leading-relaxed">
           KueryCore uses Hybrid Search (Vector + BM25) and Vision OCR to deliver grounded answers with strict citation fidelity.
         </p>
 
@@ -51,18 +51,22 @@ export default function MessageList({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full text-left">
           {[
             {
+              glyph: '◈',
               title: 'Architectural Synthesis',
               prompt: 'Summarize the key architectural decisions and system design tradeoffs in the uploaded documents.',
             },
             {
+              glyph: '▣',
               title: 'Requirement Extraction',
               prompt: 'Extract all functional constraints, performance metrics, and deadlines mentioned in the corpus.',
             },
             {
+              glyph: '◬',
               title: 'Security & Compliance',
               prompt: 'Review the documents for any compliance standards, encryption guidelines, or security policies.',
             },
             {
+              glyph: '◆',
               title: 'Entity Cross-Reference',
               prompt: 'Identify key stakeholders, project roles, and referenced external services across all sections.',
             },
@@ -71,13 +75,16 @@ export default function MessageList({
               key={suggestion.title}
               type="button"
               onClick={() => onSendMessage && onSendMessage(suggestion.prompt)}
-              className="group p-3.5 rounded-xl bg-surface/60 hover:bg-surface border border-border hover:border-border-strong text-left transition-all duration-150 tactile-btn cursor-pointer shadow-sm"
+              className="group p-3.5 rounded-xl bg-surface hover:bg-surface-elevated border border-border hover:border-primary-border text-left transition-all duration-150 tactile-btn cursor-pointer shadow-sm"
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-text-secondary group-hover:text-text">
-                  {suggestion.title}
-                </span>
-                <Icon name="send" size={12} className="text-text-muted group-hover:text-primary-light transition-transform group-hover:translate-x-0.5" />
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-primary font-bold">{suggestion.glyph}</span>
+                  <span className="text-xs font-semibold text-text group-hover:text-primary-light">
+                    {suggestion.title}
+                  </span>
+                </div>
+                <span className="text-xs text-text-muted group-hover:text-primary group-hover:translate-x-0.5 transition-transform">→</span>
               </div>
               <p className="text-[11px] text-text-muted line-clamp-2 leading-normal">
                 "{suggestion.prompt}"
@@ -107,7 +114,10 @@ export default function MessageList({
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:150ms]"></span>
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:300ms]"></span>
             </div>
-            <span className="text-xs text-text-muted font-medium">Retrieving citations &amp; generating response...</span>
+            <span className="text-xs text-text-muted font-medium flex items-center gap-1.5">
+              <span className="text-primary text-[10px]">◈</span>
+              <span>Retrieving citations &amp; synthesizing output...</span>
+            </span>
           </div>
         </div>
       )}
