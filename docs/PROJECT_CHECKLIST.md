@@ -93,13 +93,13 @@ This is a living execution tracker structured around development phases.
 
 ## Phase 11: Production Hardening, Gemini Vision OCR & UI Resiliency [âœ… COMPLETE]
 - [x] **Supabase PgBouncer & Asyncpg Fix**: Configured session-mode pooling (direct Postgres on `5432`, session pooler on `6543`) and added `connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0}` in `backend/app/database.py` to eliminate `DuplicatePreparedStatementError` across connection pools.
-- [x] **CORS Multi-Tenant Domain Matching**: Updated `CORSMiddleware` in `backend/app/main.py` with `allow_origin_regex=r"https://docu-?mind-?ai(-[a-z0-9-]+)?\.vercel\.app"` supporting Vercel production and preview deploys with hyphens.
+- [x] **CORS Multi-Tenant Domain Matching**: Updated `CORSMiddleware` in `backend/app/main.py` with `allow_origin_regex=r"https://kuery-?core-?ai(-[a-z0-9-]+)?\.vercel\.app"` supporting Vercel production and preview deploys with hyphens.
 - [x] **Scanned PDF Vision OCR**: Integrated `qwen/qwen3.6-27b` (Groq) vision OCR fallback via `VISION_MODEL` in `backend/app/services/ingestion.py` for scanned image-based PDFs (e.g. income certificates) when text vector layer returns 0 characters.
 - [x] **Client-Side Timeout & Guaranteed State Cleanup**: Added 35s `AbortController` timeout to `sendChatMessageStream` in `frontend/src/services/api.js` and wrapped `sendMessage` in `try...finally` block in `frontend/src/hooks/useConversations.js` to guarantee `isGenerating` resets to `false`, preventing UI spinner hangs.
 - [x] **LLM & Vector Embedding Request Timeouts**: Configured `request_timeout=30.0` on `ChatGoogleGenerativeAI` and `GoogleGenerativeAIEmbeddings` to prevent silent backend socket stalls.
 ## Phase 12: Enterprise Production-Readiness Audit & Hardening [✅ COMPLETE]
 - [x] **G1 DDL & Database Schema Hardening**: Added `is_active` and `is_verified` to `User` model, `ck_messages_role` check constraint, and composite index `idx_messages_conv_created` with Alembic migration `f1a2b3c4d5e6`.
-- [x] **G2 Strict CORS Origin Regex**: Enforced strict origin regex `^https://docu-mind-ai(-[a-z0-9-]+)?\.vercel\.app$` and purged unrelated third-party domains.
+- [x] **G2 Strict CORS Origin Regex**: Enforced strict origin regex `^https://kuery-core-ai(-[a-z0-9-]+)?\.vercel\.app$` and purged unrelated third-party domains.
 - [x] **G3 Production Docker Deployment**: Configured auto-migration boot command (`alembic upgrade head && uvicorn`) and created `backend/.dockerignore` to block credential leaks.
 - [x] **G4 Authentication Hardening**: Enforced 12-character minimum password policy, strict JWT secret validation, and token destruction on logout.
 - [x] **Critical IDOR Prevention**: Secured `/api/analytics/*` endpoints with `get_current_user` dependency and `user_id` tenant scoping.

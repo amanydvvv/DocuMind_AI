@@ -89,7 +89,7 @@ origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins if "*" in origins else origins,
-    allow_origin_regex=r"^https://docu-mind-ai(-[a-z0-9-]+)?\.vercel\.app$",
+    allow_origin_regex=r"^https://kuery-core-ai(-[a-z0-9-]+)?\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
