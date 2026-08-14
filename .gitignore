@@ -12,6 +12,8 @@ frontend/.env
 node_modules/
 dist/
 .env.local
+*.key
+*.pem
 
 # Database & Uploads
 uploads/
