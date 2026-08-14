@@ -1,18 +1,18 @@
-// src/tests/UploadPanel.test.jsx
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react';
 import UploadPanel from '../components/documents/UploadPanel';
 
 // Mock the API service used by UploadPanel
-jest.mock('../services/api', () => ({
-  uploadDocument: jest.fn(),
-  getDocument: jest.fn(),
+vi.mock('../services/api', () => ({
+  uploadDocument: vi.fn(),
+  getDocument: vi.fn(),
 }));
 
 import { uploadDocument, getDocument } from '../services/api';
 
 describe('UploadPanel - multi‑file support', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('selecting multiple files enqueues them and displays queue items', async () => {
@@ -21,11 +21,11 @@ describe('UploadPanel - multi‑file support', () => {
     // Mock getDocument to immediately report completed status
     getDocument.mockImplementation(() => Promise.resolve({ status: 'completed' }));
 
-    const onUploadComplete = jest.fn();
-    render(<UploadPanel onUploadComplete={onUploadComplete} />);
+    const onUploadComplete = vi.fn();
+    const { container } = render(<UploadPanel onUploadComplete={onUploadComplete} />);
 
-    const fileInput = screen.getByText(/drag & drop files here/i).parentElement?.querySelector('input[type="file"]');
-    expect(fileInput).toBeInTheDocument();
+    const fileInput = container.querySelector('input[type="file"]');
+    expect(fileInput).toBeTruthy();
 
     // Create two mock File objects
     const fileA = new File(['contentA'], 'fileA.pdf', { type: 'application/pdf' });
@@ -36,8 +36,8 @@ describe('UploadPanel - multi‑file support', () => {
 
     // The queue should now contain both file names
     await waitFor(() => {
-      expect(screen.getByText('fileA.pdf')).toBeInTheDocument();
-      expect(screen.getByText('fileB.txt')).toBeInTheDocument();
+      expect(screen.getByText('fileA.pdf')).toBeTruthy();
+      expect(screen.getByText('fileB.txt')).toBeTruthy();
     });
 
     // Await asynchronous processing (upload + polling)

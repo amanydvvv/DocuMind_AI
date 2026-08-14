@@ -1,5 +1,6 @@
 import { useState, useRef, useReducer, useEffect } from 'react';
 import { uploadDocument, getDocument } from '../../services/api';
+import Icon from '../shared/Icon';
 
 export default function UploadPanel({ onUploadComplete }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -143,13 +144,22 @@ export default function UploadPanel({ onUploadComplete }) {
     dispatch({ type: 'CLEAR_FINISHED' });
   };
 
+  const completedCount = fileQueue.filter(i => i.status === 'completed' || i.status === 'error').length;
+  const progressPercent = fileQueue.length > 0 ? (completedCount / fileQueue.length) * 100 : 0;
+
   return (
-    <div className="mb-6">
+    <div className="flex flex-col gap-3">
+      {/* Quiet Luxury Drop Zone */}
       <div
-        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isDragging ? 'border-primary bg-primary-soft' : 'border-border'}`}
+        className={`relative border-2 border-dashed rounded-2xl p-5 text-center transition-all duration-200 cursor-pointer ${
+          isDragging 
+            ? 'border-primary bg-primary-soft/50 shadow-[0_0_20px_rgba(99,102,241,0.2)]' 
+            : 'border-border bg-surface/50 hover:border-border-strong hover:bg-surface/80'
+        }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
       >
         <input
           type="file"
@@ -159,66 +169,104 @@ export default function UploadPanel({ onUploadComplete }) {
           accept=".pdf,.md,.txt"
           multiple
         />
-        <div className="cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-          <p className="text-sm font-medium text-text">Drag &amp; drop files here</p>
-          <p className="text-xs text-text-muted mt-1">or click to browse (.pdf, .md, .txt)</p>
+        <div className="flex flex-col items-center justify-center pointer-events-none">
+          <div className="w-9 h-9 rounded-xl bg-surface-muted border border-border flex items-center justify-center text-text-secondary mb-2.5 shadow-sm">
+            <Icon name="plus" size={16} className="text-primary-light" />
+          </div>
+          <p className="text-xs font-medium text-text">Drag &amp; drop files here</p>
+          <p className="text-[11px] text-text-muted mt-0.5">or click to browse (.pdf, .md, .txt)</p>
         </div>
       </div>
 
+      {/* Queue Progress & List */}
       {fileQueue.length > 0 && (
-        <>
-          {/* Overall progress */}
-          <div className="text-sm text-text mb-2">
-            Processed {fileQueue.filter(i => i.status === 'completed' || i.status === 'error').length}/{fileQueue.length} files
-            <div className="w-full bg-gray-soft h-2 rounded mt-1">
-              <div
-                className="bg-primary-soft h-2 rounded"
-                style={{
-                  width: `${(fileQueue.filter(i => i.status === 'completed' || i.status === 'error').length / fileQueue.length) * 100}%`,
-                }}
-              />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-text">Upload Queue</span>
+        <div className="p-3 rounded-xl bg-surface/80 border border-border flex flex-col gap-2.5">
+          {/* Overall Progress Bar */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="font-medium text-text-secondary">
+                Queue: {completedCount}/{fileQueue.length} files
+              </span>
               <button
-                className="text-xs bg-gray-soft hover:bg-gray-border text-gray-text py-1 px-2 rounded"
+                className="text-[10px] text-text-muted hover:text-text px-2 py-0.5 rounded-md hover:bg-surface-muted transition-colors cursor-pointer"
                 onClick={handleClearFinished}
               >
                 Clear Finished
               </button>
             </div>
-            <ul className="space-y-2">
-              {fileQueue.map(item => (
-                <li key={item.id} className="flex items-center justify-between p-2 border rounded bg-white">
-                  <div className="flex-1 overflow-hidden">
-                    <span className="font-medium text-text" title={item.name}>{item.name}</span>
-                    <span className="text-xs text-text-muted ml-2">({(item.size / 1024).toFixed(1)}KB)</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {item.status === 'queued' && <span className="badge bg-gray-soft text-gray-text">Queued</span>}
-                    {item.status === 'uploading' && <span className="badge bg-primary-soft text-primary-text animate-pulse">Uploading</span>}
-                    {item.status === 'processing' && <span className="badge bg-warning-soft text-warning-text animate-pulse">Processing</span>}
-                    {item.status === 'completed' && <span className="badge bg-success-soft text-success-text">Done</span>}
-                    {item.status === 'error' && (
-                      <>
-                        <span className="badge bg-danger-soft text-danger-text">Error</span>
-                        <button
-                          className="text-xs bg-danger-soft hover:bg-danger-border text-danger-text py-0.5 px-2 rounded"
-                          onClick={() => handleRetry(item.id)}
-                          disabled={(item.retryCount || 0) >= 3}
-                        >
-                          Retry{(item.retryCount || 0) > 0 ? ` (${item.retryCount})` : ''}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="w-full bg-surface-muted h-1.5 rounded-full overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-primary to-primary-hover h-full transition-all duration-300 rounded-full"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
           </div>
-        </>
+
+          {/* Queue Items */}
+          <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+            {fileQueue.map(item => (
+              <li 
+                key={item.id} 
+                className="flex items-center justify-between p-2 rounded-lg bg-background/80 border border-border-subtle text-xs"
+              >
+                <div className="flex-1 min-w-0 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium text-text truncate" title={item.name}>
+                      {item.name}
+                    </span>
+                    <span className="text-[10px] text-text-muted flex-shrink-0">
+                      ({(item.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                  {item.errorMessage && (
+                    <p className="text-[10px] text-danger-text truncate mt-0.5">
+                      {item.errorMessage}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {item.status === 'queued' && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-surface-muted text-text-muted border border-border-subtle">
+                      Queued
+                    </span>
+                  )}
+                  {item.status === 'uploading' && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-primary-soft text-primary-light border border-primary-border">
+                      <span className="w-1 h-1 rounded-full bg-primary animate-ping"></span>
+                      Uploading
+                    </span>
+                  )}
+                  {item.status === 'processing' && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-warning-soft text-warning-text border border-warning-border">
+                      <span className="w-1 h-1 rounded-full bg-warning animate-pulse"></span>
+                      Embedding
+                    </span>
+                  )}
+                  {item.status === 'completed' && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-success-soft text-success-text border border-success-border">
+                      Done
+                    </span>
+                  )}
+                  {item.status === 'error' && (
+                    <div className="flex items-center gap-1">
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-danger-soft text-danger-text border border-danger-border">
+                        Error
+                      </span>
+                      <button
+                        className="text-[10px] bg-danger-soft hover:bg-danger-border text-danger-text px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                        onClick={() => handleRetry(item.id)}
+                        disabled={(item.retryCount || 0) >= 3}
+                      >
+                        Retry{(item.retryCount || 0) > 0 ? ` (${item.retryCount})` : ''}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

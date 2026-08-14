@@ -21,7 +21,7 @@ export default function ConversationItem({
 
   const handleDelete = (e) => {
     e.stopPropagation();
-    if (window.confirm('Delete this conversation?')) {
+    if (window.confirm('Delete this conversation thread?')) {
       onDelete(conversation.id);
     }
   };
@@ -29,28 +29,33 @@ export default function ConversationItem({
   return (
     <div
       onClick={() => onSelect(conversation.id)}
-      className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${
+      className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 border ${
         isActive
-          ? 'bg-primary-soft border-primary-border text-primary-light font-medium shadow-sm'
-          : 'bg-surface border-transparent hover:bg-surface-muted text-text'
+          ? 'bg-surface-elevated border-border-strong text-text font-medium shadow-[0_2px_8px_rgba(0,0,0,0.25)]'
+          : 'bg-transparent border-transparent hover:bg-surface-muted/60 text-text-secondary hover:text-text'
       }`}
     >
-      <div className="flex-1 min-w-0 pr-2">
-        <p className="text-sm truncate">
+      {/* Active Left Indicator Pill */}
+      {isActive && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-r-full shadow-[0_0_8px_rgba(99,102,241,0.6)]"></div>
+      )}
+
+      <div className="flex-1 min-w-0 pr-2 pl-1">
+        <p className="text-xs truncate font-medium">
           {conversation.title || 'New Chat'}
         </p>
-        <p className="text-xs text-text-muted mt-0.5">
+        <p className="text-[10px] text-text-muted mt-0.5 font-normal">
           {formatTime(conversation.updated_at || conversation.created_at)}
         </p>
       </div>
 
       <button
         onClick={handleDelete}
-        className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger rounded transition-opacity"
+        className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger hover:bg-danger-soft rounded-md transition-all duration-150 cursor-pointer"
         aria-label={`Delete conversation: ${conversation.title || 'New Chat'}`}
         title="Delete conversation"
       >
-        <Icon name="trash" size={15} />
+        <Icon name="trash" size={13} />
       </button>
     </div>
   );

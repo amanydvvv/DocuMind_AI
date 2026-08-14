@@ -28,7 +28,7 @@ export default function DocumentSidebar() {
 
   const handleDelete = async (documentId) => {
     if (deletingId) return; // prevent double-click
-    if (!window.confirm('Are you sure you want to delete this document?')) return;
+    if (!window.confirm('Delete this document from the knowledge base?')) return;
 
     // Snapshot for rollback
     const snapshot = documents;
@@ -54,65 +54,91 @@ export default function DocumentSidebar() {
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   return (
-    <div className="w-80 h-full bg-surface border-r border-border flex flex-col p-4 overflow-y-auto">
-      <h2 className="text-lg font-semibold text-text mb-4">Knowledge Base</h2>
-      
+    <div className="flex flex-col h-full p-4 overflow-y-auto space-y-4">
+      {/* Upload Zone */}
       <UploadPanel onUploadComplete={loadDocuments} />
 
-      <div className="flex-1">
-        <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-3">
-          Documents ({documents.length})
-        </h3>
+      {/* Indexed Library Section */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex items-center justify-between px-1 py-1 mb-2">
+          <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+            Indexed Corpus
+          </span>
+          <span className="text-[10px] font-medium text-text-muted px-1.5 py-0.5 rounded-full bg-surface-muted border border-border-subtle">
+            {documents.length}
+          </span>
+        </div>
         
         {isLoading ? (
-          <p className="text-sm text-text-muted">Loading...</p>
+          <div className="flex items-center justify-center py-8">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
         ) : error ? (
-          <p className="text-sm text-danger-text">{error}</p>
+          <div className="p-3 rounded-xl bg-danger-soft border border-danger-border text-danger-text text-xs">
+            {error}
+          </div>
         ) : documents.length === 0 ? (
-          <p className="text-sm text-text-muted">No documents uploaded yet.</p>
+          <div className="text-center py-8 px-2 border border-dashed border-border rounded-xl">
+            <p className="text-xs text-text-muted">No documents uploaded yet.</p>
+            <p className="text-[11px] text-text-muted mt-1">Upload PDF, TXT, or MD files above to enable grounding.</p>
+          </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {documents.map((doc) => (
-              <div key={doc.id} className="p-3 border border-border rounded-lg bg-background hover:border-primary/60 transition-colors group">
-                <div className="flex justify-between items-start mb-1">
-                  <h4 className="text-sm font-medium text-text truncate pr-2" title={doc.filename}>
-                    {doc.filename}
-                  </h4>
+              <div 
+                key={doc.id} 
+                className="group relative p-3 rounded-xl bg-surface/70 border border-border hover:border-border-strong hover:bg-surface transition-all duration-150 shadow-sm"
+              >
+                <div className="flex justify-between items-start gap-2 mb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 rounded-lg bg-surface-muted flex items-center justify-center flex-shrink-0 text-text-secondary border border-border-subtle">
+                      <Icon name="docs" size={13} />
+                    </div>
+                    <h4 className="text-xs font-medium text-text truncate" title={doc.filename}>
+                      {doc.filename}
+                    </h4>
+                  </div>
                   <button 
                     onClick={() => handleDelete(doc.id)}
                     disabled={deletingId === doc.id}
-                    className="text-text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50 flex-shrink-0"
+                    className="text-text-muted hover:text-danger-text hover:bg-danger-soft p-1 rounded-md opacity-0 group-hover:opacity-100 transition-all duration-150 disabled:opacity-40 flex-shrink-0 cursor-pointer"
                     aria-label={`Delete document: ${doc.filename}`}
                     title="Delete document"
                   >
-                    <Icon name="trash" size={15} />
+                    <Icon name="trash" size={13} />
                   </button>
                 </div>
                 
-                <div className="flex items-center gap-2 text-xs text-text-muted mb-2">
-                  <span className={`px-1.5 py-0.5 rounded-sm font-medium ${
-                    doc.status === 'completed' ? 'bg-success-soft text-success-text' :
-                    doc.status === 'error' ? 'bg-danger-soft text-danger-text' :
-                    'bg-warning-soft text-warning-text'
-                  }`}>
-                    {doc.status}
-                  </span>
-                  <span>• {formatFileSize(doc.file_size)}</span>
-                </div>
-                
-                <div className="flex gap-3 text-xs text-text-muted">
-                  <span className="flex items-center gap-1" title="Page count">
-                    <Icon name="docs" size={13} />
-                    {doc.page_count || 0} pgs
-                  </span>
-                  <span className="flex items-center gap-1" title="Vector chunks">
-                    <Icon name="grid" size={13} />
-                    {doc.chunk_count || 0} chunks
-                  </span>
+                <div className="flex items-center justify-between text-[10px] text-text-muted pt-1 border-t border-border-subtle">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full font-medium ${
+                      doc.status === 'completed' ? 'bg-success-soft text-success-text border border-success-border' :
+                      doc.status === 'error' ? 'bg-danger-soft text-danger-text border border-danger-border' :
+                      'bg-warning-soft text-warning-text border border-warning-border'
+                    }`}>
+                      <span className={`w-1 h-1 rounded-full ${
+                        doc.status === 'completed' ? 'bg-success' :
+                        doc.status === 'error' ? 'bg-danger' :
+                        'bg-warning animate-ping'
+                      }`}></span>
+                      {doc.status}
+                    </span>
+                    <span>{formatFileSize(doc.file_size)}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-text-muted">
+                    <span title="Page count">
+                      {doc.page_count || 1} pgs
+                    </span>
+                    <span>•</span>
+                    <span title="Vector chunks">
+                      {doc.chunk_count || 0} chunks
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

@@ -34,35 +34,37 @@ export default function AuthModal({ onAuthSuccess }) {
   };
 
   const inputClass =
-    'border border-border rounded-lg bg-background px-3.5 py-3 text-sm text-text ' +
-    'placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 ' +
-    'focus:border-primary transition-colors';
+    'w-full border border-border rounded-xl bg-background/80 px-3.5 py-2.5 text-xs text-text ' +
+    'placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary-border ' +
+    'focus:border-primary transition-all duration-150 shadow-inner';
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-[420px] bg-surface border border-border rounded-2xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 select-none">
+      <div className="w-full max-w-[390px] glass-card-elevated rounded-3xl p-7 animate-in zoom-in-95 duration-200">
         <div className="text-center mb-6">
-          <div className="flex justify-center mb-2">
-            <BrandIcon size={36} />
+          <div className="flex justify-center mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-surface-muted border border-primary-border flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+              <BrandIcon size={24} />
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-text">KueryCore AI</h2>
-          <p className="text-sm text-text-muted mt-2">
+          <h2 className="text-lg font-semibold text-text tracking-tight">KueryCore AI</h2>
+          <p className="text-xs text-text-muted mt-1 leading-normal">
             {isLogin
-              ? 'Sign in to access your secure knowledge workspace'
-              : 'Create an account to start indexing your docs'}
+              ? 'Enter your credentials to enter the workspace'
+              : 'Create an account to start grounded document indexing'}
           </p>
         </div>
 
         {error && (
-          <div className="bg-danger-soft border border-danger-border rounded-lg px-3 py-2.5 text-sm text-danger-text mb-5">
+          <div className="bg-danger-soft border border-danger-border rounded-xl px-3 py-2 text-xs text-danger-text mb-4 animate-in slide-in-from-top-1">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="auth-email" className="text-[13px] font-semibold text-text-secondary">
-              Work Email
+            <label htmlFor="auth-email" className="text-[11px] font-medium text-text-secondary">
+              Email Address
             </label>
             <input
               id="auth-email"
@@ -77,7 +79,7 @@ export default function AuthModal({ onAuthSuccess }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="auth-password" className="text-[13px] font-semibold text-text-secondary">
+            <label htmlFor="auth-password" className="text-[11px] font-medium text-text-secondary">
               Password
             </label>
             <input
@@ -95,15 +97,15 @@ export default function AuthModal({ onAuthSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="mt-1 py-3 bg-primary text-white font-semibold rounded-lg text-[15px] hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="mt-2 py-2.5 bg-primary text-white font-semibold rounded-xl text-xs hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 tactile-btn cursor-pointer shadow-[0_2px_12px_rgba(79,70,229,0.3),inset_0_1px_0_0_rgba(255,255,255,0.2)]"
           >
-            {loading ? 'Authenticating...' : isLogin ? 'Sign In' : 'Create Account'}
+            {loading ? 'Authenticating...' : isLogin ? 'Sign In' : 'Create Workspace'}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm flex justify-center gap-2">
+        <div className="mt-5 text-center text-xs flex justify-center items-center gap-1.5 pt-4 border-t border-border-subtle">
           <span className="text-text-muted">
-            {isLogin ? "Don't have an account?" : 'Already have an account?'}
+            {isLogin ? "Need an account?" : 'Already registered?'}
           </span>
           <button
             type="button"
@@ -111,7 +113,7 @@ export default function AuthModal({ onAuthSuccess }) {
               setIsLogin(!isLogin);
               setError('');
             }}
-            className="font-semibold text-primary-light hover:text-primary-hover cursor-pointer"
+            className="font-semibold text-primary-light hover:text-primary transition-colors cursor-pointer"
           >
             {isLogin ? 'Sign Up' : 'Log In'}
           </button>

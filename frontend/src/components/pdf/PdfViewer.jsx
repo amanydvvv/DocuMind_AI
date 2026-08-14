@@ -12,23 +12,23 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 function ErrorState({ message, onRetry, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 text-center animate-in zoom-in-95 duration-200">
-        <div className="w-12 h-12 bg-danger-soft text-danger rounded-full flex items-center justify-center mx-auto mb-3">
-          <Icon name="warning" size={26} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200 select-none">
+      <div className="glass-card-elevated rounded-2xl w-full max-w-md p-6 text-center animate-in zoom-in-95 duration-200">
+        <div className="w-10 h-10 bg-danger-soft text-danger rounded-full flex items-center justify-center mx-auto mb-3 border border-danger-border">
+          <Icon name="warning" size={20} />
         </div>
-        <h3 className="font-semibold text-text text-lg">Document unavailable</h3>
-        <p className="text-sm text-text-muted mt-1 mb-5 whitespace-pre-wrap">{message}</p>
+        <h3 className="font-semibold text-text text-sm">Document unavailable</h3>
+        <p className="text-xs text-text-muted mt-1.5 mb-5 whitespace-pre-wrap">{message}</p>
         <div className="flex justify-center gap-2">
           <button
             onClick={onRetry}
-            className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-hover transition-colors"
+            className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-xl hover:bg-primary-hover transition-all duration-150 tactile-btn cursor-pointer"
           >
             Retry
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-surface border border-border text-text text-sm font-medium rounded-lg hover:bg-surface-muted transition-colors shadow-sm"
+            className="px-4 py-2 bg-surface-muted hover:bg-surface border border-border text-text text-xs font-medium rounded-xl transition-all duration-150 tactile-btn cursor-pointer"
           >
             Close
           </button>
@@ -84,37 +84,40 @@ export default function PdfViewer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-150 select-none">
+      <div className="glass-card-elevated rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-surface-muted/40">
-          <h3 className="font-semibold text-text text-lg truncate">{filename}</h3>
+        <div className="px-6 py-3.5 border-b border-border flex justify-between items-center bg-surface/50">
+          <div className="flex items-center gap-2 min-w-0 pr-4">
+            <Icon name="docs" size={15} className="text-primary-light flex-shrink-0" />
+            <h3 className="font-semibold text-text text-sm truncate tracking-tight">{filename}</h3>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 text-text-muted hover:text-text hover:bg-surface-muted rounded-full transition-colors"
+            className="p-1.5 text-text-muted hover:text-text hover:bg-surface-muted rounded-lg transition-colors cursor-pointer"
             aria-label="Close PDF viewer"
           >
-            <Icon name="x" size={16} />
+            <Icon name="x" size={15} />
           </button>
         </div>
 
-        {/* Page navigation */}
+        {/* Page navigation bar */}
         {numPages > 0 && (
-          <div className="px-6 py-2 flex items-center justify-between bg-surface border-b border-border">
+          <div className="px-6 py-2 flex items-center justify-between bg-surface/70 border-b border-border text-xs">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={!page || page <= 1}
-              className="px-3 py-1 text-xs font-medium bg-surface-muted text-text rounded-md hover:bg-border disabled:opacity-40 transition-colors"
+              className="px-3 py-1 text-xs font-medium bg-surface-muted text-text rounded-lg hover:bg-surface-elevated disabled:opacity-30 transition-all tactile-btn cursor-pointer"
             >
               ← Prev
             </button>
-            <span className="text-xs font-medium text-text-muted" data-testid="page-indicator">
+            <span className="text-[11px] font-medium text-text-secondary" data-testid="page-indicator">
               Page {page} of {numPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(numPages, p + 1))}
               disabled={!page || page >= numPages}
-              className="px-3 py-1 text-xs font-medium bg-surface-muted text-text rounded-md hover:bg-border disabled:opacity-40 transition-colors"
+              className="px-3 py-1 text-xs font-medium bg-surface-muted text-text rounded-lg hover:bg-surface-elevated disabled:opacity-30 transition-all tactile-btn cursor-pointer"
             >
               Next →
             </button>
@@ -122,22 +125,23 @@ export default function PdfViewer({
         )}
 
         {/* PDF canvas */}
-        <div className="flex-1 overflow-auto bg-surface-muted p-4">
+        <div className="flex-1 overflow-auto bg-background/90 p-6 flex justify-center">
           <Document
             key={`${documentId}:${attempt}`}
             file={file}
             onLoadSuccess={handleLoadSuccess}
             onLoadError={handleLoadError}
+            className="shadow-2xl rounded-lg overflow-hidden"
           >
             {page && <Page pageNumber={page} />}
           </Document>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-border bg-surface-muted/40 flex justify-end">
+        <div className="px-6 py-3 border-t border-border bg-surface/50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-surface border border-border text-text text-sm font-medium rounded-lg hover:bg-surface-muted transition-colors shadow-sm"
+            className="px-4 py-2 bg-surface-muted hover:bg-surface-elevated border border-border text-text text-xs font-medium rounded-xl transition-all tactile-btn cursor-pointer"
           >
             Close
           </button>

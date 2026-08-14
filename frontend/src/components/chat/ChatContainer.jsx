@@ -29,24 +29,35 @@ export default function ChatContainer({
 
   return (
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
-      {/* Header */}
-      <div className="bg-surface border-b border-border p-4 flex items-center justify-between shadow-sm z-10">
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-light to-primary-hover truncate max-w-md">
-          {activeConversation?.title || 'New Chat'}
-        </h1>
-      </div>
+      {/* Quiet Luxury Studio Header */}
+      <header className="h-14 px-6 border-b border-border bg-surface/40 backdrop-blur-md flex items-center justify-between z-10 select-none">
+        <div className="flex items-center gap-3 min-w-0">
+          <h1 className="text-sm font-semibold text-text truncate max-w-md tracking-tight">
+            {activeConversation?.title || 'New Research Thread'}
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted/60 border border-border-subtle text-[11px] text-text-muted">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span className="font-medium text-text-secondary">Hybrid RAG</span>
+            <span className="text-text-muted/60">•</span>
+            <span>Cascade LLM</span>
+          </div>
+        </div>
+      </header>
 
       {/* Error Banner */}
       {error && (
-        <div className="bg-danger-soft border-b border-danger-border text-danger-text px-4 py-2 text-xs flex justify-between items-center gap-3">
-          <span className="flex items-center gap-1.5">
-            <Icon name="warning" size={14} />
+        <div className="bg-danger-soft/90 backdrop-blur-sm border-b border-danger-border text-danger-text px-4 py-2.5 text-xs flex justify-between items-center gap-3 animate-in slide-in-from-top-2 duration-150">
+          <span className="flex items-center gap-2 font-medium">
+            <Icon name="warning" size={14} className="text-danger" />
             {error}
           </span>
           {onDismissError && (
             <button
               onClick={onDismissError}
-              className="flex-shrink-0 p-1 text-danger-text/70 hover:text-danger-text hover:bg-white/10 rounded transition-colors"
+              className="p-1 text-danger-text/70 hover:text-danger-text hover:bg-white/10 rounded-md transition-colors cursor-pointer"
               aria-label="Dismiss error"
               title="Dismiss"
             >
@@ -67,8 +78,8 @@ export default function ChatContainer({
         />
       </div>
 
-      {/* Input Area */}
-      <div className="bg-surface border-t border-border">
+      {/* Floating Chat Input Dock */}
+      <div className="p-4 md:p-6 bg-gradient-to-t from-background via-background/90 to-transparent">
         <ChatInput onSendMessage={onSendMessage} disabled={isGenerating || isLoadingHistory} />
       </div>
 
@@ -81,14 +92,14 @@ export default function ChatContainer({
         />
       )}
 
-      {/* PDF Viewer Overlay (lazy: pdf.js chunk loads on first open) */}
+      {/* PDF Viewer Overlay (lazy loaded) */}
       {activePdf && (
         <Suspense
           fallback={
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-              <div className="bg-surface rounded-xl px-6 py-4 shadow-xl animate-in zoom-in-95 duration-200">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-sm font-medium text-text-muted">Loading PDF viewer...</p>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
+              <div className="glass-card-elevated rounded-2xl px-6 py-5 shadow-2xl flex flex-col items-center">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p className="text-xs font-medium text-text-muted">Loading PDF Engine...</p>
               </div>
             </div>
           }
