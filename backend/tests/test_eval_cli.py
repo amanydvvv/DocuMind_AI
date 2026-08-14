@@ -1,5 +1,5 @@
 """
-DocuMind AI — Eval CLI Tests (Step 6)
+KueryCore AI — Eval CLI Tests (Step 6)
 
 Arg-parsing/routing, --sample entry math (controls always included),
 knob-override mapping, and --diff on fixture result files (including the

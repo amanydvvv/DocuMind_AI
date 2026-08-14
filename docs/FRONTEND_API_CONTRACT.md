@@ -1,4 +1,4 @@
-# DocuMind AI: Frontend API Contract
+# KueryCore AI: Frontend API Contract
 
 This document outlines the exact request and response schemas for the RAG Chat API endpoints, ensuring synchronization between the frontend consumption and backend emission of data.
 

@@ -1,5 +1,5 @@
 """
-DocuMind AI — Retrieval Result Cache
+KueryCore AI — Retrieval Result Cache
 
 In-process TTL LRU cache in front of the embed -> hybrid retrieval pipeline.
 

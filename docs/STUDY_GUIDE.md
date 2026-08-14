@@ -1,6 +1,6 @@
-# DocuMind AI â€” Personal Study Guide & Interview Notes
+# KueryCore AI â€” Personal Study Guide & Interview Notes
 
-> **Purpose:** This document is a living study guide and technical cheat sheet for **DocuMind AI**. It captures every architectural decision, bug fix, and theoretical concept learned during development. Use this to review core engineering concepts and prepare for technical interviews.
+> **Purpose:** This document is a living study guide and technical cheat sheet for **KueryCore AI**. It captures every architectural decision, bug fix, and theoretical concept learned during development. Use this to review core engineering concepts and prepare for technical interviews.
 
 ---
 
@@ -35,10 +35,10 @@ In general software engineering, **Java (Spring Boot)** is an enterprise giant u
 During Phase 1, we learned why containers are vital for consistent development.
 
 #### The Concept:
-A **Docker Container** is an isolated mini-computer running inside your machine with its own OS, dependencies, and file system. An **Image** (`pgvector/pgvector:pg16`) is the read-only blueprint, while the **Container** (`documind-db`) is the running instance.
+A **Docker Container** is an isolated mini-computer running inside your machine with its own OS, dependencies, and file system. An **Image** (`pgvector/pgvector:pg16`) is the read-only blueprint, while the **Container** (`kuerycore-db`) is the running instance.
 
 #### The Real-World Port Collision We Solved:
-* **The Bug:** When we first started Docker on port `5432`, our Python application crashed with `password authentication failed for user "documind"`.
+* **The Bug:** When we first started Docker on port `5432`, our Python application crashed with `password authentication failed for user "kuerycore"`.
 * **The Cause:** Using terminal diagnostics (`netstat -ano`), we discovered that the Windows host machine already had a native PostgreSQL service running in the background on ports `5432` and `5433`. When Python connected to `localhost:5432`, Windows routed the traffic to the old local Windows database instead of our Docker container!
 * **The Engineering Fix:** We remapped our Docker host binding in `docker-compose.yml` to **`5435:5432`** (Host Port 5435 -> Container Port 5432). Now, connecting to `localhost:5435` cleanly isolates our traffic into the Docker container without conflicting with native Windows services.
 
@@ -312,10 +312,10 @@ To cut RAG costs (each miss = one Gemini embedding call + two Postgres queries),
 
 ## ðŸ’¡ Master Interview Cheat Sheet
 
-When an interviewer asks you about your technical decisions on DocuMind AI, use these exact, high-impact responses:
+When an interviewer asks you about your technical decisions on KueryCore AI, use these exact, high-impact responses:
 
 #### Q: "Why did you build this backend in Python instead of Java/Spring Boot?"
-> *"I evaluate languages based on the specific workload. For heavy enterprise CRUD transaction engines, Java and Spring Boot are fantastic for their strict OOP contracts. However, for an AI/RAG application, Python is the industry standard. Building DocuMind AI in Python allowed me to leverage native LangChain orchestration, direct vector embedding manipulation, and FastAPI's asynchronous I/O and Pydantic validationâ€”giving me production-grade AI capabilities that would require unnecessary boilerplate in Java."*
+> *"I evaluate languages based on the specific workload. For heavy enterprise CRUD transaction engines, Java and Spring Boot are fantastic for their strict OOP contracts. However, for an AI/RAG application, Python is the industry standard. Building KueryCore AI in Python allowed me to leverage native LangChain orchestration, direct vector embedding manipulation, and FastAPI's asynchronous I/O and Pydantic validationâ€”giving me production-grade AI capabilities that would require unnecessary boilerplate in Java."*
 
 #### Q: "How did you handle database connectivity and scaling in your backend?"
 > *"I implemented a non-blocking, asynchronous database access layer using **FastAPI**, **SQLAlchemy 2.0 Async ORM**, and the **asyncpg** driver. By utilizing asynchronous execution, server threads aren't blocked waiting for network I/O from the database, allowing the backend to handle high-concurrency RAG queries efficiently without thread exhaustion."*
@@ -397,7 +397,7 @@ When an interviewer asks you about your technical decisions on DocuMind AI, use 
 
 **Symptom:** Users upload PDF documents successfully. The ingestion pipeline completes, chunks are embedded, and RAG queries work perfectly. But hours or days later, clicking a citation pill in the chat returns `HTTP 410: The source file for this document is no longer available.`
 
-**Root Cause:** The application stored uploaded PDF files on the local container filesystem (`/tmp/documind_uploads`), while document metadata lived in Supabase PostgreSQL. Render web services use **ephemeral container filesystems** — every deploy, restart, or free-tier sleep cycle wipes the entire container disk. The database survives; the files don't.
+**Root Cause:** The application stored uploaded PDF files on the local container filesystem (`/tmp/kuerycore_uploads`), while document metadata lived in Supabase PostgreSQL. Render web services use **ephemeral container filesystems** — every deploy, restart, or free-tier sleep cycle wipes the entire container disk. The database survives; the files don't.
 
 **Why Tests Missed It:** Integration tests upload a document and immediately call `GET /file` in the same process. They never simulate a container restart between write and read. The test passes because the file is still on disk — the bug only manifests across process boundaries.
 
@@ -500,14 +500,15 @@ real corpus + live model (the eval harness) or asserting the wiring: which
 string reaches Stage-1 retrieval must equal the rewritten query, not the
 raw follow-up. The harness therefore grew a multi-turn intent: golden
 entries with prior_turns trigger the same rewrite path as production
-(un_evaluation always rewrites when prior turns exist), and
+(
+un_evaluation always rewrites when prior turns exist), and
 orbidden_topics add a deterministic topic-leak dimension: any forbidden
 phrase appearing in the generated answer is a leak, flagged on negative
 controls as a harness-validity violation.
 
 ### Interview Talking Point
 
-> *"Our RAG answers were multi-turn aware but retrieval wasn't � every turn
+> *"Our RAG answers were multi-turn aware but retrieval wasn't  every turn
 > was retrieved as a standalone query, so deictic follow-ups ('what about
 > its RPO?') missed the chunk the conversation was about. I added a
 > fail-closed rewrite layer: it resolves the follow-up against history into

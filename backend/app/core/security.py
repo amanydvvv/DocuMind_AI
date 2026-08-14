@@ -1,5 +1,5 @@
 """
-DocuMind AI — Security & Authentication Module
+KueryCore AI — Security & Authentication Module
 JWT token generation/validation (RFC 7519) and PBKDF2-HMAC-SHA256 password hashing.
 Provides FastAPI get_current_user dependency for multi-tenant access control.
 """

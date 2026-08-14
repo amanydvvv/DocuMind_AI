@@ -1,5 +1,5 @@
 """
-DocuMind AI — User Model
+KueryCore AI — User Model
 SQLAlchemy ORM model for multi-tenant user authentication and account management.
 """
 

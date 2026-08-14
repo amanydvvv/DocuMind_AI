@@ -1,5 +1,5 @@
 """
-DocuMind AI — Retrieval Cache Unit Tests
+KueryCore AI — Retrieval Cache Unit Tests
 
 Validates the exact-normalized-match TTL LRU in front of retrieve_context:
 - hit/miss behavior with a spy on the embed + hybrid pipeline

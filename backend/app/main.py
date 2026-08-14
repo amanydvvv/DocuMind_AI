@@ -1,5 +1,5 @@
 """
-DocuMind AI — FastAPI Application Entry Point
+KueryCore AI — FastAPI Application Entry Point
 """
 
 import uuid
@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
 from fastapi import Request
 
 app = FastAPI(
-    title=settings.APP_NAME,
+    title="KueryCore API",
     version=settings.APP_VERSION,
     description="AI-powered technical documentation assistant with RAG",
     lifespan=lifespan,

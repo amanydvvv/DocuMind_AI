@@ -1,5 +1,5 @@
 """
-DocuMind AI — Rate Limiting
+KueryCore AI — Rate Limiting
 Shared slowapi limiter instance keyed by the real client IP.
 
 Peer-anchored CF-Connecting-IP resolution:

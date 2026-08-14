@@ -1,5 +1,5 @@
 """
-DocuMind AI — Document File Endpoint Test Suite
+KueryCore AI — Document File Endpoint Test Suite
 Covers the tenant-scoped GET /api/documents/{id}/file route used by the
 PDF citation viewer: success, content type, cross-tenant isolation (404),
 unsupported type (415), and persistence across restarts (DB-backed storage).

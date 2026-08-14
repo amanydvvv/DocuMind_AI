@@ -1,5 +1,5 @@
 """
-DocuMind AI — Auth & Multi-Tenancy Integration Tests
+KueryCore AI — Auth & Multi-Tenancy Integration Tests
 Validates signup, login, JWT protection, user isolation across documents and conversations.
 """
 

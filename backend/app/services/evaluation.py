@@ -1,5 +1,5 @@
 """
-DocuMind AI - Retrieval Evaluation Harness (schema + retrieval runner + judge)
+KueryCore AI - Retrieval Evaluation Harness (schema + retrieval runner + judge)
 
 This module is the plumbing layer for the LLM-as-judge eval harness
 (see docs/PLAN_EVAL_GUARDRAILS.md, Feature 1, Steps 2-5). It deliberately

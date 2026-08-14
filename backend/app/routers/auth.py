@@ -1,5 +1,5 @@
 """
-DocuMind AI — Auth Router
+KueryCore AI — Auth Router
 Authentication endpoints for user signup, login, token refresh, and user profile management.
 """
 

@@ -1,4 +1,4 @@
-# DocuMind AI â€” Project Checklist
+# KueryCore AI â€” Project Checklist
 
 This is a living execution tracker structured around development phases.
 

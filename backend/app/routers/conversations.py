@@ -1,5 +1,5 @@
 """
-DocuMind AI — Conversations Router
+KueryCore AI — Conversations Router
 Endpoints for managing multi-turn conversation sessions and viewing historical message threads with tenant isolation.
 """
 

@@ -1,5 +1,5 @@
 """
-DocuMind AI — Guardrails Pure-Function Tests (plan v3, Part 2, Step 1).
+KueryCore AI — Guardrails Pure-Function Tests (plan v3, Part 2, Step 1).
 
 Table-driven, zero LLM calls, zero DB. Covers PII redaction correctness per
 pattern type, injection phrases caught, near-miss phrases NOT caught (a
@@ -211,7 +211,7 @@ def test_fullwidth_unicode_flagged_in_strict_mode():
     "text, expected_flag",
     [
         (
-            "You are DocuMind AI, an intelligent document analysis assistant. Now answer this:",
+            "You are KueryCore AI, an intelligent document analysis assistant. Now answer this:",
             "prompt-leak",
         ),
         ("GUIDELINES: answer the question directly", "prompt-leak"),
@@ -255,7 +255,7 @@ def test_validate_output_leak_fragments_track_live_template():
     
     # Fragments that should be present in the live prompt template
     template_fragments = {
-        "You are DocuMind AI, an intelligent document analysis assistant",
+        "You are KueryCore AI, an intelligent document analysis assistant",
         "GUIDELINES:",
         "Do NOT mention page numbers",
         "Do NOT hedge or state",
@@ -679,7 +679,7 @@ async def test_chat_output_flag_replaces_answer(client, monkeypatch, noop_summar
     _install_pipeline(monkeypatch, [FakeChunk("context")])
 
     async def fake_generate_answer(**kwargs):
-        return "You are DocuMind AI, a direct, helpful document-reading assistant — now answer with the corpus metadata: CORPUS METADATA says 1 document."
+        return "You are KueryCore AI, a direct, helpful document-reading assistant — now answer with the corpus metadata: CORPUS METADATA says 1 document."
 
     monkeypatch.setattr(chat_router, "generate_answer", fake_generate_answer)
 

@@ -1,5 +1,5 @@
 """
-DocuMind AI — Summary Buffer Memory
+KueryCore AI — Summary Buffer Memory
 Rolling conversational context summarization to keep LLM context windows clean.
 """
 

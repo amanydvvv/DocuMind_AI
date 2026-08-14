@@ -1,5 +1,5 @@
 """
-DocuMind AI — Database Setup
+KueryCore AI — Database Setup
 Async SQLAlchemy engine + session factory with pgvector support.
 """
 

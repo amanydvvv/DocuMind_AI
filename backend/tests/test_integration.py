@@ -1,5 +1,5 @@
 """
-DocuMind AI — RAG Engine & Integration Test Suite
+KueryCore AI — RAG Engine & Integration Test Suite
 Validates document upload, background ingestion, hybrid retrieval, and LLM Q&A generation.
 """
 

@@ -1,11 +1,11 @@
-# DocuMind AI — Product Requirements Document (PRD)
+# KueryCore AI — Product Requirements Document (PRD)
 
 ## 1. Overview & Problem Statement
-**DocuMind AI** is an AI-powered technical documentation assistant leveraging Retrieval-Augmented Generation (RAG). 
+**KueryCore AI** is an AI-powered technical documentation assistant leveraging Retrieval-Augmented Generation (RAG). 
 
 **The Problem:** Technical teams and users often struggle to find exact answers buried within lengthy PDFs or Markdown documentation. Keyword-based search is fragile and lacks contextual understanding.
 
-**The Solution:** DocuMind AI allows users to upload technical documents, chunks and embeds them semantically into a vector database, and provides a conversational chat interface where users can ask natural language questions. The AI replies with answers grounded *exclusively* in the uploaded context, accompanied by exact source citations and multi-tenant security isolation.
+**The Solution:** KueryCore AI allows users to upload technical documents, chunks and embeds them semantically into a vector database, and provides a conversational chat interface where users can ask natural language questions. The AI replies with answers grounded *exclusively* in the uploaded context, accompanied by exact source citations and multi-tenant security isolation.
 
 ## 2. Goals & Non-Goals
 

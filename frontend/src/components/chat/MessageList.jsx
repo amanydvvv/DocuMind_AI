@@ -34,7 +34,7 @@ export default function MessageList({
         <div className="w-16 h-16 bg-primary-soft rounded-2xl flex items-center justify-center mb-4 shadow-sm">
           <BrandIcon size={32} />
         </div>
-        <h2 className="text-2xl font-bold text-text mb-2">DocuMind AI Assistant</h2>
+        <h2 className="text-2xl font-bold text-text mb-2">KueryCore AI Assistant</h2>
         <p className="text-text-muted max-w-md text-sm mb-6">
           Ask questions about your uploaded documents or start a new research thread.
         </p>

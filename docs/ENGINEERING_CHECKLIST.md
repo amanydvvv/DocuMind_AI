@@ -1,4 +1,4 @@
-# DocuMind AI — Engineering Checklist
+# KueryCore AI — Engineering Checklist
 
 Derived from the Stabilize & Harden sprint, this checklist addresses three specific, project-derived failure modes. Run this checklist before declaring any major feature or sprint "done."
 

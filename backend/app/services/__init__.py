@@ -1,1 +1,1 @@
-# DocuMind AI — Services init (placeholder)
+# KueryCore AI — Services init (placeholder)

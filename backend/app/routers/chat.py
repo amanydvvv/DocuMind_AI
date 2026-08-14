@@ -1,5 +1,5 @@
 """
-DocuMind AI - Chat Router
+KueryCore AI - Chat Router
 RAG Q&A engine endpoint for natural language document querying with multi-turn memory and user tenant isolation.
 """
 

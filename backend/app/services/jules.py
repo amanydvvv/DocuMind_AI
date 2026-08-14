@@ -1,5 +1,5 @@
 """
-DocuMind AI — Jules REST API Service Client
+KueryCore AI — Jules REST API Service Client
 Provides async communication with Google's Jules REST API for autonomous coding sessions.
 """
 

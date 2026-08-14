@@ -1,5 +1,5 @@
 """
-DocuMind AI — ORM Models
+KueryCore AI — ORM Models
 SQLAlchemy models for documents, chunks, conversations, messages, and query logs.
 """
 

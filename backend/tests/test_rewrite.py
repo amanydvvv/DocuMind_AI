@@ -1,5 +1,5 @@
 """
-DocuMind AI - follow-up rewrite_followup() unit tests.
+KueryCore AI - follow-up rewrite_followup() unit tests.
 
 Pure offline tests: get_llm() is stubbed, no network. Proves the
 fail-closed contract of app.services.rewrite: the raw question is the

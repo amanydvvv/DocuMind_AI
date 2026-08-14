@@ -1,1 +1,1 @@
-# DocuMind AI backend app package
+# KueryCore AI backend app package

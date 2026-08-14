@@ -146,7 +146,7 @@ def get_llm(temperature: float = 0.3, model_name: Optional[str] = None):
 
 
 RAG_PROMPT_TEMPLATE = """
-You are DocuMind AI, an intelligent document analysis assistant.
+You are KueryCore AI, an intelligent document analysis assistant.
 
 GUIDELINES:
 - Answer the user's question directly and concisely using only the facts provided in the Context below.

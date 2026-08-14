@@ -1,5 +1,5 @@
 """
-DocuMind AI - High-Rigor Two-Stage Hybrid Retrieval Engine
+KueryCore AI - High-Rigor Two-Stage Hybrid Retrieval Engine
 Combines pgvector HNSW dense vector search with PostgreSQL Full-Text Search (BM25 lexical search) concurrently via asyncio.gather.
 Fuses candidates using Reciprocal Rank Fusion (RRF, k=60), and re-ranks top candidates using Option 2b Phrase Coverage & Lexical Re-Scorer.
 """

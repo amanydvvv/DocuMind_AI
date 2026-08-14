@@ -1,5 +1,5 @@
 """
-DocuMind AI — Analytics Router
+KueryCore AI — Analytics Router
 Retrieval quality analytics, usage summaries, and per-document query frequencies with multi-tenant user isolation.
 """
 

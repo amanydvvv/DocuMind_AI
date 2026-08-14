@@ -1,5 +1,5 @@
 """
-DocuMind AI — Conversation & Message Models
+KueryCore AI — Conversation & Message Models
 SQLAlchemy ORM models for multi-turn Q&A sessions and message history.
 """
 

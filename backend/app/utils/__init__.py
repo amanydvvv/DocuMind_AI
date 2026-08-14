@@ -1,1 +1,1 @@
-# DocuMind AI — Utils init (placeholder)
+# KueryCore AI — Utils init (placeholder)

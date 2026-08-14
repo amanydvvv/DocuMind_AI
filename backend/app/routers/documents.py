@@ -1,5 +1,5 @@
 """
-DocuMind AI — Document Management Router
+KueryCore AI — Document Management Router
 Upload, list, detail, delete, and reindex documents with user tenant isolation.
 """
 
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
 
 # Upload directory — single source of truth is settings.UPLOAD_DIR (config.py),
-# which resolves to the OS-native temp dir + documind_uploads.
+# which resolves to the OS-native temp dir + kuerycore_uploads.
 UPLOAD_DIR = Path(settings.UPLOAD_DIR)
 
 

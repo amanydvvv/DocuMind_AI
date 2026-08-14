@@ -47,7 +47,7 @@ describe('PdfViewer', () => {
   });
 
   it('requests the document from the scoped file endpoint with auth headers', async () => {
-    localStorage.setItem('documind_token', 'test-token');
+    localStorage.setItem('kuerycore_token', 'test-token');
     render(<PdfViewer documentId="doc-abc" filename="r.pdf" pageNumber={1} onClose={() => {}} />);
     await screen.findByTestId('pdf-page');
 
@@ -58,7 +58,7 @@ describe('PdfViewer', () => {
       'Authorization',
       'Bearer test-token'
     );
-    localStorage.removeItem('documind_token');
+    localStorage.removeItem('kuerycore_token');
   });
 
   it('defaults to page 1 when a document only cites page 1', async () => {

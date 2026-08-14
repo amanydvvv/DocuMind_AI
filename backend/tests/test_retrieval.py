@@ -1,5 +1,5 @@
 """
-DocuMind AI — Retrieval Unit Tests
+KueryCore AI — Retrieval Unit Tests
 Validates Reciprocal Rank Fusion (RRF) math, blending, and deduplication so that
 chunks surfaced by BOTH the pgvector dense path and PostgreSQL FTS path are
 merged once and ranked above single-source candidates.

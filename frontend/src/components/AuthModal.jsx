@@ -45,7 +45,7 @@ export default function AuthModal({ onAuthSuccess }) {
           <div className="flex justify-center mb-2">
             <BrandIcon size={36} />
           </div>
-          <h2 className="text-2xl font-bold text-text">DocuMind AI</h2>
+          <h2 className="text-2xl font-bold text-text">KueryCore AI</h2>
           <p className="text-sm text-text-muted mt-2">
             {isLogin
               ? 'Sign in to access your secure knowledge workspace'

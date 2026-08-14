@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = 'https://documind-ai-97t5.onrender.com';
+const DEFAULT_API_URL = 'https://kuerycore-ai-97t5.onrender.com';
 export const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
 
 if (!/^https?:\/\//.test(API_URL)) {
@@ -57,33 +57,33 @@ async function fetchWithDiagnostics(url, options = {}) {
 }
 
 export function getAuthToken() {
-  return localStorage.getItem('documind_token');
+  return localStorage.getItem('kuerycore_token');
 }
 
 export function setAuthToken(token) {
   if (token) {
-    localStorage.setItem('documind_token', token);
+    localStorage.setItem('kuerycore_token', token);
   } else {
-    localStorage.removeItem('documind_token');
+    localStorage.removeItem('kuerycore_token');
   }
 }
 
 export function removeAuthToken() {
-  localStorage.removeItem('documind_token');
-  localStorage.removeItem('documind_refresh_token');
+  localStorage.removeItem('kuerycore_token');
+  localStorage.removeItem('kuerycore_refresh_token');
 }
 
 export function setAuthData(data) {
   if (data.access_token) setAuthToken(data.access_token);
   if (data.refresh_token) {
-    localStorage.setItem('documind_refresh_token', data.refresh_token);
+    localStorage.setItem('kuerycore_refresh_token', data.refresh_token);
   } else {
-    localStorage.removeItem('documind_refresh_token');
+    localStorage.removeItem('kuerycore_refresh_token');
   }
 }
 
 export async function refreshAccessToken() {
-  const refreshToken = localStorage.getItem('documind_refresh_token');
+  const refreshToken = localStorage.getItem('kuerycore_refresh_token');
   if (!refreshToken) throw new Error('No refresh token');
 
   let response;

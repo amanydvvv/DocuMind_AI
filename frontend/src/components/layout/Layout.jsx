@@ -26,7 +26,7 @@ export default function Layout({
       <div className="w-80 h-full bg-surface border-r border-border flex flex-col overflow-hidden">
         {/* Sidebar Header & Tab Switcher */}
         <div className="p-3 border-b border-border bg-surface-muted/40 flex justify-between items-center">
-          <span className="font-bold text-text text-base">DocuMind AI</span>
+          <span className="font-bold text-text text-base">KueryCore AI</span>
           <div className="flex bg-surface p-0.5 rounded-lg text-xs font-medium" role="tablist" aria-label="Sidebar sections">
             <button
               role="tab"

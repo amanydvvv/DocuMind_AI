@@ -1,5 +1,5 @@
 """
-DocuMind AI — Summary Buffer Memory Integration Test
+KueryCore AI — Summary Buffer Memory Integration Test
 Verifies update_conversation_summary persists a clean, preamble-free summary
 for a conversation with >= 2 messages, using its own isolated session.
 """

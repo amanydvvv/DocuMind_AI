@@ -1,4 +1,4 @@
-# DocuMind AI — Project Log
+# KueryCore AI — Project Log
 
 > Chronological log of production incidents, code fixes, and cleanup. Newest entries at the top.
 

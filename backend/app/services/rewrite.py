@@ -1,5 +1,5 @@
 """
-DocuMind AI - Follow-up query rewriting for multi-turn retrieval.
+KueryCore AI - Follow-up query rewriting for multi-turn retrieval.
 
 Retrieval runs on the user's latest message verbatim. Follow-ups that lean
 on earlier turns ("what about the other plan?", "and its RPO?") are

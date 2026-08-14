@@ -1,4 +1,4 @@
-name: DocuMind AI CI Pipeline
+name: KueryCore AI CI Pipeline
 
 on:
   push:
@@ -15,9 +15,9 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_DB: documind
-          POSTGRES_USER: documind
-          POSTGRES_PASSWORD: documind_dev
+          POSTGRES_DB: kuerycore
+          POSTGRES_USER: kuerycore
+          POSTGRES_PASSWORD: kuerycore_dev
         ports:
           - 5432:5432
         options: >-
@@ -44,8 +44,8 @@ jobs:
 
       - name: Run Database Migrations
         env:
-          DATABASE_URL_SYNC: postgresql://documind:documind_dev@localhost:5432/documind
-          DATABASE_URL: postgresql+asyncpg://documind:documind_dev@localhost:5432/documind
+          DATABASE_URL_SYNC: postgresql://kuerycore:kuerycore_dev@localhost:5432/kuerycore
+          DATABASE_URL: postgresql+asyncpg://kuerycore:kuerycore_dev@localhost:5432/kuerycore
         run: |
           cd backend
           alembic upgrade head
@@ -57,8 +57,8 @@ jobs:
 
       - name: Run Pytest Test Suite
         env:
-          DATABASE_URL_SYNC: postgresql://documind:documind_dev@localhost:5432/documind
-          DATABASE_URL: postgresql+asyncpg://documind:documind_dev@localhost:5432/documind
+          DATABASE_URL_SYNC: postgresql://kuerycore:kuerycore_dev@localhost:5432/kuerycore
+          DATABASE_URL: postgresql+asyncpg://kuerycore:kuerycore_dev@localhost:5432/kuerycore
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           ENVIRONMENT: development

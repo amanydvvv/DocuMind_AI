@@ -1,5 +1,5 @@
 """
-DocuMind AI — Jules Admin Router
+KueryCore AI — Jules Admin Router
 Admin endpoints for managing Jules REST API autonomous coding sessions.
 """
 

@@ -1,5 +1,5 @@
 """
-DocuMind AI — OCR Guardrail Tests
+KueryCore AI — OCR Guardrail Tests
 Covers the two defensive layers added for Part 6:
   1. Pre-flight image-quality gate (blank / structureless-noise pages never
      reach the Groq vision API call).

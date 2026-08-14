@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: documind-api
+    name: kuerycore-api
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend

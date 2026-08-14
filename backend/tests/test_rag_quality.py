@@ -1,5 +1,5 @@
 """
-DocuMind AI — RAG Response Quality Test Suite
+KueryCore AI — RAG Response Quality Test Suite
 Validates that generated responses:
 1. Do not leak system prompt fragments or internal mechanics
 2. Extract facts accurately without contradictory hedging
@@ -18,7 +18,7 @@ class TestRAGResponseQuality:
     # -------------------------------------------------------------------------
 
     @pytest.mark.parametrize("leak_fragment", [
-        "You are DocuMind AI, an intelligent document analysis assistant",
+        "You are KueryCore AI, an intelligent document analysis assistant",
         "GUIDELINES:",
         "Do NOT mention page numbers",
         "Do NOT hedge or state",
@@ -152,7 +152,7 @@ class TestPromptLeakFragmentsCompleteness:
         # This test documents the expected fragments - if the list changes,
         # the test parameters above should be updated
         expected_fragments = {
-            "You are DocuMind AI, an intelligent document analysis assistant",
+            "You are KueryCore AI, an intelligent document analysis assistant",
             "GUIDELINES:",
             "Do NOT mention page numbers",
             "Do NOT hedge or state",

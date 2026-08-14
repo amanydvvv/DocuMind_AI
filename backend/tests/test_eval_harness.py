@@ -1,5 +1,5 @@
 """
-DocuMind AI Ã¢â‚¬â€ Evaluation Harness Plumbing Tests (Steps 2-5)
+KueryCore AI Ã¢â‚¬â€ Evaluation Harness Plumbing Tests (Steps 2-5)
 
 Pure plumbing tests: zero LLM calls, zero live DB. The retrieval pipeline
 is mocked at the Stage-1 boundary exactly like test_query_cache.py does,

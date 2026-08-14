@@ -1,32 +1,32 @@
 services:
   db:
     image: pgvector/pgvector:pg16
-    container_name: documind-db
+    container_name: kuerycore-db
     environment:
-      POSTGRES_DB: documind
-      POSTGRES_USER: documind
-      POSTGRES_PASSWORD: documind_dev
+      POSTGRES_DB: kuerycore
+      POSTGRES_USER: kuerycore
+      POSTGRES_PASSWORD: kuerycore_dev
     ports:
       - "5435:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U documind -d documind"]
+      test: ["CMD-SHELL", "pg_isready -U kuerycore -d kuerycore"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   api:
     build: ./backend
-    container_name: documind-api
+    container_name: kuerycore-api
     # API keys (GROQ/GEMINI), ENVIRONMENT, and any non-DB settings come from
     # backend/.env (the same single source of truth used for local uvicorn).
     # DATABASE_URL / DEBUG below intentionally override the env file.
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: "postgresql+asyncpg://documind:documind_dev@db:5432/documind"
-      DATABASE_URL_SYNC: "postgresql://documind:documind_dev@db:5432/documind"
+      DATABASE_URL: "postgresql+asyncpg://kuerycore:kuerycore_dev@db:5432/kuerycore"
+      DATABASE_URL_SYNC: "postgresql://kuerycore:kuerycore_dev@db:5432/kuerycore"
       DEBUG: "true"
       PORT: "8000"
     ports:
@@ -44,7 +44,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: "http://localhost:8000"
-    container_name: documind-frontend
+    container_name: kuerycore-frontend
     ports:
       - "3000:80"
     depends_on:

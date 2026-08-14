@@ -1,5 +1,5 @@
 """
-DocuMind AI - Regression E2E Test Suite
+KueryCore AI - Regression E2E Test Suite
 Covers signup/login, document upload & ingestion, RAG chat with citations,
 and forged-JWT rejection. Uses the in-process ASGI app (no live server needed).
 """

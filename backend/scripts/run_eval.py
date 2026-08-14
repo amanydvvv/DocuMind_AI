@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DocuMind AI - Retrieval Eval CLI (Phase 1, plan v3, Step 6)
+KueryCore AI - Retrieval Eval CLI (Phase 1, plan v3, Step 6)
 
 Actions:
   python scripts/run_eval.py --validate-golden
@@ -64,7 +64,7 @@ GOLDEN_FILE_DEFAULT = BACKEND_DIR / "tests" / "eval" / "golden_set.json"
 CORPUS_FILE_DEFAULT = BACKEND_DIR / "tests" / "eval" / "eval_corpus.md"
 RESULTS_DIR = BACKEND_DIR / "results"
 BASELINE_PATH = RESULTS_DIR / "baseline.json"
-EVAL_USER_EMAIL = "eval@documind.local"
+EVAL_USER_EMAIL = "eval@kuerycore.local"
 
 # (cli flag -> retrieval module constant)
 KNOB_FLAG_TO_CONSTANT = {
@@ -223,7 +223,7 @@ def render_summary_markdown(payload: dict) -> str:
     header = payload["header"]
     summary = payload["summary"]
     lines = [
-        "# DocuMind Eval Run",
+        "# KueryCore Eval Run",
         "",
         f"- mode: {header['mode']} ({header['total_entries']} entries)",
         f"- generation model: {header['generation_model']}",

@@ -1,4 +1,4 @@
-# DocuMind AI — UI Improvement Audit & Phased Plan
+# KueryCore AI — UI Improvement Audit & Phased Plan
 
 Status: **Approved** (Phase 1 shipped; Phases 2-5 pending).
 Scope: frontend only (React 19 + Vite + Tailwind v4). Backend and the SSE contract

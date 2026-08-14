@@ -1,5 +1,5 @@
 """
-DocuMind AI — Input/Output Guardrails (plan v3, Part 2, Step 1).
+KueryCore AI — Input/Output Guardrails (plan v3, Part 2, Step 1).
 
 Pure rule functions only: zero I/O, zero DB, zero request-path imports.
 
@@ -89,7 +89,7 @@ _UNUSUAL_UNICODE_RE = re.compile(
 # generation. Keep in sync when the template changes — the tests derive
 # leak samples from RAG_PROMPT_TEMPLATE, so drift fails loudly.
 PROMPT_LEAK_FRAGMENTS = (
-    "You are DocuMind AI, an intelligent document analysis assistant",
+    "You are KueryCore AI, an intelligent document analysis assistant",
     "GUIDELINES:",
     "Do NOT mention page numbers",
     "Do NOT hedge or state",

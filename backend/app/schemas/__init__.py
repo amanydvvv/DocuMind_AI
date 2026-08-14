@@ -1,5 +1,5 @@
 """
-DocuMind AI — Pydantic Schemas
+KueryCore AI — Pydantic Schemas
 Request/response models for API validation and serialization.
 """
 

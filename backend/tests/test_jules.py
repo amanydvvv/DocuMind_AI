@@ -1,5 +1,5 @@
 """
-DocuMind AI — Jules REST API Unit Tests
+KueryCore AI — Jules REST API Unit Tests
 Tests the JulesClient service and FastAPI admin endpoints with mocked HTTP responses.
 """
 
@@ -67,7 +67,7 @@ async def test_jules_client_create_session():
         client = JulesClient(api_key="test_key_123")
         session = await client.create_session(
             prompt="Fix RAG retrieval bug",
-            source="sources/github/amanydvvv/DocuMind_AI",
+            source="sources/github/amanydvvv/KueryCore_AI",
             title="Fix Bug",
         )
         assert session["id"] == "12345"
@@ -85,7 +85,7 @@ async def test_jules_client_get_session():
             "outputs": [
                 {
                     "pullRequest": {
-                        "url": "https://github.com/amanydvvv/DocuMind_AI/pull/1",
+                        "url": "https://github.com/amanydvvv/KueryCore_AI/pull/1",
                         "title": "Fix RAG retrieval bug",
                     }
                 }
@@ -97,7 +97,7 @@ async def test_jules_client_get_session():
         client = JulesClient(api_key="test_key_123")
         session = await client.get_session("12345")
         assert session["id"] == "12345"
-        assert session["outputs"][0]["pullRequest"]["url"] == "https://github.com/amanydvvv/DocuMind_AI/pull/1"
+        assert session["outputs"][0]["pullRequest"]["url"] == "https://github.com/amanydvvv/KueryCore_AI/pull/1"
 
 
 @pytest.mark.asyncio

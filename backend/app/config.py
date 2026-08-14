@@ -1,5 +1,5 @@
 """
-DocuMind AI — Configuration
+KueryCore AI — Configuration
 Loads settings from environment variables with sensible defaults.
 """
 
@@ -15,13 +15,13 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # App
-    APP_NAME: str = "DocuMind AI"
+    APP_NAME: str = "KueryCore AI"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://documind:documind_dev@localhost:5435/documind"
-    DATABASE_URL_SYNC: str = "postgresql://documind:documind_dev@localhost:5435/documind"
+    DATABASE_URL: str = "postgresql+asyncpg://kuerycore:kuerycore_dev@localhost:5435/kuerycore"
+    DATABASE_URL_SYNC: str = "postgresql://kuerycore:kuerycore_dev@localhost:5435/kuerycore"
     
     @field_validator("DATABASE_URL")
     @classmethod
@@ -89,7 +89,7 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: list[str] = ["pdf", "md"]
     # Single source of truth for the upload directory. OS-native temp dir
     # (survives non-root containers on Render and varies safely by platform).
-    UPLOAD_DIR: str = str(Path(tempfile.gettempdir()) / "documind_uploads")
+    UPLOAD_DIR: str = str(Path(tempfile.gettempdir()) / "kuerycore_uploads")
 
     # CORS
     # Explicit allowlist. Dynamic Vercel preview origins are additionally

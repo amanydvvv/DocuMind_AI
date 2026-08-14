@@ -1,5 +1,5 @@
 """
-DocuMind AI — CoT Streaming Buffer & Prompt Leakage Prevention Tests
+KueryCore AI — CoT Streaming Buffer & Prompt Leakage Prevention Tests
 Verifies server-side StreamCoTBuffer state machine and CoT extraction logic.
 """
 

@@ -9,7 +9,7 @@ RUN npm ci
 COPY . .
 
 # Override with --build-arg VITE_API_URL=<your-backend-url> for other environments
-ARG VITE_API_URL=https://documind-ai-97t5.onrender.com
+ARG VITE_API_URL=https://kuerycore-ai-97t5.onrender.com
 ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm run build
