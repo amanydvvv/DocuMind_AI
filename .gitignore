@@ -37,6 +37,8 @@ frontend/qa_fixture_applicant_2026.pdf
 security-audit/
 claude-skills/
 .serena/
+.agents/
+.agent/
 
 # Test fixtures: only tracked inside backend/tests/fixtures/
 *.pdf
