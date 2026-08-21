@@ -28,39 +28,83 @@ export default function ChatContainer({
   };
 
   return (
-    <div className="flex flex-col h-full bg-background relative overflow-hidden">
-      {/* Hardware Studio Header */}
-      <header className="h-14 px-6 border-b border-border bg-surface flex items-center justify-between z-10 select-none shadow-sm">
+    <div className="flex flex-col h-full relative overflow-hidden" style={{ background: 'transparent' }}>
+
+      {/* ── Header ── */}
+      <header
+        className="h-14 px-6 flex items-center justify-between z-10 flex-shrink-0"
+        style={{
+          background: 'rgba(8,9,13,0.85)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          boxShadow: '0 1px 24px rgba(0,0,0,0.4)',
+        }}
+      >
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-          <h1 className="text-sm font-semibold text-text truncate max-w-md tracking-tight">
+          {/* Live pulse indicator */}
+          <div className="relative flex-shrink-0">
+            <div className="w-2 h-2 rounded-full bg-amber-400" />
+            <div className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-40" />
+          </div>
+          <h1
+            className="text-sm font-semibold truncate max-w-xs md:max-w-md tracking-tight"
+            style={{
+              background: isGenerating
+                ? 'linear-gradient(90deg, #f1f5f9, #fde68a, #f1f5f9)'
+                : 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
+              backgroundSize: isGenerating ? '200% 100%' : '100%',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              animation: isGenerating ? 'shimmer 1.5s linear infinite' : 'none',
+            }}
+          >
             {activeConversation?.title || 'New Research Thread'}
           </h1>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-muted border border-border text-[11px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span className="font-medium text-text">◈ Hybrid RAG</span>
-            <span className="text-text-muted/60">•</span>
-            <span className="text-primary-light font-medium">Cascade LLM</span>
-          </div>
+        {/* Status pill */}
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px]"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{
+              background: isGenerating ? '#f59e0b' : '#34d399',
+              boxShadow: isGenerating ? '0 0 6px rgba(245,158,11,0.8)' : '0 0 6px rgba(52,211,153,0.8)',
+              animation: isGenerating ? 'pulse 0.8s ease-in-out infinite' : 'none',
+            }}
+          />
+          <span className="font-medium" style={{ color: '#94a3b8' }}>◈ Hybrid RAG</span>
+          <span style={{ color: 'rgba(148,163,184,0.4)' }}>•</span>
+          <span className="font-semibold" style={{ color: '#fde68a' }}>Cascade LLM</span>
         </div>
       </header>
 
-      {/* Error Banner */}
+      {/* ── Error Banner ── */}
       {error && (
-        <div className="bg-danger-soft/90 backdrop-blur-sm border-b border-danger-border text-danger-text px-4 py-2.5 text-xs flex justify-between items-center gap-3 animate-in slide-in-from-top-2 duration-150">
-          <span className="flex items-center gap-2 font-medium">
-            <Icon name="warning" size={14} className="text-danger" />
+        <div
+          className="px-5 py-2.5 text-xs flex justify-between items-center gap-3 flex-shrink-0"
+          style={{
+            background: 'rgba(255,69,58,0.1)',
+            borderBottom: '1px solid rgba(255,69,58,0.2)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <span className="flex items-center gap-2 font-medium" style={{ color: '#fca5a5' }}>
+            <Icon name="warning" size={13} />
             {error}
           </span>
           {onDismissError && (
             <button
               onClick={onDismissError}
-              className="p-1 text-danger-text/70 hover:text-danger-text hover:bg-white/10 rounded-md transition-colors cursor-pointer"
+              className="p-1 rounded-md transition-colors cursor-pointer hover:bg-white/10"
+              style={{ color: 'rgba(252,165,165,0.6)' }}
               aria-label="Dismiss error"
-              title="Dismiss"
             >
               <Icon name="x" size={12} />
             </button>
@@ -68,7 +112,7 @@ export default function ChatContainer({
         </div>
       )}
 
-      {/* Messages Scroll Area */}
+      {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto p-4 md:p-8">
         <MessageList
           messages={messages}
@@ -79,12 +123,17 @@ export default function ChatContainer({
         />
       </div>
 
-      {/* Floating Chat Input Dock */}
-      <div className="p-4 md:p-6 bg-gradient-to-t from-background via-background/90 to-transparent">
+      {/* ── Input Dock ── */}
+      <div
+        className="p-4 md:p-5 flex-shrink-0"
+        style={{
+          background: 'linear-gradient(to top, rgba(8,9,13,1) 60%, rgba(8,9,13,0) 100%)',
+        }}
+      >
         <ChatInput onSendMessage={onSendMessage} disabled={isGenerating || isLoadingHistory} />
       </div>
 
-      {/* Citation Modal Overlay */}
+      {/* ── Citation Modal ── */}
       {activeCitation && (
         <CitationViewer
           citation={activeCitation}
@@ -93,13 +142,16 @@ export default function ChatContainer({
         />
       )}
 
-      {/* PDF Viewer Overlay (lazy loaded) */}
+      {/* ── PDF Viewer ── */}
       {activePdf && (
         <Suspense
           fallback={
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
-              <div className="glass-card-elevated rounded-2xl px-6 py-5 shadow-2xl flex flex-col items-center">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md">
+              <div
+                className="rounded-2xl px-6 py-5 flex flex-col items-center gap-3"
+                style={{ background: 'rgba(24,27,35,0.95)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                 <p className="text-xs font-medium text-text-muted">Loading PDF Engine...</p>
               </div>
             </div>
