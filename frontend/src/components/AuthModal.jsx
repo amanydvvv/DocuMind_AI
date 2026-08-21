@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { loginUser, signupUser } from '../services/api';
+import Interactive3DSpheres from './auth/Interactive3DSpheres';
 
 const ANIMATED_SUBTITLES = [
   'Grounded Document RAG Engine.',
@@ -20,20 +21,6 @@ export default function AuthModal({ onAuthSuccess }) {
   const [subtitleIndex, setSubtitleIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Subtle 3D mouse parallax state
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      const { innerWidth, innerHeight } = window;
-      const x = (e.clientX / innerWidth - 0.5) * 20; // -10px to +10px
-      const y = (e.clientY / innerHeight - 0.5) * 20; // -10px to +10px
-      setMousePos({ x, y });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   useEffect(() => {
     const currentTarget = ANIMATED_SUBTITLES[subtitleIndex];
@@ -105,47 +92,14 @@ export default function AuthModal({ onAuthSuccess }) {
   };
 
   return (
-    <div className="relative min-h-screen w-screen flex flex-col items-center justify-center p-6 overflow-hidden select-none font-sans text-slate-100" style={{ background: '#050d08' }}>
+    <div className="relative min-h-screen w-screen flex flex-col items-center justify-center p-6 overflow-hidden select-none font-sans text-slate-100 bg-[#050d08]">
       
-      {/* ── 3D VOLUMETRIC FLOATING & ANIMATED SPHERES ── */}
-      
-      {/* Top Left Floating 3D Magenta-Purple Sphere */}
-      <div 
-        className="absolute top-[-30px] left-[15%] sm:left-[22%] md:left-[28%] lg:left-[32%] w-36 h-36 sm:w-44 sm:h-44 rounded-full pointer-events-none z-0 animate-float-magenta"
-        style={{
-          background: 'radial-gradient(circle at 35% 35%, #00ffaa 0%, #00d68f 35%, #00a86b 70%, #003d29 100%)',
-          transform: `translate3d(${mousePos.x * -0.6}px, ${mousePos.y * -0.6}px, 0)`,
-          transition: 'transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-      />
-
-      {/* Top Right Floating 3D Matte Graphite Sphere */}
-      <div 
-        className="absolute top-10 right-[15%] sm:right-[22%] md:right-[28%] lg:right-[32%] w-24 h-24 sm:w-28 sm:h-28 rounded-full pointer-events-none z-0 animate-float-graphite"
-        style={{
-          background: 'radial-gradient(circle at 35% 35%, #1a3d2b 0%, #0d2018 45%, #091410 80%, #050d08 100%)',
-          transform: `translate3d(${mousePos.x * 0.8}px, ${mousePos.y * 0.8}px, 0)`,
-          transition: 'transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-      />
-
-      {/* Micro Floating Ambient Glass Sphere */}
-      <div 
-        className="absolute bottom-20 left-[18%] w-10 h-10 rounded-full pointer-events-none z-0 animate-float-micro"
-        style={{
-          background: 'radial-gradient(circle at 35% 35%, rgba(0, 255, 170, 0.6) 0%, rgba(0, 214, 143, 0.2) 60%, transparent 100%)',
-          boxShadow: '0 0 20px rgba(0, 214, 143, 0.3)',
-          transform: `translate3d(${mousePos.x * 0.4}px, ${mousePos.y * 0.4}px, 0)`,
-        }}
-      />
+      {/* ── 3D REAL-TIME INTERACTIVE WEBGL LIVE WALLPAPER SPHERES ── */}
+      <Interactive3DSpheres />
 
       {/* ── MAIN AUTHENTICATION CONTAINER (Matching Reference Box Aesthetic) ── */}
-      <div 
-        className="relative z-10 w-full max-w-[380px] sm:max-w-[400px] flex flex-col items-center transition-transform duration-200 ease-out"
-        style={{
-          transform: `translate3d(${mousePos.x * 0.2}px, ${mousePos.y * 0.2}px, 0)`,
-        }}
-      >
+      <div className="relative z-10 w-full max-w-[390px] sm:max-w-[410px] flex flex-col items-center">
+        
         {/* Large Bold Brand Heading */}
         <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight text-center mb-2">
           {isLogin ? 'Welcome Back.' : 'Get Started.'}
@@ -201,24 +155,6 @@ export default function AuthModal({ onAuthSuccess }) {
             </button>
           </div>
 
-          {/* Instant Demo Quick Access */}
-          <div className="w-full mb-4">
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              disabled={loading}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#060e09] hover:bg-[#0d2018] border border-white/[0.08] hover:border-emerald-400/40 transition-all duration-150 flex items-center justify-center gap-2.5 text-xs font-bold text-slate-200 cursor-pointer shadow-inner active:scale-[0.98]"
-            >
-              <span className="text-emerald-400 text-sm">⚡</span>
-              <span>Instant Demo Access</span>
-            </button>
-          </div>
-
-          {/* Minimal 'or' divider */}
-          <div className="text-[11px] text-slate-500 font-medium mb-4">
-            or continue with credentials
-          </div>
-
           {/* Error Alert */}
           {error && (
             <div className="w-full mb-4 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 text-xs text-center animate-in fade-in duration-150">
@@ -226,7 +162,7 @@ export default function AuthModal({ onAuthSuccess }) {
             </div>
           )}
 
-          {/* Form Inputs */}
+          {/* Regular Credentials Form */}
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
             <div className="w-full">
               <input
@@ -273,8 +209,8 @@ export default function AuthModal({ onAuthSuccess }) {
             </button>
           </form>
 
-          {/* Footer Links */}
-          <div className="mt-5 flex flex-col items-center gap-2 text-xs text-slate-400">
+          {/* Switch / Reset Footer Links */}
+          <div className="mt-4 flex flex-col items-center gap-1.5 text-xs text-slate-400">
             <div className="flex items-center gap-1.5">
               <span>{isLogin ? "Don't have an account?" : 'Already have an account?'}</span>
               <button
@@ -296,6 +232,34 @@ export default function AuthModal({ onAuthSuccess }) {
               </button>
             )}
           </div>
+
+          {/* ── SEPARATE BOTTOM-MOST INSTANT DEMO ACCESS SECTION ── */}
+          <div className="w-full my-4 flex items-center gap-3">
+            <div className="flex-1 h-px bg-white/[0.08]" />
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">or explore demo</span>
+            <div className="flex-1 h-px bg-white/[0.08]" />
+          </div>
+
+          <div className="w-full">
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              disabled={loading}
+              className="w-full py-3 px-4 rounded-xl bg-[#060e09] hover:bg-[#0c1c14] border border-white/[0.08] hover:border-emerald-400/40 transition-all duration-150 flex items-center justify-between text-xs font-bold text-slate-200 cursor-pointer shadow-inner active:scale-[0.98] group"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-400/30 flex items-center justify-center text-emerald-400 text-xs">
+                  ⚡
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-white text-xs font-bold">Instant Demo Access</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Isolated guest session • No account needed</span>
+                </div>
+              </div>
+              <span className="text-emerald-400 group-hover:translate-x-0.5 transition-transform text-sm font-bold">→</span>
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
