@@ -93,35 +93,48 @@ export default function MessageList({
           What would you like to uncover?
         </h2>
 
-        {/* Suggestion Cards — tighter gap */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-2xl">
+        {/* Suggestion Cards — Glassmorphic & High Contrast */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
           {SUGGESTION_CARDS.map((card) => (
             <button
               key={card.title}
               onClick={() => onSendMessage?.(card.prompt)}
-              className="group text-left p-3.5 rounded-xl transition-all duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00d68f] focus-visible:outline-none"
+              className="group text-left p-4 rounded-2xl transition-all duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00d68f] focus-visible:outline-none"
               style={{
-                background: card.bg,
-                border: `1px solid ${card.border}`,
+                background: 'linear-gradient(135deg, rgba(13, 29, 21, 0.72) 0%, rgba(9, 20, 16, 0.85) 100%)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = `0 8px 24px ${card.bg.replace('0.07', '0.25').replace('0.06', '0.2')}`;
+                e.currentTarget.style.borderColor = card.color;
+                e.currentTarget.style.boxShadow = `0 10px 30px rgba(0,0,0,0.5), 0 0 20px ${card.color}25, inset 0 1px 0 rgba(255,255,255,0.15)`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06)';
               }}
             >
-              <div className="flex items-center gap-2 mb-1.5">
-                <card.Icon color={card.color} />
-                <span className="text-xs font-semibold" style={{ color: card.color }}>{card.title}</span>
+              <div className="flex items-center gap-2.5 mb-2">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: `${card.color}15`,
+                    border: `1px solid ${card.color}35`,
+                  }}
+                >
+                  <card.Icon color={card.color} />
+                </div>
+                <span className="text-xs font-bold text-white tracking-tight">{card.title}</span>
                 <span
-                  className="ml-auto text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="ml-auto text-xs opacity-0 group-hover:opacity-100 transition-opacity font-bold"
                   style={{ color: card.color }}
                 >→</span>
               </div>
-              <p className="text-[11px] leading-relaxed line-clamp-2" style={{ color: '#8a9a90' }}>{card.prompt}</p>
+              <p className="text-xs leading-relaxed text-slate-300 font-normal line-clamp-2">{card.prompt}</p>
             </button>
           ))}
         </div>

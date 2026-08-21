@@ -33,16 +33,17 @@ export default function ChatInput({ onSendMessage, disabled }) {
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
       <div
-        className="relative rounded-2xl p-2.5 flex flex-col gap-2 transition-all duration-200"
+        className="relative rounded-2xl p-3 flex flex-col gap-2 transition-all duration-200"
         style={{
-          background: 'rgba(9,20,16,0.92)',
+          background: 'linear-gradient(180deg, rgba(13, 29, 21, 0.88) 0%, rgba(9, 20, 16, 0.94) 100%)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
           border: focused
-            ? '1px solid var(--color-primary-border)'
-            : '1px solid var(--color-border)',
+            ? '1px solid rgba(0, 214, 143, 0.45)'
+            : '1px solid rgba(255, 255, 255, 0.08)',
           boxShadow: focused
-            ? '0 0 0 3px var(--color-primary-soft), 0 8px 32px rgba(0,0,0,0.5)'
-            : '0 4px 24px rgba(0,0,0,0.4)',
-          backdropFilter: 'blur(12px)',
+            ? '0 0 0 3px rgba(0, 214, 143, 0.18), 0 12px 40px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12)'
+            : '0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
         }}
       >
         <textarea
@@ -53,22 +54,22 @@ export default function ChatInput({ onSendMessage, disabled }) {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="Ask anything about your documents (or start general inquiry)..."
-          className="w-full bg-transparent px-3 py-2 text-[13.5px] text-text placeholder:text-text-muted focus:outline-none resize-none min-h-[44px] max-h-40 leading-relaxed font-normal"
+          className="w-full bg-transparent px-3 py-2 text-[14px] text-white placeholder:text-slate-400 focus:outline-none resize-none min-h-[44px] max-h-40 leading-relaxed font-normal"
           rows={1}
           disabled={disabled}
         />
 
         <div
-          className="flex items-center justify-between px-2 pt-1.5"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+          className="flex items-center justify-between px-2 pt-2"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
         >
           {/* Keyboard hints */}
-          <span className="text-[11px] text-text-muted flex items-center gap-1 select-none">
-            <kbd className="px-1.5 py-0.5 rounded bg-surface-muted border border-border text-[10px] text-text-secondary font-mono">↵</kbd>
-            <span>send</span>
-            <span className="text-text-muted/40 mx-1">•</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-surface-muted border border-border text-[10px] text-text-secondary font-mono">Shift+↵</kbd>
-            <span>new line</span>
+          <span className="text-[11px] text-slate-400 flex items-center gap-1.5 select-none">
+            <kbd className="px-1.5 py-0.5 rounded-md bg-white/[0.08] border border-white/[0.12] text-[10px] text-slate-200 font-mono font-semibold shadow-xs">↵</kbd>
+            <span className="font-medium text-slate-300">send</span>
+            <span className="text-white/20 mx-0.5">•</span>
+            <kbd className="px-1.5 py-0.5 rounded-md bg-white/[0.08] border border-white/[0.12] text-[10px] text-slate-200 font-mono font-semibold shadow-xs">Shift+↵</kbd>
+            <span className="font-medium text-slate-300">new line</span>
           </span>
 
           {/* Dispatch button */}

@@ -61,10 +61,15 @@ export default function Layout({
             </div>
           </div>
 
-          {/* Segmented Switcher */}
+          {/* Segmented Switcher — Glassmorphic & High Contrast */}
           <div
-            className="flex p-0.5 rounded-lg gap-0.5"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(0,214,143,0.07)' }}
+            className="flex p-1 rounded-xl gap-1"
+            style={{
+              background: 'rgba(9, 20, 16, 0.75)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(12px)',
+              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+            }}
             role="tablist"
           >
             {[
@@ -76,19 +81,19 @@ export default function Layout({
                 role="tab"
                 aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer"
                 style={
                   activeTab === tab.id
                     ? {
-                        background: 'linear-gradient(135deg, rgba(0,214,143,0.16) 0%, rgba(0,214,143,0.06) 100%)',
-                        color: '#00d68f',
-                        border: '1px solid rgba(0,214,143,0.22)',
-                        boxShadow: '0 1px 8px rgba(0,214,143,0.1)',
+                        background: 'linear-gradient(135deg, rgba(0,214,143,0.22) 0%, rgba(0,214,143,0.08) 100%)',
+                        color: '#00ffaa',
+                        border: '1px solid rgba(0,214,143,0.38)',
+                        boxShadow: '0 2px 10px rgba(0,214,143,0.2), inset 0 1px 0 rgba(255,255,255,0.12)',
                       }
-                    : { color: 'var(--color-text-muted)', border: '1px solid transparent' }
+                    : { color: '#94a3b8', border: '1px solid transparent' }
                 }
               >
-                <span style={activeTab === tab.id ? { color: '#00d68f', fontSize: '10px' } : { fontSize: '10px' }}>
+                <span style={activeTab === tab.id ? { color: '#00ffaa', fontSize: '11px' } : { fontSize: '11px', color: '#64748b' }}>
                   {tab.icon}
                 </span>
                 <span>{tab.label}</span>

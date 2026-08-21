@@ -151,13 +151,19 @@ export default function UploadPanel({ onUploadComplete }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Tactile Clay Drop Zone */}
+      {/* Tactile Glass Drop Zone */}
       <div
-        className={`relative border-2 border-dashed rounded-2xl p-5 text-center transition-all duration-200 cursor-pointer ${
+        className={`relative rounded-2xl p-5 text-center transition-all duration-200 cursor-pointer ${
           isDragging 
-            ? 'border-primary bg-primary-soft shadow-[0_0_24px_rgba(245,158,11,0.25)]' 
-            : 'border-border bg-surface hover:border-primary-border hover:bg-surface-elevated'
+            ? 'border-2 border-dashed border-emerald-400 bg-emerald-950/40 shadow-[0_0_30px_rgba(0,214,143,0.3)]' 
+            : 'border border-dashed border-emerald-500/30 hover:border-emerald-400 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
         }`}
+        style={{
+          background: isDragging ? 'rgba(0,214,143,0.12)' : 'linear-gradient(145deg, rgba(13, 29, 21, 0.75) 0%, rgba(9, 20, 16, 0.88) 100%)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+        }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -176,16 +182,16 @@ export default function UploadPanel({ onUploadComplete }) {
             className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5 transition-transform duration-200"
             style={{
               background: 'linear-gradient(135deg, #091410 0%, #0d2018 100%)',
-              border: '1px solid rgba(0,214,143,0.28)',
-              boxShadow: '0 0 20px rgba(0,214,143,0.18)',
+              border: '1px solid rgba(0,214,143,0.35)',
+              boxShadow: '0 0 24px rgba(0,214,143,0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00d68f" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00d68f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
             </svg>
           </div>
-          <p className="text-xs font-semibold text-text">Drag &amp; drop files here</p>
-          <p className="text-[11px] text-text-muted mt-0.5">or click to browse (.pdf, .md, .txt)</p>
+          <p className="text-xs font-bold text-white tracking-tight">Drag &amp; drop files here</p>
+          <p className="text-[11px] text-slate-300 mt-0.5">or click to browse (.pdf, .md, .txt)</p>
         </div>
       </div>
 

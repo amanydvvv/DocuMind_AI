@@ -34,10 +34,11 @@ export default function ChatContainer({
       <header
         className="h-14 px-6 flex items-center justify-between z-10 flex-shrink-0"
         style={{
-          background: 'rgba(5,13,8,0.88)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(0,214,143,0.08)',
-          boxShadow: '0 1px 24px rgba(0,0,0,0.5)',
+          background: 'linear-gradient(180deg, rgba(9, 20, 16, 0.85) 0%, rgba(5, 13, 8, 0.9) 100%)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
         }}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -47,39 +48,41 @@ export default function ChatContainer({
               className="w-2.5 h-2.5 rounded-full"
               style={{
                 background: 'transparent',
-                border: '1.5px solid var(--color-primary, #00d68f)',
-                boxShadow: '0 0 6px var(--color-primary-soft, rgba(0, 214, 143, 0.2))',
+                border: '1.5px solid #00d68f',
+                boxShadow: '0 0 8px rgba(0, 214, 143, 0.35)',
               }}
             />
           </div>
           <h1
-            className={`text-sm font-semibold truncate max-w-xs md:max-w-md tracking-tight ${isGenerating ? 'text-emerald-300' : 'text-slate-100'}`}
+            className={`text-sm font-bold truncate max-w-xs md:max-w-md tracking-tight ${isGenerating ? 'text-emerald-300' : 'text-white'}`}
             style={{ transition: 'color 0.3s ease' }}
           >
             {activeConversation?.title || 'New Research Thread'}
           </h1>
         </div>
 
-        {/* Status pill */}
+        {/* Status pill — Glassmorphic & High Contrast */}
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px]"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs"
           style={{
-            background: 'rgba(0,214,143,0.05)',
-            border: '1px solid rgba(0,214,143,0.12)',
-            backdropFilter: 'blur(8px)',
+            background: 'linear-gradient(135deg, rgba(13, 29, 21, 0.8) 0%, rgba(9, 20, 16, 0.85) 100%)',
+            border: '1px solid rgba(0, 214, 143, 0.28)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
           }}
         >
           <span
             className="w-1.5 h-1.5 rounded-full"
             style={{
-              background: isGenerating ? '#00ffaa' : '#34d399',
-              boxShadow: isGenerating ? '0 0 6px rgba(0,255,170,0.9)' : '0 0 6px rgba(52,211,153,0.8)',
+              background: isGenerating ? '#00ffaa' : '#00d68f',
+              boxShadow: isGenerating ? '0 0 8px rgba(0,255,170,1)' : '0 0 6px rgba(0,214,143,0.8)',
               animation: isGenerating ? 'pulse 0.8s ease-in-out infinite' : 'none',
             }}
           />
-          <span className="font-medium" style={{ color: '#8fb8a0' }} title="Combines vector similarity and keyword (BM25) search for better document retrieval accuracy">◈ Hybrid RAG</span>
-          <span style={{ color: 'rgba(143,184,160,0.4)' }}>•</span>
-          <span className="font-semibold" style={{ color: '#00d68f' }} title="Uses a primary LLM with automatic fallback to backup models if rate-limited">Cascade LLM</span>
+          <span className="font-semibold text-slate-200" title="Combines vector similarity and keyword (BM25) search for better document retrieval accuracy">◈ Hybrid RAG</span>
+          <span className="text-white/20">•</span>
+          <span className="font-bold text-emerald-400" title="Uses a primary LLM with automatic fallback to backup models if rate-limited">Cascade LLM</span>
         </div>
       </header>
 

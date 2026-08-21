@@ -37,17 +37,26 @@ export default function ConversationItem({
       onClick={() => onSelect(conversation.id)}
       className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 border ${
         isActive
-          ? 'bg-primary-soft border-primary-border text-text font-medium shadow-[0_4px_12px_rgba(0,0,0,0.4)]'
-          : 'bg-transparent border-transparent hover:bg-surface-muted/60 text-text-secondary hover:text-text'
+          ? 'border-emerald-400/40 text-white font-semibold shadow-[0_4px_16px_rgba(0,0,0,0.4)]'
+          : 'bg-transparent border-transparent hover:bg-surface-muted/60 text-slate-300 hover:text-white'
       }`}
+      style={
+        isActive
+          ? {
+              background: 'linear-gradient(90deg, rgba(0, 214, 143, 0.16) 0%, rgba(0, 214, 143, 0.04) 100%)',
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+            }
+          : {}
+      }
     >
       {/* Active Left Indicator Bar */}
       {isActive && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full bg-primary" style={{ boxShadow: '0 0 8px var(--color-border-glow)' }}></div>
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full bg-emerald-400 shadow-[0_0_8px_rgba(0,214,143,0.8)]"></div>
       )}
 
       <div className="flex-1 min-w-0 pr-2 pl-1.5 flex items-center gap-2">
-        <span className={`text-[10px] flex-shrink-0 ${isActive ? 'text-primary' : 'text-text-muted group-hover:text-text-secondary'}`}>
+        <span className={`text-[10px] flex-shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'}`}>
           {isActive ? '◆' : '◇'}
         </span>
         <div className="min-w-0 flex-1">
@@ -55,7 +64,7 @@ export default function ConversationItem({
             {conversation.title || 'New Chat'}
           </p>
           <p
-            className="text-[10px] text-text-muted mt-0.5 font-normal"
+            className="text-[10px] text-slate-400 mt-0.5 font-normal"
             title={conversation.updated_at || conversation.created_at ? new Date(conversation.updated_at || conversation.created_at).toLocaleString() : ''}
           >
             {formatTime(conversation.updated_at || conversation.created_at)}
