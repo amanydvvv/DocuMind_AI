@@ -159,9 +159,9 @@ export default function MessageList({
 
   return (
     <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
-      {messages.map((msg) => (
+      {messages.map((msg, index) => (
         <MessageBubble
-          key={msg.id}
+          key={msg.id || `msg-${index}-${msg.role}`}
           message={msg}
           onCitationClick={onCitationClick}
         />
