@@ -1,5 +1,4 @@
-const DEFAULT_API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? '' : 'https://documind-ai-97t5.onrender.com';
-export const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
+export const API_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || 'https://documind-ai-97t5.onrender.com').replace(/\/+$/, '');
 
 function redactHeaders(headers) {
   const out = {};
