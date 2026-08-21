@@ -85,15 +85,15 @@ export default function AuthModal({ onAuthSuccess }) {
 
   const handleDemoLogin = async () => {
     setEmail('demo@kuerycore.ai');
-    setPassword('demo1234');
+    setPassword('demo1234567890');
     setError('');
     setLoading(true);
     try {
-      const data = await loginUser('demo@kuerycore.ai', 'demo1234');
+      const data = await loginUser('demo@kuerycore.ai', 'demo1234567890');
       onAuthSuccess(data);
     } catch {
       try {
-        const signupData = await signupUser('demo@kuerycore.ai', 'demo1234');
+        const signupData = await signupUser('demo@kuerycore.ai', 'demo1234567890');
         onAuthSuccess(signupData);
       } catch (err) {
         setError(err.message || 'Demo initialization failed');
