@@ -41,10 +41,16 @@ export default function ChatContainer({
         }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          {/* Live pulse indicator */}
-          <div className="relative flex-shrink-0">
-            <div className="w-2 h-2 rounded-full" style={{ background: '#00d68f' }} />
-            <div className="absolute inset-0 rounded-full animate-ping opacity-40" style={{ background: '#00d68f' }} />
+          {/* Header thread indicator (outline style) */}
+          <div className="relative flex-shrink-0 flex items-center justify-center">
+            <div
+              className="w-2.5 h-2.5 rounded-full"
+              style={{
+                background: 'transparent',
+                border: '1.5px solid var(--color-primary, #00d68f)',
+                boxShadow: '0 0 6px var(--color-primary-soft, rgba(0, 214, 143, 0.2))',
+              }}
+            />
           </div>
           <h1
             className={`text-sm font-semibold truncate max-w-xs md:max-w-md tracking-tight ${isGenerating ? 'text-emerald-300' : 'text-slate-100'}`}
