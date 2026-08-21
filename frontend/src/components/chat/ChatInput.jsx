@@ -74,8 +74,9 @@ export default function ChatInput({ onSendMessage, disabled }) {
           {/* Dispatch button */}
           <button
             type="submit"
+            aria-label="Send message"
             disabled={!canSend}
-            className="h-8 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all duration-150"
+            className="h-8 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[#00d68f] focus-visible:outline-none"
             style={
               canSend
                 ? {

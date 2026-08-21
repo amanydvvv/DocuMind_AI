@@ -11,7 +11,7 @@ from json import dumps
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.background import BackgroundTask
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -23,6 +23,7 @@ from app.config import get_settings
 from app.schemas import ChatRequest, ChatResponse, Citation
 from app.services.retrieval import retrieve_context
 from app.services.rewrite import rewrite_followup
+from app.services.generation import get_llm
 from app.services.memory import update_conversation_summary
 from app.services.guardrails import (
     INJECTION_REFUSAL_MESSAGE,
@@ -42,6 +43,22 @@ from app.services.generation import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
+
+async def _generate_conversation_title(conv_id: uuid.UUID, question: str):
+    """Background task to generate a short title for a new conversation via LLM."""
+    try:
+        llm = get_llm(temperature=0.1)
+        prompt = f"Summarize this query into a concise, human-readable title (3 to 6 words). Return ONLY the title text, no quotes or explanations.\nQuery: {question}"
+        resp = await llm.ainvoke(prompt)
+        title = str(resp.content).strip().strip('"').strip("'")
+        if title:
+            # We need a new session since this runs in the background
+            from app.database import async_session
+            async with async_session() as db:
+                await db.execute(update(Conversation).where(Conversation.id == conv_id).values(title=title))
+                await db.commit()
+    except Exception as e:
+        logger.warning(f"Failed to generate title for conv {conv_id}: {e}")
 
 def _guard_input(text: str) -> tuple[str, bool]:
     """Sanitize-once + injection check (plan v3 §2.2, sanitize-once decision
@@ -139,6 +156,7 @@ async def chat(
             db.add(conv)
             await db.flush()
             conversation_id = conv.id
+            background_tasks.add_task(_generate_conversation_title, conversation_id, question)
 
         # 2. Fetch past conversation history (newest first; token budget applied below)
         hist_result = await db.execute(
@@ -315,6 +333,7 @@ async def chat(
 async def chat_stream(
     request: Request,
     request_body: ChatRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -350,6 +369,7 @@ async def chat_stream(
         db.add(conv)
         await db.flush()
         conversation_id = conv.id
+        background_tasks.add_task(_generate_conversation_title, conversation_id, question)
 
     # 2. Fetch past history (newest first; token budget applied below)
     hist_result = await db.execute(

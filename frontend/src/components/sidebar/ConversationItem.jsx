@@ -37,18 +37,21 @@ export default function ConversationItem({
     >
       {/* Active Left Indicator Bar */}
       {isActive && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary rounded-r-full shadow-[0_0_8px_rgba(245,158,11,0.6)]"></div>
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full shadow-[0_0_8px_rgba(0,214,143,0.6)]" style={{ background: '#00d68f' }}></div>
       )}
 
       <div className="flex-1 min-w-0 pr-2 pl-1.5 flex items-center gap-2">
-        <span className={`text-[10px] flex-shrink-0 ${isActive ? 'text-primary' : 'text-text-muted group-hover:text-text-secondary'}`}>
+        <span className={`text-[10px] flex-shrink-0 ${isActive ? 'text-text' : 'text-text-muted group-hover:text-text-secondary'}`} style={{ color: isActive ? '#00d68f' : undefined }}>
           {isActive ? '◆' : '◇'}
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-xs truncate font-medium">
             {conversation.title || 'New Chat'}
           </p>
-          <p className="text-[10px] text-text-muted mt-0.5 font-normal">
+          <p
+            className="text-[10px] text-text-muted mt-0.5 font-normal"
+            title={conversation.updated_at || conversation.created_at ? new Date(conversation.updated_at || conversation.created_at).toLocaleString() : ''}
+          >
             {formatTime(conversation.updated_at || conversation.created_at)}
           </p>
         </div>

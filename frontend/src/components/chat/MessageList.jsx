@@ -127,7 +127,7 @@ export default function MessageList({
             <button
               key={card.title}
               onClick={() => onSendMessage?.(card.prompt)}
-              className="group text-left p-3.5 rounded-xl transition-all duration-200 cursor-pointer"
+              className="group text-left p-3.5 rounded-xl transition-all duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00d68f] focus-visible:outline-none"
               style={{
                 background: card.bg,
                 border: `1px solid ${card.border}`,
