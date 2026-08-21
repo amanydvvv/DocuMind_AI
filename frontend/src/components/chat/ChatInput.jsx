@@ -35,12 +35,12 @@ export default function ChatInput({ onSendMessage, disabled }) {
       <div
         className="relative rounded-2xl p-2.5 flex flex-col gap-2 transition-all duration-200"
         style={{
-          background: 'rgba(17,19,25,0.9)',
+          background: 'rgba(9,20,16,0.92)',
           border: focused
-            ? '1px solid rgba(245,158,11,0.35)'
-            : '1px solid rgba(255,255,255,0.07)',
+            ? '1px solid rgba(0,214,143,0.35)'
+            : '1px solid rgba(255,255,255,0.06)',
           boxShadow: focused
-            ? '0 0 0 3px rgba(245,158,11,0.08), 0 8px 32px rgba(0,0,0,0.5)'
+            ? '0 0 0 3px rgba(0,214,143,0.08), 0 8px 32px rgba(0,0,0,0.5)'
             : '0 4px 24px rgba(0,0,0,0.4)',
           backdropFilter: 'blur(12px)',
         }}
@@ -79,9 +79,9 @@ export default function ChatInput({ onSendMessage, disabled }) {
             style={
               canSend
                 ? {
-                    background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-                    color: '#09090b',
-                    boxShadow: '0 2px 12px rgba(245,158,11,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+                    background: 'linear-gradient(135deg, #00d68f 0%, #00ffaa 100%)',
+                    color: '#030a06',
+                    boxShadow: '0 2px 12px rgba(0,214,143,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
                   }
                 : {
                     background: 'rgba(255,255,255,0.05)',
@@ -92,13 +92,13 @@ export default function ChatInput({ onSendMessage, disabled }) {
             onMouseEnter={(e) => {
               if (canSend) {
                 e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 4px 16px rgba(245,158,11,0.5), inset 0 1px 0 rgba(255,255,255,0.35)';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,214,143,0.5), inset 0 1px 0 rgba(255,255,255,0.35)';
               }
             }}
             onMouseLeave={(e) => {
               if (canSend) {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 12px rgba(245,158,11,0.4), inset 0 1px 0 rgba(255,255,255,0.3)';
+                e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,214,143,0.4), inset 0 1px 0 rgba(255,255,255,0.3)';
               }
             }}
             onMouseDown={(e) => {

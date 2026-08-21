@@ -34,20 +34,20 @@ export default function ChatContainer({
       <header
         className="h-14 px-6 flex items-center justify-between z-10 flex-shrink-0"
         style={{
-          background: 'rgba(8,9,13,0.85)',
+          background: 'rgba(5,13,8,0.88)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          boxShadow: '0 1px 24px rgba(0,0,0,0.4)',
+          borderBottom: '1px solid rgba(0,214,143,0.08)',
+          boxShadow: '0 1px 24px rgba(0,0,0,0.5)',
         }}
       >
         <div className="flex items-center gap-3 min-w-0">
           {/* Live pulse indicator */}
           <div className="relative flex-shrink-0">
-            <div className="w-2 h-2 rounded-full bg-amber-400" />
-            <div className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-40" />
+            <div className="w-2 h-2 rounded-full" style={{ background: '#00d68f' }} />
+            <div className="absolute inset-0 rounded-full animate-ping opacity-40" style={{ background: '#00d68f' }} />
           </div>
           <h1
-            className={`text-sm font-semibold truncate max-w-xs md:max-w-md tracking-tight ${isGenerating ? 'text-amber-300' : 'text-slate-100'}`}
+            className={`text-sm font-semibold truncate max-w-xs md:max-w-md tracking-tight ${isGenerating ? 'text-emerald-300' : 'text-slate-100'}`}
             style={{ transition: 'color 0.3s ease' }}
           >
             {activeConversation?.title || 'New Research Thread'}
@@ -58,22 +58,22 @@ export default function ChatContainer({
         <div
           className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px]"
           style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(0,214,143,0.05)',
+            border: '1px solid rgba(0,214,143,0.12)',
             backdropFilter: 'blur(8px)',
           }}
         >
           <span
             className="w-1.5 h-1.5 rounded-full"
             style={{
-              background: isGenerating ? '#f59e0b' : '#34d399',
-              boxShadow: isGenerating ? '0 0 6px rgba(245,158,11,0.8)' : '0 0 6px rgba(52,211,153,0.8)',
+              background: isGenerating ? '#00ffaa' : '#34d399',
+              boxShadow: isGenerating ? '0 0 6px rgba(0,255,170,0.9)' : '0 0 6px rgba(52,211,153,0.8)',
               animation: isGenerating ? 'pulse 0.8s ease-in-out infinite' : 'none',
             }}
           />
-          <span className="font-medium" style={{ color: '#94a3b8' }}>◈ Hybrid RAG</span>
-          <span style={{ color: 'rgba(148,163,184,0.4)' }}>•</span>
-          <span className="font-semibold" style={{ color: '#fde68a' }}>Cascade LLM</span>
+          <span className="font-medium" style={{ color: '#8fb8a0' }}>◈ Hybrid RAG</span>
+          <span style={{ color: 'rgba(143,184,160,0.4)' }}>•</span>
+          <span className="font-semibold" style={{ color: '#00d68f' }}>Cascade LLM</span>
         </div>
       </header>
 
@@ -119,7 +119,7 @@ export default function ChatContainer({
       <div
         className="p-4 md:p-5 flex-shrink-0"
         style={{
-          background: 'linear-gradient(to top, rgba(8,9,13,1) 60%, rgba(8,9,13,0) 100%)',
+          background: 'linear-gradient(to top, rgba(5,13,8,1) 60%, rgba(5,13,8,0) 100%)',
         }}
       >
         <ChatInput onSendMessage={onSendMessage} disabled={isGenerating || isLoadingHistory} />
@@ -143,7 +143,7 @@ export default function ChatContainer({
                 className="rounded-2xl px-6 py-5 flex flex-col items-center gap-3"
                 style={{ background: 'rgba(24,27,35,0.95)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
-                <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#00d68f', borderTopColor: 'transparent' }} />
                 <p className="text-xs font-medium text-text-muted">Loading PDF Engine...</p>
               </div>
             </div>

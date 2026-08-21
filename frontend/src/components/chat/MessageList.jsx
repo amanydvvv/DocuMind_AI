@@ -1,6 +1,40 @@
 import { useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
-import BrandIcon from '../shared/BrandIcon';
+
+const SUGGESTION_CARDS = [
+  {
+    icon: '◈',
+    color: '#00d68f',
+    bg: 'rgba(0,214,143,0.07)',
+    border: 'rgba(0,214,143,0.18)',
+    title: 'Architectural Synthesis',
+    prompt: 'Summarize the key architectural decisions and system design tradeoffs in the uploaded documents.',
+  },
+  {
+    icon: '▣',
+    color: '#818cf8',
+    bg: 'rgba(129,140,248,0.07)',
+    border: 'rgba(129,140,248,0.18)',
+    title: 'Requirement Extraction',
+    prompt: 'Extract all functional constraints, performance metrics, and deadlines mentioned in the corpus.',
+  },
+  {
+    icon: '◬',
+    color: '#f87171',
+    bg: 'rgba(248,113,113,0.07)',
+    border: 'rgba(248,113,113,0.18)',
+    title: 'Security & Compliance',
+    prompt: 'Review the documents for any compliance protocols, security guidelines, or regulatory obligations.',
+  },
+  {
+    icon: '◆',
+    color: '#34d399',
+    bg: 'rgba(52,211,153,0.07)',
+    border: 'rgba(52,211,153,0.18)',
+    title: 'Entity Cross-Reference',
+    prompt: 'Identify key stakeholders, project roles, and referenced systems across all documents.',
+  },
+];
 
 export default function MessageList({
   messages,
@@ -9,138 +43,91 @@ export default function MessageList({
   onCitationClick,
   onSendMessage,
 }) {
-  const messagesEndRef = useRef(null);
+  const bottomRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isGenerating]);
 
   if (isLoadingHistory) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8 text-center gap-3">
-        <div
-          className="w-8 h-8 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"
-          style={{ boxShadow: '0 0 12px rgba(245,158,11,0.3)' }}
-        />
-        <p className="text-xs font-medium text-text-muted">Loading research history...</p>
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: '#00d68f', borderTopColor: 'transparent' }}
+          />
+          <p className="text-xs text-text-muted">Loading history…</p>
+        </div>
       </div>
     );
   }
 
-  if (messages.length === 0) {
+  if (!messages || messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 max-w-2xl mx-auto select-none">
-
-        {/* Hero icon with multi-layer glow */}
+      <div className="flex flex-col items-center justify-center h-full px-4 pb-8">
+        {/* Hero Icon */}
         <div className="relative mb-8">
           <div
-            className="absolute inset-0 rounded-3xl blur-3xl animate-pulse"
-            style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.2) 0%, transparent 70%)', transform: 'scale(1.8)' }}
-          />
-          <div
-            className="relative w-16 h-16 rounded-2xl flex items-center justify-center"
+            className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black animate-float-micro"
             style={{
-              background: 'linear-gradient(135deg, #1c1a0e 0%, #2a1f00 50%, #1c1a0e 100%)',
-              border: '1px solid rgba(245,158,11,0.35)',
-              boxShadow: '0 0 32px rgba(245,158,11,0.25), 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+              background: 'linear-gradient(135deg, #091410 0%, #0d2018 100%)',
+              border: '1px solid rgba(0,214,143,0.25)',
+              boxShadow: '0 0 40px rgba(0,214,143,0.15), 0 0 80px rgba(0,214,143,0.06)',
+              color: '#00d68f',
             }}
           >
-            <BrandIcon size={32} />
+            ◈
           </div>
+          {/* Outer glow rings */}
+          <div
+            className="absolute -inset-3 rounded-3xl pointer-events-none animate-pulse"
+            style={{ background: 'radial-gradient(circle, rgba(0,214,143,0.08) 0%, transparent 70%)' }}
+          />
         </div>
 
-        <h2
-          className="text-2xl font-bold mb-3 tracking-tight"
-          style={{
-            background: 'linear-gradient(135deg, #f1f5f9 0%, #fde68a 60%, #f1f5f9 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
+        <h2 className="text-2xl font-bold text-text mb-3 tracking-tight text-center">
           What would you like to uncover?
         </h2>
-        <p className="text-sm text-text-muted max-w-sm mb-10 leading-relaxed">
+        <p className="text-sm text-text-muted text-center max-w-sm mb-8 leading-relaxed">
           KueryCore uses{' '}
-          <span style={{ color: '#fde68a', fontWeight: 600 }}>Hybrid Search</span> (Vector + BM25) and{' '}
-          <span style={{ color: '#fde68a', fontWeight: 600 }}>Vision OCR</span> to deliver grounded answers
-          with strict citation fidelity.
+          <span className="font-semibold" style={{ color: '#00d68f' }}>Hybrid Search</span>
+          {' '}(Vector + BM25) and{' '}
+          <span className="font-semibold" style={{ color: '#00ffaa' }}>Vision OCR</span>
+          {' '}to deliver grounded answers with strict citation fidelity.
         </p>
 
         {/* Suggestion Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full text-left">
-          {[
-            {
-              glyph: '◈',
-              color: '#f59e0b',
-              title: 'Architectural Synthesis',
-              prompt: 'Summarize the key architectural decisions and system design tradeoffs in the uploaded documents.',
-            },
-            {
-              glyph: '▣',
-              color: '#818cf8',
-              title: 'Requirement Extraction',
-              prompt: 'Extract all functional constraints, performance metrics, and deadlines mentioned in the corpus.',
-            },
-            {
-              glyph: '◬',
-              color: '#f43f5e',
-              title: 'Security & Compliance',
-              prompt: 'Review the documents for any compliance standards, encryption guidelines, or security policies.',
-            },
-            {
-              glyph: '◆',
-              color: '#34d399',
-              title: 'Entity Cross-Reference',
-              prompt: 'Identify key stakeholders, project roles, and referenced external services across all sections.',
-            },
-          ].map((suggestion) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+          {SUGGESTION_CARDS.map((card) => (
             <button
-              key={suggestion.title}
-              type="button"
-              onClick={() => onSendMessage && onSendMessage(suggestion.prompt)}
-              className="group p-4 rounded-xl text-left transition-all duration-200 cursor-pointer relative overflow-hidden"
+              key={card.title}
+              onClick={() => onSendMessage?.(card.prompt)}
+              className="group text-left p-4 rounded-xl transition-all duration-200 cursor-pointer"
               style={{
-                background: 'rgba(255,255,255,0.025)',
-                border: '1px solid rgba(255,255,255,0.07)',
+                background: card.bg,
+                border: `1px solid ${card.border}`,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                e.currentTarget.style.borderColor = `${suggestion.color}44`;
-                e.currentTarget.style.boxShadow = `0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px ${suggestion.color}22`;
-                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = `0 8px 24px ${card.bg.replace('0.07', '0.3')}`;
+                e.currentTarget.style.borderColor = card.color.replace(')', ',0.4)').replace('rgb', 'rgba');
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)';
-                e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = card.border;
               }}
             >
-              {/* Corner glow */}
-              <div
-                className="absolute top-0 right-0 w-16 h-16 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                style={{ background: `radial-gradient(circle, ${suggestion.color}18, transparent 70%)`, transform: 'translate(30%, -30%)' }}
-              />
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
-                    style={{ background: `${suggestion.color}18`, color: suggestion.color, border: `1px solid ${suggestion.color}30` }}
-                  >
-                    {suggestion.glyph}
-                  </span>
-                  <span className="text-xs font-semibold text-text group-hover:text-white transition-colors">
-                    {suggestion.title}
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base" style={{ color: card.color }}>{card.icon}</span>
+                <span className="text-xs font-semibold" style={{ color: card.color }}>{card.title}</span>
                 <span
-                  className="text-xs text-text-muted group-hover:translate-x-0.5 transition-transform duration-150 flex-shrink-0"
-                  style={{ color: suggestion.color + '99' }}
+                  className="ml-auto text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ color: card.color }}
                 >→</span>
               </div>
-              <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2 pl-8">
-                "{suggestion.prompt}"
-              </p>
+              <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2">{card.prompt}</p>
             </button>
           ))}
         </div>
@@ -149,47 +136,52 @@ export default function MessageList({
   }
 
   return (
-    <div className="flex flex-col space-y-5 max-w-3xl mx-auto w-full pb-6">
-      {messages.map((msg, idx) => (
+    <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
+      {messages.map((msg) => (
         <MessageBubble
-          key={idx}
+          key={msg.id}
           message={msg}
           onCitationClick={onCitationClick}
         />
       ))}
-
-      {/* Generating indicator */}
       {isGenerating && (
-        <div className="flex w-full justify-start animate-in fade-in duration-200">
+        <div className="flex items-start gap-3">
           <div
-            className="rounded-2xl px-4 py-3 flex items-center gap-3 text-xs"
+            className="w-7 h-7 rounded-xl flex items-center justify-center text-xs flex-shrink-0 mt-0.5"
             style={{
-              background: 'rgba(245,158,11,0.06)',
-              border: '1px solid rgba(245,158,11,0.15)',
-              boxShadow: '0 0 20px rgba(245,158,11,0.08)',
+              background: 'linear-gradient(135deg, #091410, #0d2018)',
+              border: '1px solid rgba(0,214,143,0.3)',
+              boxShadow: '0 0 12px rgba(0,214,143,0.15)',
+              color: '#00d68f',
             }}
           >
-            {/* Animated amber orbs */}
-            <div className="flex items-center gap-1">
-              {[0, 150, 300].map((delay) => (
-                <span
-                  key={delay}
-                  className="w-1.5 h-1.5 rounded-full animate-bounce"
+            ◈
+          </div>
+          <div
+            className="px-4 py-3 rounded-2xl text-sm"
+            style={{
+              background: 'rgba(9,20,16,0.8)',
+              border: '1px solid rgba(0,214,143,0.12)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <div className="flex items-center gap-1.5">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full"
                   style={{
-                    background: '#f59e0b',
-                    boxShadow: '0 0 6px rgba(245,158,11,0.6)',
-                    animationDelay: `${delay}ms`,
+                    background: '#00d68f',
+                    boxShadow: '0 0 6px rgba(0,214,143,0.7)',
+                    animation: `bounce 0.9s ease-in-out ${i * 0.18}s infinite`,
                   }}
                 />
               ))}
             </div>
-            <span className="font-medium" style={{ color: '#fde68a' }}>
-              Retrieving citations &amp; synthesizing output...
-            </span>
           </div>
         </div>
       )}
-      <div ref={messagesEndRef} />
+      <div ref={bottomRef} />
     </div>
   );
 }

@@ -11,18 +11,18 @@ export default function MessageBubble({ message, onCitationClick }) {
         style={
           isUser
             ? {
-                background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%)',
-                color: '#09090b',
+                background: 'linear-gradient(135deg, #00a86b 0%, #00d68f 50%, #00ffaa 100%)',
+                color: '#030a06',
                 fontWeight: 500,
                 borderRadius: '18px 18px 4px 18px',
-                boxShadow: '0 4px 20px rgba(245,158,11,0.3), 0 1px 0 rgba(255,255,255,0.2) inset',
+                boxShadow: '0 4px 20px rgba(0,214,143,0.3), 0 1px 0 rgba(255,255,255,0.2) inset',
               }
             : {
-                background: 'rgba(24,27,35,0.8)',
-                border: '1px solid rgba(255,255,255,0.07)',
+                background: 'rgba(9,20,16,0.85)',
+                border: '1px solid rgba(0,214,143,0.1)',
                 borderRadius: '18px 18px 18px 4px',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-                backdropFilter: 'blur(8px)',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+                backdropFilter: 'blur(10px)',
               }
         }
       >
@@ -39,8 +39,8 @@ export default function MessageBubble({ message, onCitationClick }) {
             style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
           >
             <div className="flex items-center gap-1.5 mb-2.5">
-              <span style={{ color: '#f59e0b', fontSize: '11px' }}>◈</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#64748b' }}>
+              <span style={{ color: '#00d68f', fontSize: '11px' }}>◈</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#4d7a62' }}>
                 Grounding Sources ({message.citations.length})
               </span>
             </div>
@@ -51,20 +51,20 @@ export default function MessageBubble({ message, onCitationClick }) {
                   onClick={() => onCitationClick && onCitationClick(cit)}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all duration-150 cursor-pointer"
                   style={{
-                    background: 'rgba(245,158,11,0.07)',
-                    border: '1px solid rgba(245,158,11,0.18)',
-                    color: '#cbd5e1',
+                    background: 'rgba(0,214,143,0.07)',
+                    border: '1px solid rgba(0,214,143,0.18)',
+                    color: '#8fb8a0',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(245,158,11,0.14)';
-                    e.currentTarget.style.borderColor = 'rgba(245,158,11,0.35)';
-                    e.currentTarget.style.color = '#fde68a';
+                    e.currentTarget.style.background = 'rgba(0,214,143,0.14)';
+                    e.currentTarget.style.borderColor = 'rgba(0,214,143,0.35)';
+                    e.currentTarget.style.color = '#b3ffdf';
                     e.currentTarget.style.transform = 'translateY(-1px)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(245,158,11,0.07)';
-                    e.currentTarget.style.borderColor = 'rgba(245,158,11,0.18)';
-                    e.currentTarget.style.color = '#cbd5e1';
+                    e.currentTarget.style.background = 'rgba(0,214,143,0.07)';
+                    e.currentTarget.style.borderColor = 'rgba(0,214,143,0.18)';
+                    e.currentTarget.style.color = '#8fb8a0';
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                   title={
@@ -73,7 +73,7 @@ export default function MessageBubble({ message, onCitationClick }) {
                       : `Relevance: ${((cit.score || 0) * 100).toFixed(1)}%`
                   }
                 >
-                  <span style={{ color: '#f59e0b', fontSize: '10px' }}>⬡</span>
+                  <span style={{ color: '#00d68f', fontSize: '10px' }}>⬡</span>
                   <span className="truncate max-w-[130px]">
                     {cit.filename || cit.metadata?.filename || 'Document'}
                   </span>
