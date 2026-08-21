@@ -64,25 +64,16 @@ export default function Layout({
               />
             </div>
             <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="font-bold text-sm tracking-tight"
-                  style={{
-                    background: 'linear-gradient(135deg, #e8f5ee 0%, #00d68f 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
-                  KueryCore
-                </span>
-                <span
-                  className="text-[9px] px-1.5 py-0.5 rounded-full font-bold tracking-wide"
-                  style={{ background: 'rgba(0,214,143,0.12)', color: '#00d68f', border: '1px solid rgba(0,214,143,0.22)' }}
-                >
-                  v1.4
-                </span>
-              </div>
-              <span className="text-[10px] text-text-muted truncate">Enterprise Document AI</span>
+              <span
+                className="font-bold text-[15px] tracking-tight"
+                style={{
+                  background: 'linear-gradient(135deg, #e8f5ee 0%, #00d68f 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                KueryCore
+              </span>
             </div>
           </div>
 

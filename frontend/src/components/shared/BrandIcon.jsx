@@ -9,28 +9,29 @@ export default function BrandIcon({ size = 24, className = '' }) {
       className={className}
     >
       <defs>
-        <linearGradient id="solar-amber-core" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FDE68A" />
-          <stop offset="0.5" stopColor="#F59E0B" />
-          <stop offset="1" stopColor="#B45309" />
+        <linearGradient id="kuery-neon" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#00ffaa" />
+          <stop offset="0.5" stopColor="#00d68f" />
+          <stop offset="1" stopColor="#00a86b" />
         </linearGradient>
       </defs>
-      {/* Outer Geometric Diamond Rhombus */}
-      <polygon
-        points="12,2 21,12 12,22 3,12"
-        stroke="url(#solar-amber-core)"
-        strokeWidth="1.8"
+      {/* Neural circuit paths */}
+      <path
+        d="M12 3L4 8v8l8 5 8-5V8l-8-5z"
+        stroke="url(#kuery-neon)"
+        strokeWidth="1.5"
         strokeLinejoin="round"
-        fill="rgba(245, 158, 11, 0.1)"
+        fill="rgba(0, 214, 143, 0.08)"
       />
-      {/* Inner Facet Node */}
-      <polygon
-        points="12,6 18,12 12,18 6,12"
-        fill="url(#solar-amber-core)"
-        opacity="0.85"
+      {/* Inner hex node */}
+      <path
+        d="M12 7L8 9.5v5L12 17l4-2.5v-5L12 7z"
+        fill="url(#kuery-neon)"
+        opacity="0.7"
       />
-      {/* Core Optical Point */}
-      <circle cx="12" cy="12" r="1.5" fill="#FFFFFF" />
+      {/* Core pulse */}
+      <circle cx="12" cy="12" r="2" fill="#00ffaa" opacity="0.9" />
+      <circle cx="12" cy="12" r="1" fill="#ffffff" />
     </svg>
   );
 }
