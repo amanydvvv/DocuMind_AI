@@ -16,7 +16,13 @@ export default function ConversationItem({
     if (diffMin < 60) return `${diffMin}m ago`;
     const diffHours = Math.floor(diffMin / 60);
     if (diffHours < 24) return `${diffHours}h ago`;
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    
+    const isSameYear = date.getFullYear() === now.getFullYear();
+    return date.toLocaleDateString(undefined, { 
+      month: 'short', 
+      day: 'numeric',
+      ...(isSameYear ? {} : { year: 'numeric' })
+    });
   };
 
   const handleDelete = (e) => {
@@ -31,17 +37,17 @@ export default function ConversationItem({
       onClick={() => onSelect(conversation.id)}
       className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 border ${
         isActive
-          ? 'bg-surface-elevated border-primary-border text-text font-medium shadow-[0_4px_12px_rgba(0,0,0,0.4)]'
+          ? 'bg-primary-soft border-primary-border text-text font-medium shadow-[0_4px_12px_rgba(0,0,0,0.4)]'
           : 'bg-transparent border-transparent hover:bg-surface-muted/60 text-text-secondary hover:text-text'
       }`}
     >
       {/* Active Left Indicator Bar */}
       {isActive && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full shadow-[0_0_8px_rgba(0,214,143,0.6)]" style={{ background: '#00d68f' }}></div>
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full bg-primary" style={{ boxShadow: '0 0 8px var(--color-border-glow)' }}></div>
       )}
 
       <div className="flex-1 min-w-0 pr-2 pl-1.5 flex items-center gap-2">
-        <span className={`text-[10px] flex-shrink-0 ${isActive ? 'text-text' : 'text-text-muted group-hover:text-text-secondary'}`} style={{ color: isActive ? '#00d68f' : undefined }}>
+        <span className={`text-[10px] flex-shrink-0 ${isActive ? 'text-primary' : 'text-text-muted group-hover:text-text-secondary'}`}>
           {isActive ? '◆' : '◇'}
         </span>
         <div className="min-w-0 flex-1">

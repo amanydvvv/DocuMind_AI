@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import ConversationItem from './ConversationItem';
 import Icon from '../shared/Icon';
 
@@ -8,6 +9,12 @@ export default function ConversationSidebar({
   onStartNewChat,
   onDeleteConversation,
 }) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredConversations = conversations.filter(conv => 
+    conv.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Top New Chat Action */}
@@ -16,9 +23,20 @@ export default function ConversationSidebar({
           onClick={onStartNewChat}
           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 clay-btn rounded-xl text-xs tracking-tight cursor-pointer"
         >
-          <span className="text-[11px]">◈</span>
+          <span className="text-[11px]">◇</span>
           <span>New Research Thread</span>
         </button>
+      </div>
+
+      {/* Search Input */}
+      <div className="px-3 py-2 border-b border-border-subtle">
+        <input
+          type="text"
+          placeholder="Search threads..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full px-3 py-1.5 text-xs text-text bg-surface-muted/50 backdrop-blur-md border border-border rounded-lg focus-visible:outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary transition-all placeholder:text-text-muted"
+        />
       </div>
 
       {/* History List */}
@@ -29,18 +47,24 @@ export default function ConversationSidebar({
             <span>Conversations</span>
           </span>
           <span className="text-[10px] font-semibold text-primary-light px-1.5 py-0.5 rounded-full bg-primary-soft border border-primary-border">
-            {conversations.length}
+            {filteredConversations.length}
           </span>
         </div>
 
         {conversations.length === 0 ? (
-          <div className="text-center py-8 px-4 border border-dashed border-border rounded-xl">
+          <div className="text-center py-8 px-4 border border-dashed border-border rounded-xl mt-2">
             <p className="text-xs text-text-muted font-normal">
               No threads yet. Start a new chat to query documents.
             </p>
           </div>
+        ) : filteredConversations.length === 0 ? (
+          <div className="text-center py-8 px-4 border border-dashed border-border rounded-xl mt-2">
+            <p className="text-xs text-text-muted font-normal">
+              No conversations found.
+            </p>
+          </div>
         ) : (
-          conversations.map((conv) => (
+          filteredConversations.map((conv) => (
             <ConversationItem
               key={conv.id}
               conversation={conv}

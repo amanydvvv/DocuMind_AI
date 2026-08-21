@@ -37,10 +37,10 @@ export default function ChatInput({ onSendMessage, disabled }) {
         style={{
           background: 'rgba(9,20,16,0.92)',
           border: focused
-            ? '1px solid rgba(0,214,143,0.35)'
-            : '1px solid rgba(255,255,255,0.06)',
+            ? '1px solid var(--color-primary-border)'
+            : '1px solid var(--color-border)',
           boxShadow: focused
-            ? '0 0 0 3px rgba(0,214,143,0.08), 0 8px 32px rgba(0,0,0,0.5)'
+            ? '0 0 0 3px var(--color-primary-soft), 0 8px 32px rgba(0,0,0,0.5)'
             : '0 4px 24px rgba(0,0,0,0.4)',
           backdropFilter: 'blur(12px)',
         }}
@@ -76,7 +76,7 @@ export default function ChatInput({ onSendMessage, disabled }) {
             type="submit"
             aria-label="Send message"
             disabled={!canSend}
-            className="h-8 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[#00d68f] focus-visible:outline-none"
+            className="h-8 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all duration-150 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
             style={
               canSend
                 ? {

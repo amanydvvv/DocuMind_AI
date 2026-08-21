@@ -72,6 +72,14 @@ function App() {
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
 
+  useEffect(() => {
+    if (activeConversation?.title) {
+      document.title = `${activeConversation.title} · KueryCore`;
+    } else {
+      document.title = 'KueryCore';
+    }
+  }, [activeConversation?.title]);
+
   return (
     <Layout
       user={user}
