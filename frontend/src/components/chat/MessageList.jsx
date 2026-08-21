@@ -127,21 +127,21 @@ export default function MessageList({
               onClick={() => onSendMessage?.(card.prompt)}
               className="group text-left p-4 rounded-2xl transition-all duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#00d68f] focus-visible:outline-none"
               style={{
-                background: 'linear-gradient(135deg, rgba(13, 29, 21, 0.72) 0%, rgba(9, 20, 16, 0.85) 100%)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                background: 'linear-gradient(180deg, #1e2621 0%, #0d1511 100%)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.09)',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 20px rgba(0, 0, 0, 0.4)',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
                 e.currentTarget.style.borderColor = card.color;
-                e.currentTarget.style.boxShadow = `0 10px 30px rgba(0,0,0,0.5), 0 0 20px ${card.color}25, inset 0 1px 0 rgba(255,255,255,0.15)`;
+                e.currentTarget.style.boxShadow = `0 10px 30px rgba(0,0,0,0.5), 0 0 20px ${card.color}25, inset 0 1px 0 rgba(255,255,255,0.25)`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.09)';
+                e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 20px rgba(0, 0, 0, 0.4)';
               }}
             >
               <div className="flex items-center gap-2.5 mb-2">

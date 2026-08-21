@@ -72,46 +72,50 @@ export default function ChatInput({ onSendMessage, disabled }) {
             <span className="font-medium text-slate-300">new line</span>
           </span>
 
-          {/* Dispatch button */}
+          {/* Circular Dispatch button matching reference aesthetic */}
           <button
             type="submit"
             aria-label="Send message"
             disabled={!canSend}
-            className="h-8 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all duration-150 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none disabled:opacity-30 disabled:cursor-not-allowed"
             style={
               canSend
                 ? {
                     background: 'linear-gradient(135deg, #00d68f 0%, #00ffaa 100%)',
-                    color: '#030a06',
-                    boxShadow: '0 2px 12px rgba(0,214,143,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+                    color: '#020804',
+                    boxShadow: '0 2px 10px rgba(0, 214, 143, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
                   }
                 : {
-                    background: 'rgba(255,255,255,0.05)',
-                    color: 'rgba(255,255,255,0.2)',
-                    cursor: 'not-allowed',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    color: 'rgba(255, 255, 255, 0.3)',
                   }
             }
             onMouseEnter={(e) => {
               if (canSend) {
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,214,143,0.5), inset 0 1px 0 rgba(255,255,255,0.35)';
+                e.currentTarget.style.transform = 'scale(1.06)';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 214, 143, 0.7)';
               }
             }}
             onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
               if (canSend) {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,214,143,0.4), inset 0 1px 0 rgba(255,255,255,0.3)';
+                e.currentTarget.style.boxShadow = '0 2px 10px rgba(0, 214, 143, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3)';
               }
             }}
-            onMouseDown={(e) => {
-              if (canSend) e.currentTarget.style.transform = 'scale(0.97)';
-            }}
-            onMouseUp={(e) => {
-              if (canSend) e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
           >
-            <span>Ask</span>
-            <span className="text-[10px] font-black">→</span>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
           </button>
         </div>
       </div>

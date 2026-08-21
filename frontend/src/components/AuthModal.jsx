@@ -139,132 +139,164 @@ export default function AuthModal({ onAuthSuccess }) {
         }}
       />
 
-      {/* ── MAIN AUTHENTICATION CONTAINER ── */}
+      {/* ── MAIN AUTHENTICATION CONTAINER (Matching Reference Box Aesthetic) ── */}
       <div 
-        className="relative z-10 w-full max-w-[340px] sm:max-w-[360px] flex flex-col items-center mt-12 transition-transform duration-200 ease-out"
+        className="relative z-10 w-full max-w-[380px] sm:max-w-[400px] flex flex-col items-center transition-transform duration-200 ease-out"
         style={{
           transform: `translate3d(${mousePos.x * 0.2}px, ${mousePos.y * 0.2}px, 0)`,
         }}
       >
-        
-        {/* Large Bold Heading */}
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight text-center">
-          {isLogin ? 'Sign In.' : 'Sign Up.'}
+        {/* Large Bold Brand Heading */}
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight text-center mb-2">
+          {isLogin ? 'Welcome Back.' : 'Get Started.'}
         </h1>
 
         {/* Animated Typewriter Subtitle */}
-        <div className="h-6 flex items-center justify-center gap-1 mt-2 mb-7 text-xs font-medium text-slate-400 font-mono">
+        <div className="h-6 flex items-center justify-center gap-1 mb-5 text-xs font-medium text-slate-400 font-mono">
           <span>{displayedText}</span>
           <span className="w-1.5 h-3.5 bg-emerald-400 animate-pulse inline-block" />
         </div>
 
-        {/* SSO Quick Actions */}
-        <div className="w-full flex flex-col gap-3 mb-6">
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            disabled={loading}
-            className="w-full py-3 px-4 rounded-2xl bg-[#091410]/80 hover:bg-[#0d2018] border border-white/[0.08] hover:border-[rgba(0,214,143,0.2)] transition-all duration-150 flex items-center justify-center gap-3 text-xs sm:text-sm font-medium text-slate-200 cursor-pointer shadow-sm active:scale-[0.98]"
-          >
-            {/* Google 'G' Icon */}
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"/>
-              <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
-              <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"/>
-              <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16c1.8 3.7 5.6 7 10.1 7z"/>
-            </svg>
-            <span>Continue with Google</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            disabled={loading}
-            className="w-full py-3 px-4 rounded-2xl bg-[#091410]/80 hover:bg-[#0d2018] border border-white/[0.08] hover:border-[rgba(0,214,143,0.2)] transition-all duration-150 flex items-center justify-center gap-3 text-xs sm:text-sm font-medium text-slate-200 cursor-pointer shadow-sm active:scale-[0.98]"
-          >
-            <span className="text-sm">⚡</span>
-            <span>Instant Demo Access</span>
-          </button>
-        </div>
-
-        {/* Minimal 'or' divider */}
-        <div className="text-xs text-slate-500 font-medium mb-6">
-          or
-        </div>
-
-        {/* Error Alert */}
-        {error && (
-          <div className="w-full mb-4 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 text-xs text-center animate-in fade-in duration-150">
-            {error}
-          </div>
-        )}
-
-        {/* Form Inputs */}
-        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3.5">
-          <div className="w-full">
-            <input
-              id="auth-email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="E-mail"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-[#091410] border border-white/[0.08] hover:border-white/[0.14] focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
-            />
-          </div>
-
-          <div className="w-full">
-            <input
-              id="auth-password"
-              type="password"
-              required
-              autoComplete={isLogin ? 'current-password' : 'new-password'}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-[#091410] border border-white/[0.08] hover:border-white/[0.14] focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
-            />
-          </div>
-
-          {/* Hero Magenta Gradient CTA Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-3 py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm text-white tracking-wide transition-all duration-150 cursor-pointer shadow-[0_4px_24px_rgba(0,214,143,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        {/* Glass Card Enclosure (Exact Reference Box Styling) */}
+        <div
+          className="w-full rounded-2xl p-6 sm:p-7 flex flex-col items-center"
+          style={{
+            background: 'linear-gradient(180deg, rgba(13, 29, 21, 0.88) 0%, rgba(9, 20, 16, 0.96) 100%)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255, 255, 255, 0.09)',
+            boxShadow: '0 24px 60px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+          }}
+        >
+          {/* Beveled Mode Switcher Bar (Matching Reference Question Bar) */}
+          <div
+            className="w-full p-1 rounded-xl flex items-center mb-5"
             style={{
-              background: 'linear-gradient(135deg, #00a86b 0%, #00d68f 50%, #00ffaa 100%)',
-              color: '#030a06',
+              background: 'linear-gradient(180deg, #222824 0%, #111613 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 12px rgba(0, 0, 0, 0.4)',
             }}
           >
-            {loading ? 'Signing in...' : isLogin ? 'Sign In.' : 'Sign Up.'}
-          </button>
-        </form>
-
-        {/* Footer Links */}
-        <div className="mt-8 flex flex-col items-center gap-2 text-xs text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <span>{isLogin ? "don't have an account?" : 'already have an account?'}</span>
             <button
               type="button"
-              onClick={() => { setIsLogin(!isLogin); setError(''); }}
-              className="font-bold text-white hover:text-emerald-400 transition-colors cursor-pointer"
+              onClick={() => { setIsLogin(true); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                isLogin
+                  ? 'bg-emerald-500/20 text-white border border-emerald-400/40 shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
             >
-              {isLogin ? 'Create a account' : 'Sign in'}
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsLogin(false); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                !isLogin
+                  ? 'bg-emerald-500/20 text-white border border-emerald-400/40 shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Sign Up
             </button>
           </div>
 
-          {isLogin && (
+          {/* Instant Demo Quick Access */}
+          <div className="w-full mb-4">
             <button
               type="button"
-              onClick={() => setError('Password reset instructions sent to your email.')}
-              className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+              onClick={handleDemoLogin}
+              disabled={loading}
+              className="w-full py-2.5 px-4 rounded-xl bg-[#060e09] hover:bg-[#0d2018] border border-white/[0.08] hover:border-emerald-400/40 transition-all duration-150 flex items-center justify-center gap-2.5 text-xs font-bold text-slate-200 cursor-pointer shadow-inner active:scale-[0.98]"
             >
-              Forgot password?
+              <span className="text-emerald-400 text-sm">⚡</span>
+              <span>Instant Demo Access</span>
             </button>
-          )}
-        </div>
+          </div>
 
+          {/* Minimal 'or' divider */}
+          <div className="text-[11px] text-slate-500 font-medium mb-4">
+            or continue with credentials
+          </div>
+
+          {/* Error Alert */}
+          {error && (
+            <div className="w-full mb-4 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 text-xs text-center animate-in fade-in duration-150">
+              {error}
+            </div>
+          )}
+
+          {/* Form Inputs */}
+          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
+            <div className="w-full">
+              <input
+                id="auth-email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="E-mail address..."
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-[#060e09] border border-white/[0.09] hover:border-white/[0.16] focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
+              />
+            </div>
+
+            <div className="w-full">
+              <input
+                id="auth-password"
+                type="password"
+                required
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
+                placeholder="Password..."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-[#060e09] border border-white/[0.09] hover:border-white/[0.16] focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
+              />
+            </div>
+
+            {/* Submit CTA Button with Reference Emerald Finish */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm tracking-wide transition-all duration-150 cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, #00d68f 0%, #00ffaa 100%)',
+                color: '#020804',
+                boxShadow: '0 4px 20px rgba(0, 214, 143, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+              }}
+            >
+              <span>{loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#020804" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </button>
+          </form>
+
+          {/* Footer Links */}
+          <div className="mt-5 flex flex-col items-center gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-1.5">
+              <span>{isLogin ? "Don't have an account?" : 'Already have an account?'}</span>
+              <button
+                type="button"
+                onClick={() => { setIsLogin(!isLogin); setError(''); }}
+                className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+              >
+                {isLogin ? 'Sign up' : 'Sign in'}
+              </button>
+            </div>
+
+            {isLogin && (
+              <button
+                type="button"
+                onClick={() => setError('Password reset instructions sent to your email.')}
+                className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -77,21 +77,6 @@ function App() {
     );
   }
 
-  // Preview mode support for testing new components in isolation
-  const isStepFormPreview = typeof window !== 'undefined' && window.location.search.includes('preview=stepform');
-  if (isStepFormPreview) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background select-none relative overflow-hidden">
-        <div className="cosmic-bg" aria-hidden="true">
-          <div className="star-layer" />
-        </div>
-        <div className="z-10 w-full max-w-xl">
-          <StepForm onComplete={(data) => alert('Onboarding Completed:\n' + JSON.stringify(data, null, 2))} />
-        </div>
-      </div>
-    );
-  }
-
   if (!user) {
     return <AuthModal onAuthSuccess={handleAuthSuccess} />;
   }
