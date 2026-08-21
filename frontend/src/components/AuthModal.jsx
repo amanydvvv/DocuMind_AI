@@ -84,21 +84,22 @@ export default function AuthModal({ onAuthSuccess }) {
   };
 
   const handleDemoLogin = async () => {
-    setEmail('demo@kuerycore.ai');
-    setPassword('demo1234567890');
+    if (submitInFlight.current) return;
+    submitInFlight.current = true;
     setError('');
     setLoading(true);
     try {
-      const data = await loginUser('demo@kuerycore.ai', 'demo1234567890');
-      onAuthSuccess(data);
-    } catch {
-      try {
-        const signupData = await signupUser('demo@kuerycore.ai', 'demo1234567890');
-        onAuthSuccess(signupData);
-      } catch (err) {
-        setError(err.message || 'Demo initialization failed');
-      }
+      // Generate a unique isolated guest account for each visitor/session
+      const guestId = Math.random().toString(36).substring(2, 8);
+      const guestEmail = `guest_${guestId}@kuerycore.ai`;
+      const guestPass = `Guest_${guestId}_${Date.now()}!`;
+
+      const signupData = await signupUser(guestEmail, guestPass);
+      onAuthSuccess(signupData);
+    } catch (err) {
+      setError(err.message || 'Demo initialization failed. Please try standard sign up.');
     } finally {
+      submitInFlight.current = false;
       setLoading(false);
     }
   };

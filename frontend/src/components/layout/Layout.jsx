@@ -136,10 +136,12 @@ export default function Layout({
                 <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#050d08]" />
               </div>
               <div className="min-w-0 flex flex-col">
-                <span className="truncate font-medium text-text text-xs">{user.email}</span>
+                <span className="truncate font-medium text-text text-xs">
+                  {user.email?.startsWith('guest_') ? 'Demo Workspace' : user.email}
+                </span>
                 <span className="text-[10px] text-text-muted flex items-center gap-1">
                   <span style={{ color: '#00d68f', fontSize: '8px' }}>◈</span>
-                  Pro Workspace
+                  {user.email?.startsWith('guest_') ? 'Isolated Session' : 'Pro Workspace'}
                 </span>
               </div>
             </div>

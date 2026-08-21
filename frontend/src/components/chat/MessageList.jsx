@@ -109,17 +109,9 @@ export default function MessageList({
           />
         </div>
 
-        <h2 className="text-2xl font-bold text-text mb-2 tracking-tight text-center">
+        <h2 className="text-2xl font-bold text-text mb-6 tracking-tight text-center">
           What would you like to uncover?
         </h2>
-        {/* Fix 7: bumped subtext color to #A0AAB0 for WCAG AA contrast */}
-        <p className="text-sm text-center max-w-sm mb-5 leading-relaxed" style={{ color: '#A0AAB0' }}>
-          KueryCore uses{' '}
-          <span className="font-semibold" style={{ color: '#00d68f' }}>Hybrid Search</span>
-          {' '}(Vector + BM25) and{' '}
-          <span className="font-semibold" style={{ color: '#00ffaa' }}>Vision OCR</span>
-          {' '}to deliver grounded answers with strict citation fidelity.
-        </p>
 
         {/* Suggestion Cards — tighter gap */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-2xl">
