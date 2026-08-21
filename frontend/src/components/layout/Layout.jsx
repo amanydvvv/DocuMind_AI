@@ -44,24 +44,57 @@ export default function Layout({
           style={{ background: 'linear-gradient(90deg, transparent, rgba(0,214,143,0.5), transparent)' }}
         />
 
-        {/* Branding */}
-        <div className="p-4 pb-3 flex flex-col gap-3">
+        {/* Top Header Bar — Exactly h-14 to align with ChatContainer header */}
+        <div
+          className="h-14 px-4 flex items-center justify-between border-b border-white/[0.08] flex-shrink-0"
+          style={{
+            background: 'linear-gradient(180deg, rgba(13, 29, 21, 0.75) 0%, rgba(9, 20, 16, 0.85) 100%)',
+            backdropFilter: 'blur(16px)',
+          }}
+        >
           <div className="flex items-center gap-2.5">
-            <div className="flex flex-col min-w-0">
+            {/* Luminous Brand Emblem */}
+            <div
+              className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+              style={{
+                background: 'linear-gradient(135deg, #00ffaa 0%, #00d68f 60%, #00a86b 100%)',
+                boxShadow: '0 0 16px rgba(0, 214, 143, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#020804" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            
+            {/* Luminous High-Res Title & Badge */}
+            <div className="flex items-center gap-2">
               <span
-                className="font-bold text-[15px] tracking-tight"
+                className="font-black text-[18px] tracking-tight leading-none"
                 style={{
-                  background: 'linear-gradient(135deg, #e8f5ee 0%, #00d68f 100%)',
+                  background: 'linear-gradient(135deg, #ffffff 0%, #d1fae5 50%, #00d68f 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}
               >
                 KueryCore
               </span>
+              <span
+                className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest leading-none"
+                style={{
+                  background: 'rgba(0, 214, 143, 0.12)',
+                  border: '1px solid rgba(0, 214, 143, 0.3)',
+                  color: '#00ffaa',
+                  boxShadow: '0 0 8px rgba(0, 214, 143, 0.25)',
+                }}
+              >
+                AI
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* Segmented Switcher — Glassmorphic & High Contrast */}
+        {/* Tab Switcher Area */}
+        <div className="px-3.5 pt-3 pb-1 flex-shrink-0">
           <div
             className="flex p-1 rounded-xl gap-1"
             style={{
