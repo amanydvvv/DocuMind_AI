@@ -58,6 +58,16 @@ function App() {
     setUser(null);
   };
 
+  const activeConversation = conversations.find((c) => c.id === activeConversationId);
+
+  useEffect(() => {
+    if (activeConversation?.title) {
+      document.title = `${activeConversation.title} · KueryCore`;
+    } else {
+      document.title = 'KueryCore';
+    }
+  }, [activeConversation?.title]);
+
   if (checkingAuth) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background text-text font-medium">
@@ -69,16 +79,6 @@ function App() {
   if (!user) {
     return <AuthModal onAuthSuccess={handleAuthSuccess} />;
   }
-
-  const activeConversation = conversations.find((c) => c.id === activeConversationId);
-
-  useEffect(() => {
-    if (activeConversation?.title) {
-      document.title = `${activeConversation.title} · KueryCore`;
-    } else {
-      document.title = 'KueryCore';
-    }
-  }, [activeConversation?.title]);
 
   return (
     <Layout
