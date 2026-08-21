@@ -8,10 +8,11 @@ export default function ConversationSidebar({
   onSelectConversation,
   onStartNewChat,
   onDeleteConversation,
+  isLoading = false,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredConversations = conversations.filter(conv => 
+  const filteredConversations = (conversations || []).filter(conv => 
     conv.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -47,11 +48,26 @@ export default function ConversationSidebar({
             <span>Conversations</span>
           </span>
           <span className="text-[10px] font-bold text-emerald-300 px-2 py-0.5 rounded-full bg-primary-soft border border-primary-border">
-            {filteredConversations.length}
+            {isLoading ? '…' : filteredConversations.length}
           </span>
         </div>
 
-        {conversations.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-1.5 py-1">
+            {[1, 2, 3, 4].map((n) => (
+              <div
+                key={n}
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-white/[0.04] bg-surface/30"
+              >
+                <div className="w-2.5 h-2.5 rounded-full skeleton-shimmer flex-shrink-0" />
+                <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                  <div className="h-3 skeleton-shimmer rounded-md" style={{ width: `${55 + (n * 10)}%` }} />
+                  <div className="h-2 skeleton-shimmer rounded-md w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : conversations.length === 0 ? (
           <div className="text-center py-8 px-4 border border-dashed border-border rounded-xl mt-2">
             <p className="text-xs text-text-muted font-normal">
               No threads yet. Start a new chat to query documents.

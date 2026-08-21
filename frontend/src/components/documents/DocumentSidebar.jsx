@@ -75,8 +75,22 @@ export default function DocumentSidebar() {
         </div>
         
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <div className="space-y-2.5 animate-in fade-in duration-200">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="p-3 rounded-xl border border-white/[0.06] bg-surface/40 backdrop-blur-xs flex flex-col gap-2.5"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-6 h-6 rounded-lg skeleton-shimmer flex-shrink-0" />
+                  <div className="h-3.5 skeleton-shimmer rounded-md flex-1" style={{ maxWidth: `${70 + (n * 8)}%` }} />
+                </div>
+                <div className="flex items-center justify-between pl-8">
+                  <div className="h-2.5 skeleton-shimmer rounded-md w-14" />
+                  <div className="h-2.5 skeleton-shimmer rounded-md w-10" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="p-3 rounded-xl bg-danger-soft border border-danger-border text-danger-text text-xs">

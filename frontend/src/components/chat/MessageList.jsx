@@ -74,13 +74,39 @@ export default function MessageList({
 
   if (isLoadingHistory) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full px-4 py-6 animate-in fade-in duration-200">
+        {/* User Bubble Skeleton */}
+        <div className="flex justify-end w-full">
           <div
-            className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-            style={{ borderColor: '#00d68f', borderTopColor: 'transparent' }}
+            className="w-64 h-12 rounded-2xl rounded-tr-xs skeleton-shimmer"
+            style={{
+              border: '1px solid rgba(0, 214, 143, 0.15)',
+              background: 'rgba(0, 214, 143, 0.08)',
+            }}
           />
-          <p className="text-xs text-text-muted">Loading history…</p>
+        </div>
+
+        {/* Assistant Bubble Skeleton */}
+        <div className="flex justify-start w-full">
+          <div
+            className="w-full max-w-2xl rounded-2xl rounded-tl-xs p-5 flex flex-col gap-3"
+            style={{
+              background: 'linear-gradient(145deg, rgba(13, 29, 21, 0.8) 0%, rgba(9, 20, 16, 0.9) 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(16px)',
+            }}
+          >
+            <div className="h-3.5 skeleton-shimmer rounded-md w-full" />
+            <div className="h-3.5 skeleton-shimmer rounded-md w-11/12" />
+            <div className="h-3.5 skeleton-shimmer rounded-md w-4/5" />
+            <div className="h-3.5 skeleton-shimmer rounded-md w-2/3" />
+
+            {/* Citations Skeleton */}
+            <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-2">
+              <div className="w-20 h-6 skeleton-shimmer rounded-lg" />
+              <div className="w-24 h-6 skeleton-shimmer rounded-lg" />
+            </div>
+          </div>
         </div>
       </div>
     );

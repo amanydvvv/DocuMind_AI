@@ -177,21 +177,16 @@ export default function UploadPanel({ onUploadComplete }) {
           accept=".pdf,.md,.txt"
           multiple
         />
-        <div className="flex flex-col items-center justify-center pointer-events-none">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5 transition-transform duration-200"
-            style={{
-              background: 'linear-gradient(135deg, #091410 0%, #0d2018 100%)',
-              border: '1px solid rgba(0,214,143,0.35)',
-              boxShadow: '0 0 24px rgba(0,214,143,0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00d68f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+        <div className="flex flex-col items-center justify-center pointer-events-none gap-1.5">
+          <div className="text-emerald-400 mb-0.5">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+              <path d="M12 12v9" />
+              <path d="m16 16-4-4-4 4" />
             </svg>
           </div>
           <p className="text-xs font-bold text-white tracking-tight">Drag &amp; drop files here</p>
-          <p className="text-[11px] text-slate-300 mt-0.5">or click to browse (.pdf, .md, .txt)</p>
+          <p className="text-[11px] text-slate-300">or click to browse (.pdf, .md, .txt)</p>
         </div>
       </div>
 
