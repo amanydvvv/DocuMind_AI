@@ -108,7 +108,7 @@ export default function ChatInput({ onSendMessage, disabled }) {
               if (canSend) e.currentTarget.style.transform = 'translateY(-1px)';
             }}
           >
-            <span>Dispatch</span>
+            <span>Ask</span>
             <span className="text-[10px] font-black">→</span>
           </button>
         </div>

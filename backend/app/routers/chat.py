@@ -134,7 +134,7 @@ async def chat(
             conv = Conversation(
                 id=uuid.uuid4(),
                 user_id=current_user.id,
-                title=question[:50]
+                title=" ".join(question.strip().split()[:5]).capitalize() + ("..." if len(question.strip().split()) > 5 else "")
             )
             db.add(conv)
             await db.flush()
@@ -345,7 +345,7 @@ async def chat_stream(
         conv = Conversation(
             id=uuid.uuid4(),
             user_id=current_user.id,
-            title=question[:50]
+            title=" ".join(question.strip().split()[:5]).capitalize() + ("..." if len(question.strip().split()) > 5 else "")
         )
         db.add(conv)
         await db.flush()

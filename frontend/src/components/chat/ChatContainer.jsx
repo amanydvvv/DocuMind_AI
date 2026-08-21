@@ -71,9 +71,9 @@ export default function ChatContainer({
               animation: isGenerating ? 'pulse 0.8s ease-in-out infinite' : 'none',
             }}
           />
-          <span className="font-medium" style={{ color: '#8fb8a0' }}>◈ Hybrid RAG</span>
+          <span className="font-medium" style={{ color: '#8fb8a0' }} title="Combines vector similarity and keyword (BM25) search for better document retrieval accuracy">◈ Hybrid RAG</span>
           <span style={{ color: 'rgba(143,184,160,0.4)' }}>•</span>
-          <span className="font-semibold" style={{ color: '#00d68f' }}>Cascade LLM</span>
+          <span className="font-semibold" style={{ color: '#00d68f' }} title="Uses a primary LLM with automatic fallback to backup models if rate-limited">Cascade LLM</span>
         </div>
       </header>
 

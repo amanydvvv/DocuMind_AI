@@ -1,9 +1,32 @@
 import { useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
 
+/* ── SVG Outline Icons (consistent stroke weight) ── */
+const IconLayers = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+  </svg>
+);
+const IconChecklist = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+  </svg>
+);
+const IconShield = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+const IconNetwork = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="5" r="3" /><circle cx="5" cy="19" r="3" /><circle cx="19" cy="19" r="3" />
+    <path d="M12 8v4M5.5 16.5L10 12M18.5 16.5L14 12" />
+  </svg>
+);
+
 const SUGGESTION_CARDS = [
   {
-    icon: '◈',
+    Icon: IconLayers,
     color: '#00d68f',
     bg: 'rgba(0,214,143,0.07)',
     border: 'rgba(0,214,143,0.18)',
@@ -11,7 +34,7 @@ const SUGGESTION_CARDS = [
     prompt: 'Summarize the key architectural decisions and system design tradeoffs in the uploaded documents.',
   },
   {
-    icon: '▣',
+    Icon: IconChecklist,
     color: '#818cf8',
     bg: 'rgba(129,140,248,0.07)',
     border: 'rgba(129,140,248,0.18)',
@@ -19,15 +42,15 @@ const SUGGESTION_CARDS = [
     prompt: 'Extract all functional constraints, performance metrics, and deadlines mentioned in the corpus.',
   },
   {
-    icon: '◬',
-    color: '#f87171',
-    bg: 'rgba(248,113,113,0.07)',
-    border: 'rgba(248,113,113,0.18)',
+    Icon: IconShield,
+    color: '#94a3b8',
+    bg: 'rgba(148,163,184,0.06)',
+    border: 'rgba(148,163,184,0.15)',
     title: 'Security & Compliance',
     prompt: 'Review the documents for any compliance protocols, security guidelines, or regulatory obligations.',
   },
   {
-    icon: '◆',
+    Icon: IconNetwork,
     color: '#34d399',
     bg: 'rgba(52,211,153,0.07)',
     border: 'rgba(52,211,153,0.18)',
@@ -65,31 +88,32 @@ export default function MessageList({
 
   if (!messages || messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full px-4 pb-8">
-        {/* Hero Icon */}
-        <div className="relative mb-8">
+      <div className="flex flex-col items-center justify-center h-full px-4 pb-4">
+        {/* Hero — tighter spacing */}
+        <div className="relative mb-5">
           <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black animate-float-micro"
+            className="w-16 h-16 rounded-2xl flex items-center justify-center animate-float-micro"
             style={{
               background: 'linear-gradient(135deg, #091410 0%, #0d2018 100%)',
               border: '1px solid rgba(0,214,143,0.25)',
               boxShadow: '0 0 40px rgba(0,214,143,0.15), 0 0 80px rgba(0,214,143,0.06)',
-              color: '#00d68f',
             }}
           >
-            ◈
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00d68f" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+            </svg>
           </div>
-          {/* Outer glow rings */}
           <div
             className="absolute -inset-3 rounded-3xl pointer-events-none animate-pulse"
             style={{ background: 'radial-gradient(circle, rgba(0,214,143,0.08) 0%, transparent 70%)' }}
           />
         </div>
 
-        <h2 className="text-2xl font-bold text-text mb-3 tracking-tight text-center">
+        <h2 className="text-2xl font-bold text-text mb-2 tracking-tight text-center">
           What would you like to uncover?
         </h2>
-        <p className="text-sm text-text-muted text-center max-w-sm mb-8 leading-relaxed">
+        {/* Fix 7: bumped subtext color to #A0AAB0 for WCAG AA contrast */}
+        <p className="text-sm text-center max-w-sm mb-5 leading-relaxed" style={{ color: '#A0AAB0' }}>
           KueryCore uses{' '}
           <span className="font-semibold" style={{ color: '#00d68f' }}>Hybrid Search</span>
           {' '}(Vector + BM25) and{' '}
@@ -97,37 +121,35 @@ export default function MessageList({
           {' '}to deliver grounded answers with strict citation fidelity.
         </p>
 
-        {/* Suggestion Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+        {/* Suggestion Cards — tighter gap */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-2xl">
           {SUGGESTION_CARDS.map((card) => (
             <button
               key={card.title}
               onClick={() => onSendMessage?.(card.prompt)}
-              className="group text-left p-4 rounded-xl transition-all duration-200 cursor-pointer"
+              className="group text-left p-3.5 rounded-xl transition-all duration-200 cursor-pointer"
               style={{
                 background: card.bg,
                 border: `1px solid ${card.border}`,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = `0 8px 24px ${card.bg.replace('0.07', '0.3')}`;
-                e.currentTarget.style.borderColor = card.color.replace(')', ',0.4)').replace('rgb', 'rgba');
+                e.currentTarget.style.boxShadow = `0 8px 24px ${card.bg.replace('0.07', '0.25').replace('0.06', '0.2')}`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.borderColor = card.border;
               }}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-base" style={{ color: card.color }}>{card.icon}</span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <card.Icon color={card.color} />
                 <span className="text-xs font-semibold" style={{ color: card.color }}>{card.title}</span>
                 <span
                   className="ml-auto text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
                   style={{ color: card.color }}
                 >→</span>
               </div>
-              <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2">{card.prompt}</p>
+              <p className="text-[11px] leading-relaxed line-clamp-2" style={{ color: '#8a9a90' }}>{card.prompt}</p>
             </button>
           ))}
         </div>
@@ -147,15 +169,16 @@ export default function MessageList({
       {isGenerating && (
         <div className="flex items-start gap-3">
           <div
-            className="w-7 h-7 rounded-xl flex items-center justify-center text-xs flex-shrink-0 mt-0.5"
+            className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
             style={{
               background: 'linear-gradient(135deg, #091410, #0d2018)',
               border: '1px solid rgba(0,214,143,0.3)',
               boxShadow: '0 0 12px rgba(0,214,143,0.15)',
-              color: '#00d68f',
             }}
           >
-            ◈
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00d68f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+            </svg>
           </div>
           <div
             className="px-4 py-3 rounded-2xl text-sm"

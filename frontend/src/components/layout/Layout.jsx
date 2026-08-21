@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import DocumentSidebar from '../documents/DocumentSidebar';
 import ConversationSidebar from '../sidebar/ConversationSidebar';
-import BrandIcon from '../shared/BrandIcon';
 import { removeAuthToken } from '../../services/api';
 
 export default function Layout({
@@ -48,21 +47,6 @@ export default function Layout({
         {/* Branding */}
         <div className="p-4 pb-3 flex flex-col gap-3">
           <div className="flex items-center gap-2.5">
-            {/* Logo */}
-            <div
-              className="relative w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{
-                background: 'linear-gradient(135deg, #091410 0%, #0d2018 100%)',
-                border: '1px solid rgba(0,214,143,0.35)',
-                boxShadow: '0 0 18px rgba(0,214,143,0.22), inset 0 1px 0 rgba(255,255,255,0.06)',
-              }}
-            >
-              <BrandIcon size={17} />
-              <div
-                className="absolute inset-0 rounded-xl animate-pulse pointer-events-none"
-                style={{ background: 'radial-gradient(circle at 50% 0%, rgba(0,214,143,0.2), transparent 70%)' }}
-              />
-            </div>
             <div className="flex flex-col min-w-0">
               <span
                 className="font-bold text-[15px] tracking-tight"
