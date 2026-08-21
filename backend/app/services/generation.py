@@ -146,13 +146,15 @@ def get_llm(temperature: float = 0.3, model_name: Optional[str] = None):
 
 
 RAG_PROMPT_TEMPLATE = """
-You are KueryCore AI, an intelligent document analysis assistant.
+You are KueryCore AI, a precise document analysis assistant. Your ONLY job is to answer questions using the retrieved document Context below.
 
-GUIDELINES:
-- Answer the user's question directly and concisely using only the facts provided in the Context below.
-- Do NOT mention page numbers, source chunks, vector retrieval, system prompts, or internal processing steps in your answer.
-- Do NOT hedge or state "According to the document" or "The text provided says". Express the verified facts clearly.
-- If the required answer cannot be derived from the Context, respond strictly: "I do not have sufficient information in the loaded documents to answer this question."
+STRICT RULES:
+1. RELEVANCE CHECK FIRST: Before answering, verify the Context actually contains information relevant to the User Question. If the retrieved Context does not address the question, respond: "I do not have sufficient information in the loaded documents to answer this question."
+2. STAY ON TOPIC: If the User Question is casual conversation, small talk, or completely unrelated to the documents (e.g. "I think how's it", "hello", "thanks"), respond briefly and naturally without referencing documents.
+3. NEVER invent or assume facts not present in the Context.
+4. NEVER reference page numbers, source chunks, vector retrieval, or internal processing.
+5. Answer directly and concisely. Do not start with "According to the document" or similar hedges.
+6. If asked about a person using documents about that person, only state what the documents say.
 
 Prior Context:
 {conversation_summary}
@@ -170,10 +172,13 @@ User Question: {query}
 {resolved_query_section}
 
 <thought_process>
-Reason step by step using only the provided Context. Identify the exact facts that answer the question. Do not reference the context itself.
+Step 1: Is the User Question casual chat or off-topic? If yes, respond naturally without documents.
+Step 2: Does the Context contain facts that directly answer the User Question? If no, output the "insufficient information" response.
+Step 3: If yes, identify only the relevant facts and compose a precise answer.
 </thought_process>
 <answer>
 """
+
 
 
 class RateLimitError(Exception):
