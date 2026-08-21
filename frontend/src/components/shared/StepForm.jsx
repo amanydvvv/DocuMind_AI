@@ -187,13 +187,13 @@ export default function StepForm({
               : 'opacity-100 translate-x-0'
           }`}
         >
-          {/* Question Display Bar (Top dark rounded display bar) */}
+          {/* Question Display Bar (Top dark rounded display bar with specular bevel) */}
           <div
             className="w-full px-5 py-4 rounded-xl flex items-center"
             style={{
-              background: 'linear-gradient(180deg, #18201b 0%, #0e1612 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.09)',
-              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.3)',
+              background: 'linear-gradient(180deg, #222824 0%, #111613 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 12px rgba(0, 0, 0, 0.4)',
             }}
           >
             <p className="text-[15px] font-semibold text-white tracking-tight">
@@ -210,7 +210,7 @@ export default function StepForm({
               onChange={(e) => setCurrentValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={currentStep.placeholder || 'Type your answer...'}
-              className="w-full bg-[#050d08] border border-white/[0.1] hover:border-white/[0.18] focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 rounded-xl pl-5 pr-14 py-3.5 text-[14px] text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
+              className="w-full bg-[#060e09] border border-white/[0.09] hover:border-white/[0.16] focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 rounded-xl pl-5 pr-14 py-3.5 text-[14px] text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
             />
 
             {/* Circular Green Submit Arrow Button (Docked right inside input) */}
@@ -244,7 +244,7 @@ export default function StepForm({
                 height="15"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="currentColor"
+                stroke="#020804"
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
