@@ -20,8 +20,10 @@ export default function UploadPanel({ onUploadComplete }) {
         return state.map(i => i.id === action.id ? { ...i, documentId: action.documentId } : i);
       case 'RETRY':
         return state.map(i => i.id === action.id ? { ...i, status: 'queued', retryCount: (i.retryCount || 0) + 1, errorMessage: null } : i);
+      case 'DISMISS':
+        return state.filter(i => i.id !== action.id);
       case 'CLEAR_FINISHED':
-        return state.filter(i => i.status !== 'completed' && !(i.status === 'error' && i.retryCount >= 3));
+        return state.filter(i => i.status !== 'completed' && i.status !== 'error');
       default:
         return state;
     }
@@ -245,22 +247,40 @@ export default function UploadPanel({ onUploadComplete }) {
                       Embedding
                     </span>
                   )}
-                  {item.status === 'completed' && (
-                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-success-soft text-success-text border border-success-border">
-                      Done
-                    </span>
-                  )}
+
                   {item.status === 'error' && (
                     <div className="flex items-center gap-1">
                       <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-danger-soft text-danger-text border border-danger-border">
                         Error
                       </span>
+                      {(item.retryCount || 0) < 3 && (
+                        <button
+                          className="text-[10px] bg-danger-soft hover:bg-danger-border text-danger-text px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                          onClick={() => handleRetry(item.id)}
+                        >
+                          Retry
+                        </button>
+                      )}
                       <button
-                        className="text-[10px] bg-danger-soft hover:bg-danger-border text-danger-text px-1.5 py-0.5 rounded transition-colors cursor-pointer"
-                        onClick={() => handleRetry(item.id)}
-                        disabled={(item.retryCount || 0) >= 3}
+                        className="w-4 h-4 flex items-center justify-center rounded text-danger-text hover:bg-danger-soft transition-colors cursor-pointer text-[11px] font-bold leading-none"
+                        onClick={() => dispatch({ type: 'DISMISS', id: item.id })}
+                        title="Remove from queue"
                       >
-                        Retry{(item.retryCount || 0) > 0 ? ` (${item.retryCount})` : ''}
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  {item.status === 'completed' && (
+                    <div className="flex items-center gap-1">
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-success-soft text-success-text border border-success-border">
+                        Done
+                      </span>
+                      <button
+                        className="w-4 h-4 flex items-center justify-center rounded text-text-muted hover:text-text hover:bg-surface transition-colors cursor-pointer text-[11px] font-bold leading-none"
+                        onClick={() => dispatch({ type: 'DISMISS', id: item.id })}
+                        title="Remove from queue"
+                      >
+                        ×
                       </button>
                     </div>
                   )}
