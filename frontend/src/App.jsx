@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import Layout from './components/layout/Layout';
 import ChatContainer from './components/chat/ChatContainer';
 import AuthModal from './components/AuthModal';
-import StepForm from './components/shared/StepForm';
+import WorkspaceSkeleton from './components/layout/WorkspaceSkeleton';
 import { useConversations } from './hooks/useConversations';
 import { getAuthToken, removeAuthToken, fetchCurrentUser } from './services/api';
 
 function App() {
   const [user, setUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const {
     conversations,
@@ -50,8 +51,12 @@ function App() {
   }, []);
 
   const handleAuthSuccess = async (authData) => {
+    setIsSigningIn(true);
     setUser({ id: authData.user_id, email: authData.email });
-    if (loadConversationList) loadConversationList();
+    if (loadConversationList) await loadConversationList();
+    setTimeout(() => {
+      setIsSigningIn(false);
+    }, 450);
   };
 
   const handleLogout = () => {
@@ -69,12 +74,8 @@ function App() {
     }
   }, [activeConversation?.title]);
 
-  if (checkingAuth) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background text-text font-medium">
-        Loading KueryCore AI...
-      </div>
-    );
+  if (checkingAuth || isSigningIn) {
+    return <WorkspaceSkeleton />;
   }
 
   if (!user) {
