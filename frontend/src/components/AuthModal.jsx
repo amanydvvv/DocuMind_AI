@@ -108,7 +108,7 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
         {/* Animated Typewriter Subtitle */}
         <div className="h-6 flex items-center justify-center gap-1 mb-5 text-xs font-medium text-slate-400 font-mono">
           <span>{displayedText}</span>
-          <span className="w-1.5 h-3.5 bg-emerald-400 animate-pulse inline-block" />
+          <span className="w-0.5 h-3.5 bg-emerald-400 animate-pulse inline-block" />
         </div>
 
         {/* Glass Card Enclosure with Luminous Ambient Emerald Glow */}

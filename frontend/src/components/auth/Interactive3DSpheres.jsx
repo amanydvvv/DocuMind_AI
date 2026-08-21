@@ -146,22 +146,7 @@ export default function Interactive3DSpheres() {
       else if (cfg.type === 'octahedron') geo = new THREE.OctahedronGeometry(cfg.radius, cfg.detail);
       else geo = new THREE.DodecahedronGeometry(cfg.radius, cfg.detail);
 
-      // Glass core material with emissive glowing interior
-      const coreMat = new THREE.MeshPhysicalMaterial({
-        color: cfg.coreColor,
-        emissive: cfg.emissiveColor,
-        emissiveIntensity: cfg.emissiveIntensity,
-        roughness: cfg.roughness,
-        metalness: cfg.metalness,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.1,
-        reflectivity: 1.0,
-        transmission: 0.3,
-        ior: 1.6,
-      });
-      const coreMesh = new THREE.Mesh(geo, coreMat);
-
-      // Luminous neon wireframe outline
+      // Luminous neon holographic wireframe lattice (clean, non-blocky, ethereal)
       const wireMat = new THREE.MeshBasicMaterial({
         color: cfg.wireColor,
         wireframe: true,
@@ -169,14 +154,12 @@ export default function Interactive3DSpheres() {
         opacity: cfg.wireOpacity,
       });
       const wireMesh = new THREE.Mesh(geo, wireMat);
-      wireMesh.scale.set(1.004, 1.004, 1.004);
 
       // Inner glowing point light for volumetric aura
-      const innerGlow = new THREE.PointLight(cfg.emissiveColor, 2.0, cfg.radius * 3.5);
+      const innerGlow = new THREE.PointLight(cfg.emissiveColor, 2.2, cfg.radius * 4.0);
       innerGlow.position.set(0, 0, 0);
 
       const group = new THREE.Group();
-      group.add(coreMesh);
       group.add(wireMesh);
       group.add(innerGlow);
       group.position.copy(cfg.basePos);
