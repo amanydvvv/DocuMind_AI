@@ -111,15 +111,15 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
           <span className="w-1.5 h-3.5 bg-emerald-400 animate-pulse inline-block" />
         </div>
 
-        {/* Glass Card Enclosure (Exact Reference Box Styling) */}
+        {/* Glass Card Enclosure with Luminous Ambient Emerald Glow */}
         <div
-          className="w-full rounded-2xl p-6 sm:p-7 flex flex-col items-center"
+          className="w-full rounded-2xl p-6 sm:p-7 flex flex-col items-center relative"
           style={{
-            background: 'linear-gradient(180deg, rgba(13, 29, 21, 0.88) 0%, rgba(9, 20, 16, 0.96) 100%)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: '1px solid rgba(255, 255, 255, 0.09)',
-            boxShadow: '0 24px 60px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+            background: 'linear-gradient(180deg, rgba(13, 29, 21, 0.9) 0%, rgba(9, 20, 16, 0.98) 100%)',
+            backdropFilter: 'blur(28px)',
+            WebkitBackdropFilter: 'blur(28px)',
+            border: '1px solid rgba(0, 255, 170, 0.2)',
+            boxShadow: '0 24px 70px rgba(0, 0, 0, 0.85), 0 0 60px rgba(0, 214, 143, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
           }}
         >
           {/* Beveled Mode Switcher Bar (Matching Reference Question Bar) */}
@@ -127,8 +127,8 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
             className="w-full p-1 rounded-xl flex items-center mb-5"
             style={{
               background: 'linear-gradient(180deg, #222824 0%, #111613 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 12px rgba(0, 0, 0, 0.4)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 12px rgba(0, 0, 0, 0.4)',
             }}
           >
             <button
@@ -136,7 +136,7 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
               onClick={() => { setIsLogin(true); setError(''); }}
               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 isLogin
-                  ? 'bg-emerald-500/20 text-white border border-emerald-400/40 shadow-xs'
+                  ? 'bg-emerald-500/25 text-white border border-emerald-400/60 shadow-[0_0_15px_rgba(0,255,170,0.3)]'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -147,7 +147,7 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
               onClick={() => { setIsLogin(false); setError(''); }}
               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 !isLogin
-                  ? 'bg-emerald-500/20 text-white border border-emerald-400/40 shadow-xs'
+                  ? 'bg-emerald-500/25 text-white border border-emerald-400/60 shadow-[0_0_15px_rgba(0,255,170,0.3)]'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -173,7 +173,7 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
                 placeholder="E-mail address..."
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#060e09] border border-white/[0.09] hover:border-white/[0.16] focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
+                className="w-full bg-[#060e09] border border-white/[0.09] hover:border-emerald-400/40 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
               />
             </div>
 
@@ -186,11 +186,11 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
                 placeholder="Password..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#060e09] border border-white/[0.09] hover:border-white/[0.16] focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
+                className="w-full bg-[#060e09] border border-white/[0.09] hover:border-emerald-400/40 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all duration-150 shadow-inner"
               />
             </div>
 
-            {/* Submit CTA Button with Reference Emerald Finish */}
+            {/* Submit CTA Button with Intense Neon Emerald Glow */}
             <button
               type="submit"
               disabled={loading}
@@ -198,7 +198,7 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
               style={{
                 background: 'linear-gradient(135deg, #00d68f 0%, #00ffaa 100%)',
                 color: '#020804',
-                boxShadow: '0 4px 20px rgba(0, 214, 143, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+                boxShadow: '0 0 35px rgba(0, 214, 143, 0.65), 0 4px 16px rgba(0, 255, 170, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
               }}
             >
               <span>{loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}</span>
@@ -233,7 +233,7 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
             )}
           </div>
 
-          {/* ── SEPARATE BOTTOM-MOST INSTANT DEMO ACCESS SECTION ── */}
+          {/* ── SEPARATE BOTTOM-MOST INSTANT DEMO ACCESS SECTION WITH GLOW ── */}
           <div className="w-full my-4 flex items-center gap-3">
             <div className="flex-1 h-px bg-white/[0.08]" />
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">or explore demo</span>
@@ -245,10 +245,10 @@ export default function AuthModal({ onAuthSuccess, onStartAuth }) {
               type="button"
               onClick={handleDemoLogin}
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl bg-[#060e09] hover:bg-[#0c1c14] border border-white/[0.08] hover:border-emerald-400/40 transition-all duration-150 flex items-center justify-between text-xs font-bold text-slate-200 cursor-pointer shadow-inner active:scale-[0.98] group"
+              className="w-full py-3 px-4 rounded-xl bg-[#060e09] hover:bg-[#0c2016] border border-emerald-400/30 hover:border-emerald-400/70 transition-all duration-150 flex items-center justify-between text-xs font-bold text-slate-200 cursor-pointer shadow-[0_0_20px_rgba(0,214,143,0.15)] active:scale-[0.98] group"
             >
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-400/30 flex items-center justify-center text-emerald-400 text-xs">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-emerald-400 text-xs shadow-[0_0_10px_rgba(0,255,170,0.4)]">
                   ⚡
                 </div>
                 <div className="flex flex-col items-start">
