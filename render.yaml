@@ -17,6 +17,6 @@ services:
       - key: JWT_SECRET_KEY
         sync: false
       - key: GENERATIVE_MODEL
-        value: llama3-8b-8192
+        value: openai/gpt-oss-20b
       - key: CORS_ORIGINS
         value: '["http://localhost:5173", "http://localhost:3000", "https://*.vercel.app"]'

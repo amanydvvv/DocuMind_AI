@@ -96,18 +96,18 @@ def get_llm(temperature: float = 0.3, model_name: Optional[str] = None):
             max_retries=1,  # one retry with backoff before cascading
         )
 
-        # --- Fallback 1: Groq llama-3.3-70b-versatile ---
+        # --- Fallback 1: Groq openai/gpt-oss-120b (larger, same family) ---
         fallbacks.append(ChatGroq(
             api_key=groq_key,
-            model_name="llama-3.3-70b-versatile",
+            model_name="openai/gpt-oss-120b",
             temperature=temperature,
             max_retries=0,
         ))
 
-        # --- Fallback 2: Groq qwen3-32b ---
+        # --- Fallback 2: Groq qwen/qwen3.6-27b ---
         fallbacks.append(ChatGroq(
             api_key=groq_key,
-            model_name="qwen3-32b",
+            model_name="qwen/qwen3.6-27b",
             temperature=temperature,
             max_retries=0,
         ))
