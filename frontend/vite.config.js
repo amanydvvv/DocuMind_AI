@@ -8,4 +8,12 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://documind-ai-97t5.onrender.com',
+        changeOrigin: true,
+      },
+    },
+  },
 })

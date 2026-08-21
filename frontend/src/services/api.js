@@ -1,11 +1,5 @@
-const DEFAULT_API_URL = 'https://kuerycore-ai-97t5.onrender.com';
+const DEFAULT_API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? '' : 'https://documind-ai-97t5.onrender.com';
 export const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
-
-if (!/^https?:\/\//.test(API_URL)) {
-  throw new Error(
-    `Invalid VITE_API_URL: must be an absolute URL starting with http:// or https://, got: ${API_URL}`
-  );
-}
 
 function redactHeaders(headers) {
   const out = {};
