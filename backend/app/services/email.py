@@ -45,16 +45,21 @@ def _send_smtp_sync(
     text: str,
 ) -> bool:
     """Synchronous SMTP worker executed inside an async worker thread."""
+    import email.utils
+
     username = settings.SMTP_USERNAME
     password = settings.SMTP_PASSWORD
     server_host = settings.SMTP_SERVER or "smtp.gmail.com"
     server_port = int(settings.SMTP_PORT or 587)
-    from_name = getattr(settings, "SMTP_FROM_NAME", "KueryCore AI")
-    from_email = getattr(settings, "SMTP_FROM_EMAIL", None) or username
+
+    raw_from = getattr(settings, "SMTP_FROM_EMAIL", None) or username or "noreply@kuerycore.ai"
+    parsed_name, parsed_addr = email.utils.parseaddr(raw_from)
+    sender_addr = parsed_addr if parsed_addr else raw_from
+    sender_name = parsed_name or getattr(settings, "SMTP_FROM_NAME", None) or "KueryCore AI"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = f"{from_name} <{from_email}>"
+    msg["From"] = email.utils.formataddr((sender_name, sender_addr))
     msg["To"] = to
 
     msg.attach(MIMEText(text, "plain", "utf-8"))
@@ -63,20 +68,21 @@ def _send_smtp_sync(
     server = None
     try:
         if server_port == 465:
-            server = smtplib.SMTP_SSL(server_host, server_port, timeout=10.0)
+            server = smtplib.SMTP_SSL(server_host, server_port, timeout=12.0)
         else:
-            server = smtplib.SMTP(server_host, server_port, timeout=10.0)
+            server = smtplib.SMTP(server_host, server_port, timeout=12.0)
             server.ehlo()
             server.starttls()
             server.ehlo()
 
         if username and password:
             server.login(username, password)
-        server.sendmail(from_email, [to], msg.as_string())
-        logger.info("Password reset email successfully sent via SMTP to %s", to)
+
+        server.sendmail(sender_addr, [to], msg.as_string())
+        logger.info("Password reset email successfully sent via SMTP (%s) to %s", server_host, to)
         return True
     except Exception as exc:
-        logger.error("Failed to send email via SMTP to %s: %s", to, exc)
+        logger.error("Failed to send email via SMTP (%s) to %s: %s (type: %s)", server_host, to, exc, type(exc).__name__)
         return False
     finally:
         if server:
