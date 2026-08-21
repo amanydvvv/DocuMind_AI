@@ -581,11 +581,10 @@ async def chat_stream(
             err_payload = dumps({"detail": "An internal error occurred during generation."})
             yield f"event: error\ndata: {err_payload}\n\n"
 
-    # Summary Buffer Memory: summarize the last 5 messages once the stream
-    # finishes. The service opens its own isolated session, so it is safe to
-    # run after the request-scoped db is closed.
+    # Background Tasks: update memory summary + generate concise LLM title
+    background_tasks.add_task(update_conversation_summary, conversation_id)
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        background=BackgroundTask(update_conversation_summary, conversation_id),
+        background=background_tasks,
     )
