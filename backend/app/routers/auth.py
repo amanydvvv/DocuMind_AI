@@ -8,7 +8,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -279,19 +279,20 @@ _FORGOT_GENERIC_MSG = (
 async def forgot_password(
     request: Request,
     body: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
     """
     Initiate a password reset flow.
 
     Security contract:
-    - ALWAYS returns the same 200 + generic message regardless of whether the
-      email exists in the DB (prevents account enumeration).
+    - ALWAYS returns the same 200 + generic message immediately (<50ms)
+      regardless of whether the email exists in the DB (prevents account enumeration).
     - If a matching, active user IS found:
         1. Any unused reset tokens for that user are deleted.
         2. A cryptographically random token is generated.
         3. Its SHA-256 hash + 30-min expiry are persisted.
-        4. An email with the raw token embedded in a link is sent.
+        4. An email is dispatched asynchronously via BackgroundTasks.
     - Rate limited to 3 requests/minute per IP to prevent email-bombing.
     """
     from app.services.email import send_password_reset_email
@@ -326,8 +327,8 @@ async def forgot_password(
         db.add(prt)
         await db.commit()
 
-        # Fire-and-forget email — never raises, never changes the HTTP response.
-        await send_password_reset_email(to=user.email, raw_token=raw_token)
+        # Fire-and-forget email via background task — returns response instantly
+        background_tasks.add_task(send_password_reset_email, to=user.email, raw_token=raw_token)
 
     return MessageResponse(message=_FORGOT_GENERIC_MSG)
 

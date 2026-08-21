@@ -48,7 +48,7 @@ def _send_smtp_sync(
     username = settings.SMTP_USERNAME
     password = settings.SMTP_PASSWORD
     server_host = settings.SMTP_SERVER or "smtp.gmail.com"
-    server_port = settings.SMTP_PORT or 587
+    server_port = int(settings.SMTP_PORT or 587)
     from_name = getattr(settings, "SMTP_FROM_NAME", "KueryCore AI")
     from_email = getattr(settings, "SMTP_FROM_EMAIL", None) or username
 
@@ -62,11 +62,14 @@ def _send_smtp_sync(
 
     server = None
     try:
-        server = smtplib.SMTP(server_host, server_port, timeout=12.0)
-        server.ehlo()
-        if server_port == 587:
+        if server_port == 465:
+            server = smtplib.SMTP_SSL(server_host, server_port, timeout=10.0)
+        else:
+            server = smtplib.SMTP(server_host, server_port, timeout=10.0)
+            server.ehlo()
             server.starttls()
             server.ehlo()
+
         if username and password:
             server.login(username, password)
         server.sendmail(from_email, [to], msg.as_string())
