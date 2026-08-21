@@ -46,51 +46,22 @@ export default function Layout({
 
         {/* Top Header Bar — Exactly h-14 to align with ChatContainer header */}
         <div
-          className="h-14 px-4 flex items-center justify-between border-b border-white/[0.08] flex-shrink-0"
+          className="h-14 px-5 flex items-center justify-between border-b border-white/[0.08] flex-shrink-0"
           style={{
             background: 'linear-gradient(180deg, rgba(13, 29, 21, 0.75) 0%, rgba(9, 20, 16, 0.85) 100%)',
             backdropFilter: 'blur(16px)',
           }}
         >
-          <div className="flex items-center gap-2.5">
-            {/* Luminous Brand Emblem */}
-            <div
-              className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
-              style={{
-                background: 'linear-gradient(135deg, #00ffaa 0%, #00d68f 60%, #00a86b 100%)',
-                boxShadow: '0 0 16px rgba(0, 214, 143, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#020804" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            
-            {/* Luminous High-Res Title & Badge */}
-            <div className="flex items-center gap-2">
-              <span
-                className="font-black text-[18px] tracking-tight leading-none"
-                style={{
-                  background: 'linear-gradient(135deg, #ffffff 0%, #d1fae5 50%, #00d68f 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                KueryCore
-              </span>
-              <span
-                className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest leading-none"
-                style={{
-                  background: 'rgba(0, 214, 143, 0.12)',
-                  border: '1px solid rgba(0, 214, 143, 0.3)',
-                  color: '#00ffaa',
-                  boxShadow: '0 0 8px rgba(0, 214, 143, 0.25)',
-                }}
-              >
-                AI
-              </span>
-            </div>
-          </div>
+          <span
+            className="font-bold text-[19px] tracking-tight leading-none"
+            style={{
+              background: 'linear-gradient(135deg, #ffffff 0%, #d1fae5 50%, #00d68f 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            KueryCore
+          </span>
         </div>
 
         {/* Tab Switcher Area */}
