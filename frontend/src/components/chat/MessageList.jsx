@@ -89,26 +89,6 @@ export default function MessageList({
   if (!messages || messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-4 pb-4">
-        {/* Hero — tighter spacing */}
-        <div className="relative mb-5">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center animate-float-micro"
-            style={{
-              background: 'linear-gradient(135deg, #091410 0%, #0d2018 100%)',
-              border: '1px solid rgba(0,214,143,0.25)',
-              boxShadow: '0 0 40px rgba(0,214,143,0.15), 0 0 80px rgba(0,214,143,0.06)',
-            }}
-          >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00d68f" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <div
-            className="absolute -inset-3 rounded-3xl pointer-events-none animate-pulse"
-            style={{ background: 'radial-gradient(circle, rgba(0,214,143,0.08) 0%, transparent 70%)' }}
-          />
-        </div>
-
         <h2 className="text-2xl font-bold text-text mb-6 tracking-tight text-center">
           What would you like to uncover?
         </h2>

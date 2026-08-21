@@ -172,8 +172,17 @@ export default function UploadPanel({ onUploadComplete }) {
           multiple
         />
         <div className="flex flex-col items-center justify-center pointer-events-none">
-          <div className="w-9 h-9 rounded-xl bg-surface-muted border border-primary-border flex items-center justify-center text-primary mb-2.5 shadow-sm text-sm font-bold">
-            ◈
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5 transition-transform duration-200"
+            style={{
+              background: 'linear-gradient(135deg, #091410 0%, #0d2018 100%)',
+              border: '1px solid rgba(0,214,143,0.28)',
+              boxShadow: '0 0 20px rgba(0,214,143,0.18)',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00d68f" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+            </svg>
           </div>
           <p className="text-xs font-semibold text-text">Drag &amp; drop files here</p>
           <p className="text-[11px] text-text-muted mt-0.5">or click to browse (.pdf, .md, .txt)</p>
