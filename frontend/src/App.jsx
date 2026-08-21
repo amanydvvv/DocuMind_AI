@@ -79,7 +79,12 @@ function App() {
   }
 
   if (!user) {
-    return <AuthModal onAuthSuccess={handleAuthSuccess} />;
+    return (
+      <AuthModal
+        onAuthSuccess={handleAuthSuccess}
+        onStartAuth={() => setIsSigningIn(true)}
+      />
+    );
   }
 
   return (

@@ -9,7 +9,7 @@ const ANIMATED_SUBTITLES = [
   'Sub-350ms Hybrid Search.',
 ];
 
-export default function AuthModal({ onAuthSuccess }) {
+export default function AuthModal({ onAuthSuccess, onStartAuth }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,6 +53,7 @@ export default function AuthModal({ onAuthSuccess }) {
     submitInFlight.current = true;
     setError('');
     setLoading(true);
+    if (onStartAuth) onStartAuth();
 
     try {
       if (isLogin) {
@@ -64,9 +65,8 @@ export default function AuthModal({ onAuthSuccess }) {
       }
     } catch (err) {
       setError(err.message || 'Authentication failed. Please verify credentials.');
-    } finally {
-      submitInFlight.current = false;
       setLoading(false);
+      submitInFlight.current = false;
     }
   };
 
@@ -75,6 +75,7 @@ export default function AuthModal({ onAuthSuccess }) {
     submitInFlight.current = true;
     setError('');
     setLoading(true);
+    if (onStartAuth) onStartAuth();
     try {
       // Generate a unique isolated guest account for each visitor/session
       const guestId = Math.random().toString(36).substring(2, 8);
@@ -85,9 +86,8 @@ export default function AuthModal({ onAuthSuccess }) {
       onAuthSuccess(signupData);
     } catch (err) {
       setError(err.message || 'Demo initialization failed. Please try standard sign up.');
-    } finally {
-      submitInFlight.current = false;
       setLoading(false);
+      submitInFlight.current = false;
     }
   };
 
