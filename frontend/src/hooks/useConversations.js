@@ -99,12 +99,20 @@ export function useConversations() {
     async (question, documentId = null) => {
       if (!question.trim() || isStreaming) return;
 
+      const isNewChat = !activeConversationId;
+
       streamMessage({
         question,
         document_id: documentId,
         conversation_id: activeConversationId,
         onConversationId: setActiveConversationId,
-        onDone: loadConversationList,
+        onDone: () => {
+          loadConversationList();
+          if (isNewChat) {
+            setTimeout(loadConversationList, 3000);
+            setTimeout(loadConversationList, 6000);
+          }
+        },
       });
     },
     [activeConversationId, isStreaming, streamMessage, loadConversationList]
