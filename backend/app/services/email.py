@@ -1,25 +1,29 @@
 """
-KueryCore AI — Email Service (Gmail SMTP & Resend)
-==================================================
+KueryCore AI — Email Service (Brevo HTTPS API, SMTP & Resend)
+=============================================================
 Multi-provider transactional email service.
 
 Supported Providers:
-1. Gmail SMTP (Recommended for free tier without custom domains)
+1. Brevo HTTPS REST API (https://brevo.com — Primary recommended)
+   - Transmits via HTTPS port 443 (immune to cloud host SMTP port 25/587 blocks).
+   - Works with personal @gmail.com accounts (zero DNS records needed).
+   - Can send to ANY recipient in the world.
+   - Env vars: BREVO_API_KEY or (SMTP_SERVER=smtp-relay.brevo.com and SMTP_PASSWORD=xsmtpsib-...)
+
+2. Standard / Gmail SMTP
    - Works with any @gmail.com address using a 16-character Google App Password.
-   - Zero custom domain DNS records needed.
-   - Can send to ANY recipient in the world (@gmail, @yahoo, @outlook, etc.).
-   - Env vars: SMTP_USERNAME, SMTP_PASSWORD (optional: SMTP_SERVER, SMTP_PORT)
+   - Env vars: SMTP_USERNAME, SMTP_PASSWORD, SMTP_SERVER, SMTP_PORT
 
-2. Resend REST API (https://resend.com)
-   - REST API integration for verified custom domains.
-   - Env vars: RESEND_API_KEY (optional: RESEND_FROM_EMAIL)
+3. Resend REST API (https://resend.com)
+   - REST API integration for custom verified domains.
+   - Env vars: RESEND_API_KEY, RESEND_FROM_EMAIL
 
-3. Development Fallback (Local Dev / Tests)
-   - If neither SMTP nor Resend is configured, logs email body to stdout so
-     flows and tests execute cleanly without external credentials.
+4. Development Fallback (Local Dev / Tests)
+   - Logs email body to stdout so all reset-password flows and tests run cleanly.
 """
 
 import asyncio
+import email.utils
 import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -34,7 +38,67 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# 1. Gmail / Generic SMTP
+# 1. Brevo HTTPS REST API (Port 443 — Cloud-Friendly)
+# ---------------------------------------------------------------------------
+
+_BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+
+
+async def _send_via_brevo_api(
+    *,
+    to: str,
+    subject: str,
+    html: str,
+    text: str,
+) -> bool:
+    """Send transactional email via Brevo's HTTPS v3 REST API."""
+    api_key = getattr(settings, "BREVO_API_KEY", None) or settings.SMTP_PASSWORD
+    from_name = getattr(settings, "SMTP_FROM_NAME", None) or "KueryCore AI"
+    from_email = getattr(settings, "SMTP_FROM_EMAIL", None) or settings.SMTP_USERNAME
+
+    # Clean the sender email address
+    _, parsed_addr = email.utils.parseaddr(from_email)
+    sender_addr = parsed_addr if parsed_addr else from_email
+
+    if not api_key or not sender_addr:
+        return False
+
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.post(
+                _BREVO_API_URL,
+                headers={
+                    "api-key": api_key,
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                json={
+                    "sender": {"name": from_name, "email": sender_addr},
+                    "to": [{"email": to}],
+                    "subject": subject,
+                    "htmlContent": html,
+                    "textContent": text,
+                },
+            )
+
+        if response.status_code in (200, 201, 202):
+            msg_id = response.json().get("messageId", "unknown")
+            logger.info("Password reset email sent via Brevo HTTPS API to %s (messageId=%s)", to, msg_id)
+            return True
+
+        logger.error(
+            "Brevo HTTPS API returned status %s for email to %s: %s",
+            response.status_code, to, response.text[:250],
+        )
+        return False
+
+    except Exception as exc:
+        logger.error("Failed to send email via Brevo HTTPS API to %s: %s", to, exc)
+        return False
+
+
+# ---------------------------------------------------------------------------
+# 2. Gmail / Generic SMTP Relay
 # ---------------------------------------------------------------------------
 
 def _send_smtp_sync(
@@ -45,8 +109,6 @@ def _send_smtp_sync(
     text: str,
 ) -> bool:
     """Synchronous SMTP worker executed inside an async worker thread."""
-    import email.utils
-
     username = settings.SMTP_USERNAME
     password = settings.SMTP_PASSWORD
     server_host = settings.SMTP_SERVER or "smtp.gmail.com"
@@ -98,7 +160,7 @@ async def _send_via_smtp(*, to: str, subject: str, html: str, text: str) -> bool
 
 
 # ---------------------------------------------------------------------------
-# 2. Resend REST API
+# 3. Resend REST API
 # ---------------------------------------------------------------------------
 
 _RESEND_API_URL = "https://api.resend.com/emails"
@@ -150,9 +212,10 @@ async def send_password_reset_email(*, to: str, raw_token: str) -> None:
     Send a password-reset email containing a one-time link.
 
     Dispatches via:
-    1. Gmail / SMTP if SMTP_USERNAME & SMTP_PASSWORD are set.
-    2. Resend REST API if RESEND_API_KEY is set.
-    3. Dev stdout logger if no provider is configured.
+    1. Brevo HTTPS REST API (Port 443 — avoids cloud firewall SMTP port blocks)
+    2. Gmail / Generic SMTP Relay
+    3. Resend REST API
+    4. Dev stdout fallback
     """
     frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
     reset_url = f"{frontend_url}/reset-password?token={raw_token}"
@@ -223,16 +286,31 @@ async def send_password_reset_email(*, to: str, raw_token: str) -> None:
         f"— KueryCore AI"
     )
 
-    # 1. Primary: SMTP (e.g. Gmail)
+    # 1. Brevo HTTPS REST API (Preferred over SMTP to bypass cloud firewall blocks)
+    is_brevo = getattr(settings, "BREVO_API_KEY", None) or (
+        settings.SMTP_SERVER and "brevo" in settings.SMTP_SERVER.lower() and settings.SMTP_PASSWORD
+    )
+    if is_brevo:
+        sent = await _send_via_brevo_api(to=to, subject=subject, html=html_body, text=text_body)
+        if sent:
+            return
+        # Fallback to SMTP relay if API call failed
+        await _send_via_smtp(to=to, subject=subject, html=html_body, text=text_body)
+        return
+
+    # 2. Generic / Gmail SMTP Relay
     if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
         await _send_via_smtp(to=to, subject=subject, html=html_body, text=text_body)
-    # 2. Secondary: Resend REST API
-    elif settings.RESEND_API_KEY:
+        return
+
+    # 3. Resend REST API
+    if settings.RESEND_API_KEY:
         await _send_via_resend(to=to, subject=subject, html=html_body, text=text_body)
-    # 3. Dev Fallback
-    else:
-        logger.warning(
-            "[EMAIL DEV FALLBACK — no SMTP or Resend credentials set]\n"
-            "To: %s\nSubject: %s\nReset URL: %s",
-            to, subject, reset_url,
-        )
+        return
+
+    # 4. Dev Fallback
+    logger.warning(
+        "[EMAIL DEV FALLBACK — no email provider credentials configured]\n"
+        "To: %s\nSubject: %s\nReset URL: %s",
+        to, subject, reset_url,
+    )

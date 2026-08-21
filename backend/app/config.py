@@ -92,7 +92,10 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = str(Path(tempfile.gettempdir()) / "kuerycore_uploads")
 
     # Email Providers
-    # 1. SMTP (e.g. Gmail with Google App Password — 100% free, no custom domain required)
+    # 1. Brevo REST API / SMTP (https://brevo.com — 300 free emails/day to anyone)
+    BREVO_API_KEY: str | None = None
+
+    # 2. SMTP (e.g. Gmail with Google App Password — 500 free emails/day)
     SMTP_SERVER: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USERNAME: str | None = None
@@ -100,7 +103,7 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "KueryCore AI"
     SMTP_FROM_EMAIL: str | None = None
 
-    # 2. Resend REST API (https://resend.com)
+    # 3. Resend REST API (https://resend.com)
     RESEND_API_KEY: str | None = None
     RESEND_FROM_EMAIL: str = "KueryCore <noreply@kuerycore.ai>"
 
