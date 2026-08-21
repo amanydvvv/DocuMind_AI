@@ -47,16 +47,8 @@ export default function ChatContainer({
             <div className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-40" />
           </div>
           <h1
-            className="text-sm font-semibold truncate max-w-xs md:max-w-md tracking-tight"
-            style={{
-              background: isGenerating
-                ? 'linear-gradient(90deg, #f1f5f9, #fde68a, #f1f5f9)'
-                : 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
-              backgroundSize: isGenerating ? '200% 100%' : '100%',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              animation: isGenerating ? 'shimmer 1.5s linear infinite' : 'none',
-            }}
+            className={`text-sm font-semibold truncate max-w-xs md:max-w-md tracking-tight ${isGenerating ? 'text-amber-300' : 'text-slate-100'}`}
+            style={{ transition: 'color 0.3s ease' }}
           >
             {activeConversation?.title || 'New Research Thread'}
           </h1>
