@@ -2,13 +2,12 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 /**
- * Interactive3DSpheres — High-End Glass Geometric Polyhedrons & Neural Constellation
+ * Interactive3DSpheres — Ambient Volumetric Aurora & 3D Stardust Constellation
  *
- * Modern luxury SaaS aesthetic (Linear / Vercel style):
- * - Refractive frosted crystal polyhedrons (Icosahedron / Octahedron / Dodecahedron)
- * - Delicate luminous emerald wireframe lattices
- * - Interactive 3D particle constellation with mouse gravity & fluid waves
- * - Smooth lerped physics and dynamic camera tilt
+ * Clean, modern SaaS dark background:
+ * - Pure volumetric emerald aurora & radial ambient lighting
+ * - Interactive 3D stardust particle field with smooth cursor parallax and mouse physics
+ * - No bulky 3D blocks or polygon meshes
  */
 export default function Interactive3DSpheres() {
   const containerRef = useRef(null);
@@ -40,153 +39,30 @@ export default function Interactive3DSpheres() {
     renderer.toneMappingExposure = 1.1;
     container.appendChild(renderer.domElement);
 
-    // 2. High-Tech Studio Lighting with Luminous Glow
+    // 2. High-Tech Studio Lighting
     const ambientLight = new THREE.AmbientLight(0x061a10, 2.5);
     scene.add(ambientLight);
 
-    const topCyanLight = new THREE.PointLight(0x00ffaa, 4.8, 35);
+    const topCyanLight = new THREE.PointLight(0x00ffaa, 3.5, 35);
     topCyanLight.position.set(-8, 8, 7);
     scene.add(topCyanLight);
 
-    const emeraldRimLight = new THREE.DirectionalLight(0x00ffcc, 2.8);
+    const emeraldRimLight = new THREE.DirectionalLight(0x00ffcc, 2.2);
     emeraldRimLight.position.set(9, -6, 6);
     scene.add(emeraldRimLight);
 
-    const mouseLight = new THREE.PointLight(0x00ffaa, 4.0, 22);
+    const mouseLight = new THREE.PointLight(0x00ffaa, 3.2, 22);
     mouseLight.position.set(0, 0, 7);
     scene.add(mouseLight);
 
-    // 3. Glowing Glass Crystal Polyhedrons (Luminous Inner Core + Glowing Neon Lattice)
-    const crystalConfigs = [
-      // Hero Top-Left Refractive Glowing Icosahedron
-      {
-        type: 'icosahedron',
-        radius: 3.0,
-        detail: 0,
-        basePos: new THREE.Vector3(-6.8, 3.8, 1),
-        coreColor: 0x0a3822,
-        emissiveColor: 0x00ffaa,
-        emissiveIntensity: 0.45,
-        wireColor: 0x00ffaa,
-        roughness: 0.1,
-        metalness: 0.85,
-        wireOpacity: 0.9,
-        floatSpeed: 0.7,
-        floatAmp: 0.5,
-      },
-      // Top-Right Sleek Glowing Octahedron
-      {
-        type: 'octahedron',
-        radius: 2.3,
-        detail: 0,
-        basePos: new THREE.Vector3(7.2, 4.0, -1),
-        coreColor: 0x0d281c,
-        emissiveColor: 0x00d68f,
-        emissiveIntensity: 0.35,
-        wireColor: 0x00ffcc,
-        roughness: 0.15,
-        metalness: 0.8,
-        wireOpacity: 0.85,
-        floatSpeed: 0.9,
-        floatAmp: 0.4,
-      },
-      // Bottom-Left Floating Glowing Dodecahedron
-      {
-        type: 'dodecahedron',
-        radius: 1.6,
-        detail: 0,
-        basePos: new THREE.Vector3(-7.5, -4.5, 2),
-        coreColor: 0x082e1c,
-        emissiveColor: 0x38ef7d,
-        emissiveIntensity: 0.5,
-        wireColor: 0x38ef7d,
-        roughness: 0.1,
-        metalness: 0.9,
-        wireOpacity: 0.95,
-        floatSpeed: 1.2,
-        floatAmp: 0.6,
-      },
-      // Bottom-Right Glowing Background Prism
-      {
-        type: 'icosahedron',
-        radius: 2.6,
-        detail: 0,
-        basePos: new THREE.Vector3(7.8, -4.2, -3),
-        coreColor: 0x062014,
-        emissiveColor: 0x00ffaa,
-        emissiveIntensity: 0.3,
-        wireColor: 0x00d68f,
-        roughness: 0.2,
-        metalness: 0.7,
-        wireOpacity: 0.75,
-        floatSpeed: 0.6,
-        floatAmp: 0.4,
-      },
-      // Center Background Floating Gem
-      {
-        type: 'octahedron',
-        radius: 1.3,
-        detail: 0,
-        basePos: new THREE.Vector3(0.5, -5.5, -4),
-        coreColor: 0x0a4026,
-        emissiveColor: 0x00ffaa,
-        emissiveIntensity: 0.6,
-        wireColor: 0x00ffaa,
-        roughness: 0.05,
-        metalness: 0.95,
-        wireOpacity: 1.0,
-        floatSpeed: 1.4,
-        floatAmp: 0.7,
-      },
-    ];
-
-    const crystalMeshes = crystalConfigs.map((cfg) => {
-      let geo;
-      if (cfg.type === 'icosahedron') geo = new THREE.IcosahedronGeometry(cfg.radius, cfg.detail);
-      else if (cfg.type === 'octahedron') geo = new THREE.OctahedronGeometry(cfg.radius, cfg.detail);
-      else geo = new THREE.DodecahedronGeometry(cfg.radius, cfg.detail);
-
-      // Luminous neon holographic wireframe lattice (clean, non-blocky, ethereal)
-      const wireMat = new THREE.MeshBasicMaterial({
-        color: cfg.wireColor,
-        wireframe: true,
-        transparent: true,
-        opacity: cfg.wireOpacity,
-      });
-      const wireMesh = new THREE.Mesh(geo, wireMat);
-
-      // Inner glowing point light for volumetric aura
-      const innerGlow = new THREE.PointLight(cfg.emissiveColor, 2.2, cfg.radius * 4.0);
-      innerGlow.position.set(0, 0, 0);
-
-      const group = new THREE.Group();
-      group.add(wireMesh);
-      group.add(innerGlow);
-      group.position.copy(cfg.basePos);
-      scene.add(group);
-
-      return {
-        group,
-        cfg,
-        currentPos: cfg.basePos.clone(),
-        targetPos: cfg.basePos.clone(),
-        velocity: new THREE.Vector3(),
-        rotSpeed: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.008,
-          (Math.random() - 0.5) * 0.012,
-          (Math.random() - 0.5) * 0.006
-        ),
-      };
-    });
-
-    // 4. Floating Glowing Neural Constellation Particles
-    const particleCount = 180;
+    // 3. Floating Luminous Stardust Particles Constellation
+    const particleCount = 240;
     const particlePositions = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount * 3; i += 3) {
-      particlePositions[i] = (Math.random() - 0.5) * 38;
-      particlePositions[i + 1] = (Math.random() - 0.5) * 26;
-      particlePositions[i + 2] = (Math.random() - 0.5) * 18;
+      particlePositions[i] = (Math.random() - 0.5) * 42;
+      particlePositions[i + 1] = (Math.random() - 0.5) * 28;
+      particlePositions[i + 2] = (Math.random() - 0.5) * 20;
     }
 
     const particleGeo = new THREE.BufferGeometry();
@@ -194,16 +70,16 @@ export default function Interactive3DSpheres() {
 
     const particleMat = new THREE.PointsMaterial({
       color: 0x00ffaa,
-      size: 0.12,
+      size: 0.14,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.8,
       blending: THREE.AdditiveBlending,
     });
 
     const particles = new THREE.Points(particleGeo, particleMat);
     scene.add(particles);
 
-    // 5. Mouse Interaction Tracking
+    // 4. Mouse Interaction Tracking
     const mouse = {
       x: 0,
       y: 0,
@@ -225,7 +101,7 @@ export default function Interactive3DSpheres() {
     };
     window.addEventListener('resize', handleResize);
 
-    // 6. Animation Loop
+    // 5. Animation Loop
     let clock = new THREE.Clock();
     let animId;
 
@@ -241,48 +117,13 @@ export default function Interactive3DSpheres() {
       mouseLight.position.copy(mouse.worldPos);
 
       // Camera subtle parallax
-      camera.position.x = mouse.x * 1.8;
-      camera.position.y = mouse.y * 1.2;
+      camera.position.x = mouse.x * 1.5;
+      camera.position.y = mouse.y * 1.0;
       camera.lookAt(0, 0, 0);
 
-      // Update Crystals
-      crystalMeshes.forEach((item, idx) => {
-        const { group, cfg, currentPos, targetPos, velocity, rotSpeed } = item;
-
-        // Fluid harmonic float
-        const floatOffset = new THREE.Vector3(
-          Math.sin(elapsed * cfg.floatSpeed + idx * 1.3) * (cfg.floatAmp * 0.5),
-          Math.cos(elapsed * cfg.floatSpeed * 0.9 + idx * 1.8) * cfg.floatAmp,
-          Math.sin(elapsed * 0.6 + idx) * 0.3
-        );
-
-        targetPos.copy(cfg.basePos).add(floatOffset);
-
-        // Magnetic mouse repulsion
-        const diff = new THREE.Vector3().subVectors(currentPos, mouse.worldPos);
-        const dist = diff.length();
-        const maxDist = 8.5;
-
-        if (dist < maxDist && dist > 0.01) {
-          const force = ((maxDist - dist) / maxDist) * 2.2;
-          diff.normalize().multiplyScalar(force);
-          targetPos.add(diff);
-        }
-
-        // Spring damping physics
-        const spring = new THREE.Vector3().subVectors(targetPos, currentPos).multiplyScalar(0.07);
-        velocity.add(spring).multiplyScalar(0.86);
-        currentPos.add(velocity);
-
-        group.position.copy(currentPos);
-        group.rotation.x += rotSpeed.x;
-        group.rotation.y += rotSpeed.y;
-        group.rotation.z += rotSpeed.z;
-      });
-
-      // Slowly rotate particle field
-      particles.rotation.y = elapsed * 0.015;
-      particles.rotation.x = elapsed * 0.008;
+      // Slowly rotate and oscillate particle field
+      particles.rotation.y = elapsed * 0.018;
+      particles.rotation.x = elapsed * 0.009;
 
       renderer.render(scene, camera);
     };
