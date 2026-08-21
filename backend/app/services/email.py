@@ -1,28 +1,31 @@
 """
-KueryCore AI — Email Service (Resend)
-=====================================
-Thin wrapper around the Resend REST API for transactional emails.
+KueryCore AI — Email Service (Gmail SMTP & Resend)
+==================================================
+Multi-provider transactional email service.
 
-Provider choice: Resend (https://resend.com)
-  - Simple POST-only REST API, no heavy SDK dependency tree
-  - Generous free tier (3 000 emails/month, 100/day)
-  - HTTP 200 + JSON { "id": "<message-id>" } on success
-  - RESEND_API_KEY must be set as an env var; without it emails are logged
-    to stdout in development (so local flows still work end-to-end without
-    a real API key, and the reset-password endpoints behave identically).
+Supported Providers:
+1. Gmail SMTP (Recommended for free tier without custom domains)
+   - Works with any @gmail.com address using a 16-character Google App Password.
+   - Zero custom domain DNS records needed.
+   - Can send to ANY recipient in the world (@gmail, @yahoo, @outlook, etc.).
+   - Env vars: SMTP_USERNAME, SMTP_PASSWORD (optional: SMTP_SERVER, SMTP_PORT)
 
-To swap providers (SES, SendGrid, Postmark, SMTP) replace only _send_via_resend();
-the public interface (send_password_reset_email) stays the same.
+2. Resend REST API (https://resend.com)
+   - REST API integration for verified custom domains.
+   - Env vars: RESEND_API_KEY (optional: RESEND_FROM_EMAIL)
 
-Required env vars:
-  RESEND_API_KEY   — your Resend API key (from https://resend.com/api-keys)
-  RESEND_FROM_EMAIL — optional, defaults to "KueryCore <noreply@kuerycore.ai>"
-  FRONTEND_URL     — base URL of the deployed frontend
-                     (e.g. https://docu-mind-ai-iota.vercel.app)
-                     used to build the reset link
+3. Development Fallback (Local Dev / Tests)
+   - If neither SMTP nor Resend is configured, logs email body to stdout so
+     flows and tests execute cleanly without external credentials.
 """
 
+import asyncio
 import logging
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Optional
+
 import httpx
 
 from app.config import get_settings
@@ -31,37 +34,70 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Internal: Resend REST call
+# 1. Gmail / Generic SMTP
 # ---------------------------------------------------------------------------
 
-_RESEND_API_URL = "https://api.resend.com/emails"
-
-
-async def _send_via_resend(
+def _send_smtp_sync(
     *,
     to: str,
     subject: str,
     html: str,
     text: str,
 ) -> bool:
-    """
-    Send a single transactional email via Resend.
+    """Synchronous SMTP worker executed inside an async worker thread."""
+    username = settings.SMTP_USERNAME
+    password = settings.SMTP_PASSWORD
+    server_host = settings.SMTP_SERVER or "smtp.gmail.com"
+    server_port = settings.SMTP_PORT or 587
+    from_name = getattr(settings, "SMTP_FROM_NAME", "KueryCore AI")
+    from_email = getattr(settings, "SMTP_FROM_EMAIL", None) or username
 
-    Returns True on success, False on failure.
-    Logs errors but never raises — callers must NOT change their HTTP response
-    based on email-delivery success/failure (avoids account-enumeration leaks).
-    """
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"{from_name} <{from_email}>"
+    msg["To"] = to
+
+    msg.attach(MIMEText(text, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    server = None
+    try:
+        server = smtplib.SMTP(server_host, server_port, timeout=12.0)
+        server.ehlo()
+        if server_port == 587:
+            server.starttls()
+            server.ehlo()
+        if username and password:
+            server.login(username, password)
+        server.sendmail(from_email, [to], msg.as_string())
+        logger.info("Password reset email successfully sent via SMTP to %s", to)
+        return True
+    except Exception as exc:
+        logger.error("Failed to send email via SMTP to %s: %s", to, exc)
+        return False
+    finally:
+        if server:
+            try:
+                server.quit()
+            except Exception:
+                pass
+
+
+async def _send_via_smtp(*, to: str, subject: str, html: str, text: str) -> bool:
+    """Non-blocking async wrapper around SMTP."""
+    return await asyncio.to_thread(_send_smtp_sync, to=to, subject=subject, html=html, text=text)
+
+
+# ---------------------------------------------------------------------------
+# 2. Resend REST API
+# ---------------------------------------------------------------------------
+
+_RESEND_API_URL = "https://api.resend.com/emails"
+
+
+async def _send_via_resend(*, to: str, subject: str, html: str, text: str) -> bool:
     api_key = settings.RESEND_API_KEY
     from_addr = getattr(settings, "RESEND_FROM_EMAIL", "KueryCore <noreply@kuerycore.ai>")
-
-    if not api_key:
-        # Development fallback: log the email body instead of sending.
-        logger.warning(
-            "[EMAIL DEV FALLBACK — no RESEND_API_KEY set]\n"
-            "To: %s\nSubject: %s\n\n%s",
-            to, subject, text,
-        )
-        return True  # Treat as success so the endpoint still returns 200
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -97,17 +133,17 @@ async def _send_via_resend(
 
 
 # ---------------------------------------------------------------------------
-# Public: password-reset email
+# Public: Password-Reset Email
 # ---------------------------------------------------------------------------
 
 async def send_password_reset_email(*, to: str, raw_token: str) -> None:
     """
     Send a password-reset email containing a one-time link.
 
-    The link is:  {FRONTEND_URL}/reset-password?token={raw_token}
-
-    Never raises. Returns None regardless of delivery outcome so callers
-    cannot distinguish success/failure (prevents timing/enumeration attacks).
+    Dispatches via:
+    1. Gmail / SMTP if SMTP_USERNAME & SMTP_PASSWORD are set.
+    2. Resend REST API if RESEND_API_KEY is set.
+    3. Dev stdout logger if no provider is configured.
     """
     frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
     reset_url = f"{frontend_url}/reset-password?token={raw_token}"
@@ -178,4 +214,16 @@ async def send_password_reset_email(*, to: str, raw_token: str) -> None:
         f"— KueryCore AI"
     )
 
-    await _send_via_resend(to=to, subject=subject, html=html_body, text=text_body)
+    # 1. Primary: SMTP (e.g. Gmail)
+    if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+        await _send_via_smtp(to=to, subject=subject, html=html_body, text=text_body)
+    # 2. Secondary: Resend REST API
+    elif settings.RESEND_API_KEY:
+        await _send_via_resend(to=to, subject=subject, html=html_body, text=text_body)
+    # 3. Dev Fallback
+    else:
+        logger.warning(
+            "[EMAIL DEV FALLBACK — no SMTP or Resend credentials set]\n"
+            "To: %s\nSubject: %s\nReset URL: %s",
+            to, subject, reset_url,
+        )

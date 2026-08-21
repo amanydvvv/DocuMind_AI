@@ -91,14 +91,20 @@ class Settings(BaseSettings):
     # (survives non-root containers on Render and varies safely by platform).
     UPLOAD_DIR: str = str(Path(tempfile.gettempdir()) / "kuerycore_uploads")
 
-    # Email (Resend — https://resend.com)
-    # RESEND_API_KEY must be set in production for reset emails to actually send.
-    # Without it, emails are logged to stdout (useful for local dev/testing).
+    # Email Providers
+    # 1. SMTP (e.g. Gmail with Google App Password — 100% free, no custom domain required)
+    SMTP_SERVER: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_NAME: str = "KueryCore AI"
+    SMTP_FROM_EMAIL: str | None = None
+
+    # 2. Resend REST API (https://resend.com)
     RESEND_API_KEY: str | None = None
     RESEND_FROM_EMAIL: str = "KueryCore <noreply@kuerycore.ai>"
 
     # Frontend base URL — used to build password-reset links in emails.
-    # Set to your deployed Vercel URL in production.
     FRONTEND_URL: str = "http://localhost:5173"
 
     # CORS
