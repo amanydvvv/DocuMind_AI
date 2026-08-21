@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from './components/layout/Layout';
 import ChatContainer from './components/chat/ChatContainer';
 import AuthModal from './components/AuthModal';
+import StepForm from './components/shared/StepForm';
 import { useConversations } from './hooks/useConversations';
 import { getAuthToken, removeAuthToken, fetchCurrentUser } from './services/api';
 
@@ -72,6 +73,21 @@ function App() {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background text-text font-medium">
         Loading KueryCore AI...
+      </div>
+    );
+  }
+
+  // Preview mode support for testing new components in isolation
+  const isStepFormPreview = typeof window !== 'undefined' && window.location.search.includes('preview=stepform');
+  if (isStepFormPreview) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background select-none relative overflow-hidden">
+        <div className="cosmic-bg" aria-hidden="true">
+          <div className="star-layer" />
+        </div>
+        <div className="z-10 w-full max-w-xl">
+          <StepForm onComplete={(data) => alert('Onboarding Completed:\n' + JSON.stringify(data, null, 2))} />
+        </div>
       </div>
     );
   }
