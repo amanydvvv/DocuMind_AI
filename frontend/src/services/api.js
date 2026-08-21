@@ -126,13 +126,14 @@ export async function authedFetch(url, options = {}, retry = true) {
   return response;
 }
 
-export async function loginUser(email, password) {
+export async function loginUser(email, password, signal) {
   let response;
   try {
     response = await fetchWithDiagnostics(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      signal,
     });
   } catch (err) {
     throw new Error(friendlyNetworkMessage(err, `${API_URL}/api/auth/login`));
@@ -152,13 +153,14 @@ export async function loginUser(email, password) {
   return data;
 }
 
-export async function signupUser(email, password) {
+export async function signupUser(email, password, signal) {
   let response;
   try {
     response = await fetchWithDiagnostics(`${API_URL}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      signal,
     });
   } catch (err) {
     throw new Error(friendlyNetworkMessage(err, `${API_URL}/api/auth/signup`));
@@ -170,6 +172,10 @@ export async function signupUser(email, password) {
       const errorData = await response.json();
       errorMsg = errorData.detail || errorMsg;
     } catch {}
+    // 400 "already exists" and 409 Conflict both surface clearly
+    if (response.status === 409 || (response.status === 400 && /already exists/i.test(errorMsg))) {
+      throw new Error('An account with this email already exists. Try signing in instead.');
+    }
     throw new Error(errorMsg);
   }
 
@@ -178,7 +184,58 @@ export async function signupUser(email, password) {
   return data;
 }
 
+export async function requestPasswordReset(email, signal) {
+  let response;
+  try {
+    response = await fetchWithDiagnostics(`${API_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      signal,
+    });
+  } catch (err) {
+    throw new Error(friendlyNetworkMessage(err, `${API_URL}/api/auth/forgot-password`));
+  }
+
+  if (!response.ok) {
+    let errorMsg = 'Failed to send reset email';
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.detail || errorMsg;
+    } catch {}
+    throw new Error(errorMsg);
+  }
+
+  return response.json(); // { message: "If an account exists..." }
+}
+
+export async function resetPassword(token, newPassword, signal) {
+  let response;
+  try {
+    response = await fetchWithDiagnostics(`${API_URL}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword }),
+      signal,
+    });
+  } catch (err) {
+    throw new Error(friendlyNetworkMessage(err, `${API_URL}/api/auth/reset-password`));
+  }
+
+  if (!response.ok) {
+    let errorMsg = 'Password reset failed';
+    try {
+      const errorData = await response.json();
+      errorMsg = errorData.detail || errorMsg;
+    } catch {}
+    throw new Error(errorMsg);
+  }
+
+  return response.json(); // { message: "Password updated successfully..." }
+}
+
 export async function fetchCurrentUser() {
+
   const response = await authedFetch(`${API_URL}/api/auth/me`);
   if (!response.ok) {
     removeAuthToken();

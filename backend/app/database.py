@@ -15,16 +15,30 @@ settings = get_settings()
 # Using HNSW avoids the "0 rows returned on small tables" issue that ivfflat suffers from
 # when probed with standard asyncpg prepared statements, meaning we do NOT need to disable
 # statement_cache_size (which would hurt performance).
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-    connect_args={
+import sys
+import os
+from sqlalchemy.pool import NullPool
+
+is_testing = "pytest" in sys.modules or bool(os.environ.get("PYTEST_CURRENT_TEST"))
+
+engine_kwargs = {
+    "echo": settings.DEBUG,
+    "pool_pre_ping": True,
+    "connect_args": {
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
     },
+}
+
+if is_testing:
+    engine_kwargs["poolclass"] = NullPool
+else:
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
+
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    **engine_kwargs,
 )
 
 async_session = async_sessionmaker(

@@ -91,6 +91,16 @@ class Settings(BaseSettings):
     # (survives non-root containers on Render and varies safely by platform).
     UPLOAD_DIR: str = str(Path(tempfile.gettempdir()) / "kuerycore_uploads")
 
+    # Email (Resend — https://resend.com)
+    # RESEND_API_KEY must be set in production for reset emails to actually send.
+    # Without it, emails are logged to stdout (useful for local dev/testing).
+    RESEND_API_KEY: str | None = None
+    RESEND_FROM_EMAIL: str = "KueryCore <noreply@kuerycore.ai>"
+
+    # Frontend base URL — used to build password-reset links in emails.
+    # Set to your deployed Vercel URL in production.
+    FRONTEND_URL: str = "http://localhost:5173"
+
     # CORS
     # Explicit allowlist. Dynamic Vercel preview origins are additionally
     # covered by allow_origin_regex in main.py; this list carries the stable

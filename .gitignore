@@ -12,6 +12,7 @@ frontend/.env
 node_modules/
 dist/
 .env.local
+.vercel/
 *.key
 *.pem
 

@@ -29,6 +29,7 @@ settings = get_settings()
 
 
 from app.models.user import User
+from app.models.password_reset import PasswordResetToken
 
 class Document(Base):
     """Uploaded documents tracked for ingestion status."""
