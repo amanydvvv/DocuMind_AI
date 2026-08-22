@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Groq vision model used for OCR fallback on scanned (image-only) PDF pages.
     # Default tracks Groq's current vision-capable model.
     VISION_MODEL: str = "qwen/qwen3.6-27b"
+    # Fast model used by the ingestion pipeline to generate human-readable document
+    # titles. Speed matters more than capability here — a cheap 8b model is sufficient.
+    TITLE_GENERATION_MODEL: str = "llama-3.1-8b-instant"
 
     # RAG Settings
     CHUNK_SIZE: int = 800
@@ -110,7 +113,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://kuery-core-ai-iota.vercel.app"
+        "https://docu-mind-ai-iota.vercel.app"
     ]
 
     @model_validator(mode="after")

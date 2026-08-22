@@ -2,10 +2,11 @@
 KueryCore AI — FastAPI Application Entry Point
 """
 
+import logging
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
@@ -21,7 +22,6 @@ from app.routers import (
 
 settings = get_settings()
 
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +64,6 @@ async def lifespan(app: FastAPI):
     # --- Shutdown ---
     await close_db()
 
-
-from fastapi import Request
 
 app = FastAPI(
     title="KueryCore API",

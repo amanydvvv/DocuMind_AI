@@ -250,7 +250,7 @@ async def _generate_display_title(first_page_text: str, filename: str) -> str:
             f"Document Sample:\n{sample_text}"
         )
         resp = await groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=settings.TITLE_GENERATION_MODEL,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=60,
             temperature=0.1,
