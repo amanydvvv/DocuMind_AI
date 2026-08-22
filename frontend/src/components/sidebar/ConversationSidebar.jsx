@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import ConversationItem from './ConversationItem';
-import Icon from '../shared/Icon';
 
 export default function ConversationSidebar({
   conversations,

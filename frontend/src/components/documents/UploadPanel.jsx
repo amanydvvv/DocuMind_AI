@@ -1,8 +1,7 @@
 import { useState, useRef, useReducer, useEffect } from 'react';
 import { uploadDocument, getDocument } from '../../services/api';
-import Icon from '../shared/Icon';
 
-export default function UploadPanel({ onUploadComplete }) {
+export default function UploadPanel({ isOpen, onClose, onUploadComplete }) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 

@@ -63,16 +63,7 @@ jobs:
       - name: Run Pytest Test Suite
         run: |
           cd backend
-          pytest \
-            tests/test_password_reset.py \
-            tests/test_auth_regression.py \
-            tests/test_auth_multitenancy.py \
-            tests/test_integration.py \
-            tests/test_guardrails.py \
-            tests/test_rag_quality.py \
-            tests/test_cot_buffer.py \
-            tests/test_jules.py \
-            -v
+          python -m pytest tests/ -v
 
   frontend-build:
     name: Frontend Build Check
