@@ -234,9 +234,8 @@ export async function resetPassword(token, newPassword, signal) {
   return response.json(); // { message: "Password updated successfully..." }
 }
 
-export async function fetchCurrentUser() {
-
-  const response = await authedFetch(`${API_URL}/api/auth/me`);
+export async function fetchCurrentUser(signal = null) {
+  const response = await authedFetch(`${API_URL}/api/auth/me`, { signal });
   if (!response.ok) {
     removeAuthToken();
     throw new Error('Unauthorized');
