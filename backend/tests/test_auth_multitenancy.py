@@ -24,9 +24,11 @@ async def reset_rate_limiter():
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def mock_background_ingest():
-    """Mock background ingest_document so auth/multitenancy tests don't spawn un-awaited async tasks."""
-    with patch("app.routers.documents.ingest_document", new_callable=AsyncMock):
+async def mock_background_tasks():
+    """Mock background tasks so auth/multitenancy tests don't spawn async DB tasks that race with user teardown."""
+    with patch("app.routers.documents.ingest_document", new_callable=AsyncMock), \
+         patch("app.routers.chat._generate_conversation_title", new_callable=AsyncMock), \
+         patch("app.routers.chat.update_conversation_summary", new_callable=AsyncMock):
         yield
 
 
