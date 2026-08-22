@@ -11,8 +11,14 @@ from app.database import engine
 import uuid
 
 
-from unittest.mock import patch, AsyncMock
+from fastapi import BackgroundTasks
 from app.core.ratelimit import limiter
+
+
+@pytest_asyncio.fixture(autouse=True)
+def disable_background_tasks(monkeypatch):
+    """Disable background tasks during auth/multitenancy tests so no async DB jobs run in background."""
+    monkeypatch.setattr(BackgroundTasks, "add_task", lambda *args, **kwargs: None)
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -21,15 +27,6 @@ async def reset_rate_limiter():
     limiter.reset()
     yield
     limiter.reset()
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def mock_background_tasks():
-    """Mock background tasks so auth/multitenancy tests don't spawn async DB tasks that race with user teardown."""
-    with patch("app.routers.documents.ingest_document", new_callable=AsyncMock), \
-         patch("app.routers.chat._generate_conversation_title", new_callable=AsyncMock), \
-         patch("app.routers.chat.update_conversation_summary", new_callable=AsyncMock):
-        yield
 
 
 @pytest_asyncio.fixture
