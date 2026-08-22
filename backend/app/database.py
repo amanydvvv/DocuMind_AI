@@ -23,7 +23,6 @@ is_testing = (
     "pytest" in sys.modules
     or bool(os.environ.get("PYTEST_CURRENT_TEST"))
     or bool(os.environ.get("CI"))
-    or settings.ENVIRONMENT.lower() in ("test", "development")
 )
 
 engine_kwargs = {
