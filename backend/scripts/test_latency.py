@@ -1,9 +1,10 @@
 import time
 import requests
 import sys
-import os
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(__file__))
+# Add backend root to path so we can import app modules
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 try:
     from app.core.security import create_access_token
