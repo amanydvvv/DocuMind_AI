@@ -11,6 +11,7 @@ from app.database import engine
 import uuid
 
 
+from unittest.mock import patch, AsyncMock
 from app.core.ratelimit import limiter
 
 
@@ -20,6 +21,13 @@ async def reset_rate_limiter():
     limiter.reset()
     yield
     limiter.reset()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def mock_background_ingest():
+    """Mock background ingest_document so auth/multitenancy tests don't spawn un-awaited async tasks."""
+    with patch("app.routers.documents.ingest_document", new_callable=AsyncMock):
+        yield
 
 
 @pytest_asyncio.fixture
