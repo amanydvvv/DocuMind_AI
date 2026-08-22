@@ -19,7 +19,12 @@ import sys
 import os
 from sqlalchemy.pool import NullPool
 
-is_testing = "pytest" in sys.modules or bool(os.environ.get("PYTEST_CURRENT_TEST"))
+is_testing = (
+    "pytest" in sys.modules
+    or bool(os.environ.get("PYTEST_CURRENT_TEST"))
+    or bool(os.environ.get("CI"))
+    or settings.ENVIRONMENT.lower() in ("test", "development")
+)
 
 engine_kwargs = {
     "echo": settings.DEBUG,

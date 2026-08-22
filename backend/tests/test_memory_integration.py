@@ -4,6 +4,7 @@ Verifies update_conversation_summary persists a clean, preamble-free summary
 for a conversation with >= 2 messages, using its own isolated session.
 """
 
+import os
 import uuid
 
 import pytest
@@ -16,6 +17,10 @@ from app.services.memory import update_conversation_summary
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    not os.getenv("GROQ_API_KEY") or os.getenv("GROQ_API_KEY", "").startswith("test-dummy"),
+    reason="Live Groq API key required for memory integration test",
+)
 async def test_update_conversation_summary_persists_clean_summary():
     user_id = None
     conv_id = None
