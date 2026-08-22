@@ -1,13 +1,29 @@
-# KueryCore AI
+<div align="center">
 
-> **Enterprise Document Intelligence & Production-Hardened Hybrid RAG Platform**
+# ⚡ KueryCore AI
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16_pgvector-336791.svg?style=flat&logo=PostgreSQL&logoColor=white)](https://github.com/pgvector/pgvector)
-[![React](https://img.shields.io/badge/React-19_Vite-61DAFB.svg?style=flat&logo=React&logoColor=black)](https://react.dev)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=flat&logo=Python&logoColor=white)](https://python.org)
-[![Groq](https://img.shields.io/badge/Inference-Groq_Cascade-F55036.svg?style=flat)](https://groq.com)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+### *Enterprise Document Intelligence & Production-Hardened Hybrid RAG Platform*
+
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?style=for-the-badge&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16_pgvector-336791.svg?style=for-the-badge&logo=PostgreSQL&logoColor=white)](https://github.com/pgvector/pgvector)
+[![React](https://img.shields.io/badge/React-19_Vite-61DAFB.svg?style=for-the-badge&logo=React&logoColor=black)](https://react.dev)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=for-the-badge&logo=Python&logoColor=white)](https://python.org)
+[![Groq](https://img.shields.io/badge/Inference-Groq_Cascade-F55036.svg?style=for-the-badge)](https://groq.com)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+
+<p align="center">
+  <a href="#-system-architecture--request-lifecycle">Architecture</a> •
+  <a href="#-core-capabilities">Capabilities</a> •
+  <a href="#-technical-specifications">Tech Stack</a> •
+  <a href="#-project-structure">Project Structure</a> •
+  <a href="#-api-contract--endpoints">API Docs</a> •
+  <a href="#-environment-setup--local-development">Quickstart</a> •
+  <a href="#-verification--automated-tests">Testing</a>
+</p>
+
+</div>
+
+---
 
 KueryCore AI is an enterprise-grade Retrieval-Augmented Generation (RAG) platform designed to ingest, index, and query unstructured documents with sub-second hybrid retrieval, real-time Server-Sent Events (SSE) streaming, deterministic PDF citation fidelity, and multi-tenant security isolation.
 
