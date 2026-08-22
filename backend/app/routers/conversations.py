@@ -114,6 +114,11 @@ async def delete_conversation(
 
     # Explicitly delete child messages first to avoid Foreign Key constraint errors
     await db.execute(delete(Message).where(Message.conversation_id == conversation_id))
-    await db.delete(conv)
+    await db.execute(
+        delete(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        )
+    )
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

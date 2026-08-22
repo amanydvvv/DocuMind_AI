@@ -299,7 +299,7 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
 
                     if text and text.strip():
                         pages.append({"text": text.strip(), "page_number": i + 1, "source": source})
-        elif doc.file_type == "markdown":
+        elif doc.file_type in ("markdown", "txt", "text"):
             with open(file_path, "r", encoding="utf-8") as f:
                 text = f.read()
                 if text and text.strip():
@@ -309,7 +309,7 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
             raise RuntimeError(f"Unsupported file type: {doc.file_type}")
 
         if not pages:
-            raise RuntimeError("No readable text found in document. Please upload a searchable PDF or Markdown file.")
+            raise RuntimeError("No readable text found in document. Please upload a searchable PDF, Markdown, or text file.")
 
         # Generate human-readable display title if missing
         display_title = await _generate_display_title(pages[0]["text"], doc.filename)

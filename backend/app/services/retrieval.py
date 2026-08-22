@@ -404,8 +404,9 @@ async def retrieve_context(
         retrieved = []
         for chunk, score in reranked_top_k:
             fn, dt = doc_map.get(chunk.document_id, ("unknown", "unknown"))
-            filename = chunk.metadata_.get("filename") or fn
-            display_title = chunk.metadata_.get("display_title") or dt
+            meta = chunk.metadata_ or {}
+            filename = meta.get("filename") or fn
+            display_title = meta.get("display_title") or dt
             if chunk.metadata_ is not None:
                 chunk.metadata_["display_title"] = display_title
             retrieved.append((chunk, score, filename))

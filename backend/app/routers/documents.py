@@ -264,7 +264,12 @@ async def delete_document(
 
     # Use direct DML delete so PostgreSQL ON DELETE CASCADE handles chunk
     # removal without loading all chunk rows into the ORM session first.
-    await db.execute(delete(Document).where(Document.id == document_id))
+    await db.execute(
+        delete(Document).where(
+            Document.id == document_id,
+            Document.user_id == current_user.id,
+        )
+    )
     await db.commit()
 
     # Corpus changed: cached retrieval results for this tenant are stale.

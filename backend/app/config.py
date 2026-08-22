@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     # Upload
     MAX_FILE_SIZE_MB: int = 50
-    ALLOWED_EXTENSIONS: list[str] = ["pdf", "md"]
+    ALLOWED_EXTENSIONS: list[str] = ["pdf", "md", "txt"]
     # Single source of truth for the upload directory. OS-native temp dir
     # (survives non-root containers on Render and varies safely by platform).
     UPLOAD_DIR: str = str(Path(tempfile.gettempdir()) / "kuerycore_uploads")
