@@ -54,7 +54,7 @@ export default function ChatInput({ onSendMessage, disabled }) {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="Ask anything about your documents (or start general inquiry)..."
-          className="w-full bg-transparent px-3 py-2 text-[14px] text-white placeholder:text-slate-400 focus:outline-none resize-none min-h-[44px] max-h-40 leading-relaxed font-normal"
+          className="w-full bg-transparent px-3 py-2 text-[16px] sm:text-[14px] text-white placeholder:text-slate-400 focus:outline-none resize-none min-h-[44px] max-h-40 leading-relaxed font-normal"
           rows={1}
           disabled={disabled}
         />
@@ -63,13 +63,18 @@ export default function ChatInput({ onSendMessage, disabled }) {
           className="flex items-center justify-between px-2 pt-2"
           style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
         >
-          {/* Keyboard hints */}
-          <span className="text-[11px] text-slate-400 flex items-center gap-1.5 select-none">
+          {/* Keyboard hints — hidden on mobile to maximize clean space */}
+          <span className="hidden sm:flex text-[11px] text-slate-400 items-center gap-1.5 select-none">
             <kbd className="px-1.5 py-0.5 rounded-md bg-white/[0.08] border border-white/[0.12] text-[10px] text-slate-200 font-mono font-semibold shadow-xs">↵</kbd>
             <span className="font-medium text-slate-300">send</span>
             <span className="text-white/20 mx-0.5">•</span>
             <kbd className="px-1.5 py-0.5 rounded-md bg-white/[0.08] border border-white/[0.12] text-[10px] text-slate-200 font-mono font-semibold shadow-xs">Shift+↵</kbd>
             <span className="font-medium text-slate-300">new line</span>
+          </span>
+
+          {/* Touch-friendly placeholder spacer on mobile */}
+          <span className="sm:hidden text-[11px] text-slate-400 font-medium select-none">
+            KueryCore Assistant
           </span>
 
           {/* Circular Dispatch button matching reference aesthetic */}

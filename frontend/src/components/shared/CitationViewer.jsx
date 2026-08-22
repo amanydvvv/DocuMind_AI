@@ -4,11 +4,11 @@ export default function CitationViewer({ citation, onClose, onViewDocument }) {
   if (!citation) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150 select-none">
-      <div className="glass-card-elevated rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150 select-none">
+      <div className="glass-card-elevated rounded-2xl sm:rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-surface">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border flex justify-between items-center bg-surface">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-primary text-sm font-bold">◈</span>
@@ -46,14 +46,14 @@ export default function CitationViewer({ citation, onClose, onViewDocument }) {
         </div>
 
         {/* Recessed Monospace Terminal Well */}
-        <div className="p-6 overflow-y-auto flex-1 text-[13px] leading-relaxed text-text select-text bg-surface/50">
-          <div className="recessed-well p-4 rounded-xl font-mono text-xs text-amber-100/90 whitespace-pre-wrap leading-relaxed">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 text-[13px] leading-relaxed text-text select-text bg-surface/50">
+          <div className="recessed-well p-3.5 sm:p-4 rounded-xl font-mono text-xs text-amber-100/90 whitespace-pre-wrap leading-relaxed">
             {citation.content_preview || citation.content}
           </div>
         </div>
         
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-border bg-surface flex justify-end gap-2.5">
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 border-t border-border bg-surface flex flex-wrap justify-end gap-2">
           {onViewDocument && citation.document_id && (
             <button
               onClick={() => onViewDocument(citation)}

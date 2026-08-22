@@ -7,7 +7,7 @@ export default function MessageBubble({ message, onCitationClick }) {
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-200`}>
       <div
-        className="max-w-[85%] md:max-w-[78%] rounded-2xl px-5 py-4"
+        className="max-w-[92%] sm:max-w-[85%] md:max-w-[78%] rounded-2xl px-4 py-3.5 sm:px-5 sm:py-4"
         style={
           isUser
             ? {
