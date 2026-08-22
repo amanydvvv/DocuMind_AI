@@ -337,6 +337,41 @@ def _build_resolved_query_section(query: str, resolved_query: Optional[str]) -> 
     return ""
 
 
+def _build_chain_inputs(
+    query: str,
+    chunks: List[Chunk],
+    chat_history: Optional[List[Message]],
+    corpus_metadata: str,
+    conversation_summary: Optional[str],
+    resolved_query: Optional[str],
+) -> dict:
+    """Build the prompt input dict consumed by both generate_answer and
+    generate_answer_stream. Centralised here so prompt/history changes
+    only ever need to be made in one place.
+    """
+    context_text = _format_context_text(chunks)
+    if chat_history:
+        history_lines = []
+        for msg in chat_history:
+            role = "User" if msg.role == "user" else "Assistant"
+            history_lines.append(f"{role}: {msg.content}")
+        chat_history_section = (
+            "Conversation History:\n"
+            + "\n".join(history_lines)
+            + "\n---------------------"
+        )
+    else:
+        chat_history_section = ""
+    return {
+        "corpus_metadata": corpus_metadata,
+        "chat_history_section": chat_history_section,
+        "context": context_text,
+        "query": query,
+        "resolved_query_section": _build_resolved_query_section(query, resolved_query),
+        "conversation_summary": conversation_summary or "",
+    }
+
+
 async def generate_answer(
     query: str,
     chunks: List[Chunk],
@@ -354,38 +389,23 @@ async def generate_answer(
     isolation.
     """
     logger.info("Generating answer based on retrieved context and conversation history...")
-    
-    # Use the template directly with conversation_summary as a variable
+
     prompt = PromptTemplate(
         template=RAG_PROMPT_TEMPLATE,
-        input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section", "conversation_summary"]
+        input_variables=[
+            "corpus_metadata", "chat_history_section", "context",
+            "query", "resolved_query_section", "conversation_summary",
+        ]
     )
-    
-    context_text = _format_context_text(chunks)
-    
-    # Format chat history if present
-    if chat_history:
-        history_lines = []
-        for msg in chat_history:
-            role = "User" if msg.role == "user" else "Assistant"
-            history_lines.append(f"{role}: {msg.content}")
-        chat_history_section = "Conversation History:\n" + "\n".join(history_lines) + "\n---------------------"
-    else:
-        chat_history_section = ""
-    
-    # Build the prompt chain with dynamic LLM instance
     chain = prompt | get_llm()
-    
-    # Execute the LLM
+
     try:
-        response = await chain.ainvoke({
-            "corpus_metadata": corpus_metadata,
-            "chat_history_section": chat_history_section,
-            "context": context_text,
-            "query": query,
-            "resolved_query_section": _build_resolved_query_section(query, resolved_query),
-            "conversation_summary": conversation_summary or "",
-        })
+        response = await chain.ainvoke(
+            _build_chain_inputs(
+                query, chunks, chat_history, corpus_metadata,
+                conversation_summary, resolved_query,
+            )
+        )
         raw = response.content if hasattr(response, "content") else str(response)
         return extract_answer_from_cot(raw)
     except Exception as e:
@@ -413,36 +433,24 @@ async def generate_answer_stream(
     retrieval query, shown to the model only when it differs from `query`.
     """
     logger.info("Streaming answer tokens from LLM...")
-    
-    # Use the template directly with conversation_summary as a variable
+
     prompt = PromptTemplate(
         template=RAG_PROMPT_TEMPLATE,
-        input_variables=["corpus_metadata", "chat_history_section", "context", "query", "resolved_query_section", "conversation_summary"]
+        input_variables=[
+            "corpus_metadata", "chat_history_section", "context",
+            "query", "resolved_query_section", "conversation_summary",
+        ]
     )
-    
-    context_text = _format_context_text(chunks)
-    
-    if chat_history:
-        history_lines = []
-        for msg in chat_history:
-            role = "User" if msg.role == "user" else "Assistant"
-            history_lines.append(f"{role}: {msg.content}")
-        chat_history_section = "Conversation History:\n" + "\n".join(history_lines) + "\n---------------------"
-    else:
-        chat_history_section = ""
-    
     chain = prompt | get_llm()
-    
+
     cot_buffer = StreamCoTBuffer()
     try:
-        async for chunk_response in chain.astream({
-            "corpus_metadata": corpus_metadata,
-            "chat_history_section": chat_history_section,
-            "context": context_text,
-            "query": query,
-            "resolved_query_section": _build_resolved_query_section(query, resolved_query),
-            "conversation_summary": conversation_summary or "",
-        }):
+        async for chunk_response in chain.astream(
+            _build_chain_inputs(
+                query, chunks, chat_history, corpus_metadata,
+                conversation_summary, resolved_query,
+            )
+        ):
             if chunk_response.content:
                 for delta in cot_buffer.process_token(chunk_response.content):
                     if delta:
@@ -457,4 +465,4 @@ async def generate_answer_stream(
                 "The AI service is currently at capacity or quota limits have been reached. Please try again in a moment."
             )
         logger.error(f"Error during LLM token streaming: {e}", exc_info=True)
-        raise
+        raise
