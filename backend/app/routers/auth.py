@@ -206,7 +206,9 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/hour")
 async def delete_me(
+    request: Request,
     body: DeleteAccountRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -332,23 +334,6 @@ async def forgot_password(
         background_tasks.add_task(send_password_reset_email, to=user.email, raw_token=raw_token)
 
     return MessageResponse(message=_FORGOT_GENERIC_MSG)
-
-
-# ---------------------------------------------------------------------------
-# POST /api/auth/test-email (Diagnostic & Live Probe)
-# ---------------------------------------------------------------------------
-
-class TestEmailRequest(BaseModel):
-    to: str
-    admin_key: Optional[str] = None
-
-
-@router.post("/test-email")
-async def test_email_endpoint(body: TestEmailRequest) -> dict:
-    """Live diagnostic probe to inspect exact provider response / errors."""
-    from app.services.email import send_password_reset_email
-    result = await send_password_reset_email(to=body.to.strip(), raw_token="diagnostic_test_token")
-    return result
 
 
 # ---------------------------------------------------------------------------
