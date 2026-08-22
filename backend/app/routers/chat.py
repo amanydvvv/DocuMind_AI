@@ -149,10 +149,11 @@ async def chat(
                     status_code=404, detail=f"Conversation {conversation_id} not found."
                 )
         else:
+            _words = question.strip().split()
             conv = Conversation(
                 id=uuid.uuid4(),
                 user_id=current_user.id,
-                title=" ".join(question.strip().split()[:5]).capitalize() + ("..." if len(question.strip().split()) > 5 else "")
+                title=" ".join(_words[:5]) + ("..." if len(_words) > 5 else "")
             )
             db.add(conv)
             await db.flush()
@@ -362,10 +363,11 @@ async def chat_stream(
                 status_code=404, detail=f"Conversation {conversation_id} not found."
             )
     else:
+        _words = question.strip().split()
         conv = Conversation(
             id=uuid.uuid4(),
             user_id=current_user.id,
-            title=" ".join(question.strip().split()[:5]).capitalize() + ("..." if len(question.strip().split()) > 5 else "")
+            title=" ".join(_words[:5]) + ("..." if len(_words) > 5 else "")
         )
         db.add(conv)
         await db.flush()
