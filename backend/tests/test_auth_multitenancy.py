@@ -11,6 +11,7 @@ from app.database import engine
 import uuid
 
 
+from unittest.mock import patch, AsyncMock
 from fastapi import BackgroundTasks
 from app.core.ratelimit import limiter
 
@@ -19,6 +20,16 @@ from app.core.ratelimit import limiter
 def disable_background_tasks(monkeypatch):
     """Disable background tasks during auth/multitenancy tests so no async DB jobs run in background."""
     monkeypatch.setattr(BackgroundTasks, "add_task", lambda *args, **kwargs: None)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def mock_chat_rag_pipeline():
+    """Mock RAG generation and retrieval so auth/multitenancy tests don't require external AI providers."""
+    with patch("app.routers.chat.retrieve_context", new_callable=AsyncMock) as mock_ret, \
+         patch("app.routers.chat.generate_answer", new_callable=AsyncMock) as mock_gen:
+        mock_ret.return_value = []
+        mock_gen.return_value = "Mocked answer for auth multitenancy testing"
+        yield
 
 
 @pytest_asyncio.fixture(autouse=True)
