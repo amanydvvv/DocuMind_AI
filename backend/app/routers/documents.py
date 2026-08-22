@@ -43,7 +43,8 @@ def _file_type(filename: str) -> str:
     return "markdown" if ext == "md" else ext
 
 
-async def _compute_hash(content: bytes) -> str:
+def _compute_hash(content: bytes) -> str:
+    """SHA-256 hex digest of document content used for deduplication."""
     return hashlib.sha256(content).hexdigest()
 
 
@@ -70,7 +71,7 @@ async def upload_document(
             detail=f"File too large. Maximum: {settings.MAX_FILE_SIZE_MB}MB",
         )
 
-    content_hash = await _compute_hash(content)
+    content_hash = _compute_hash(content)
 
     # Check for duplicate for this user
     existing = await db.execute(
