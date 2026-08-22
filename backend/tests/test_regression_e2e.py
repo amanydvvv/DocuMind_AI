@@ -4,6 +4,7 @@ Covers signup/login, document upload & ingestion, RAG chat with citations,
 and forged-JWT rejection. Uses the in-process ASGI app (no live server needed).
 """
 
+import os
 import asyncio
 import tempfile
 import uuid
@@ -65,6 +66,10 @@ async def test_signup_login(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    not os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY", "").startswith("test-dummy"),
+    reason="Live Gemini API key required for live document ingestion test",
+)
 async def test_upload_document(client: AsyncClient):
     """Upload a document and ingest it, then poll to completed."""
     await _signup_user(client)
@@ -104,6 +109,10 @@ async def test_upload_document(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    not os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY", "").startswith("test-dummy"),
+    reason="Live Gemini API key required for live chat query test",
+)
 async def test_chat_query(client: AsyncClient):
     """Send a chat query, confirm a real answer and citation."""
     await _signup_user(client)

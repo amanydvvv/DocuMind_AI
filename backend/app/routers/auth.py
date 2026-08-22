@@ -245,7 +245,8 @@ async def delete_me(
         )
 
     # 3. Delete user row (PostgreSQL ON DELETE CASCADE purges all child tables)
-    await db.delete(current_user)
+    from sqlalchemy import delete
+    await db.execute(delete(User).where(User.id == current_user.id))
     await db.commit()
 
     # Tenant no longer exists: drop its cached retrieval results immediately.

@@ -24,7 +24,7 @@ settings = get_settings()
 # Initialize the embedding model (Groq has no embedding API — Gemini stays)
 embeddings = GoogleGenerativeAIEmbeddings(
     model=f"models/{settings.EMBEDDING_MODEL}",
-    google_api_key=settings.GEMINI_API_KEY,
+    google_api_key=settings.GEMINI_API_KEY or "dummy-key-for-init",
     timeout=30.0,
 )
 
@@ -33,7 +33,7 @@ embeddings = GoogleGenerativeAIEmbeddings(
 # ~60s worst case (30s attempt + 30s retry) instead of stalling the
 # ingestion worker for the openai default of 600s and multiple retries.
 groq_client = AsyncOpenAI(
-    api_key=os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY,
+    api_key=os.getenv("GROQ_API_KEY") or settings.GROQ_API_KEY or "dummy-key-for-init",
     base_url="https://api.groq.com/openai/v1",
     timeout=30.0,
     max_retries=1,

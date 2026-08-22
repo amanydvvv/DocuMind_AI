@@ -127,6 +127,7 @@ async def chat(
     with multi-turn conversation memory, scoped to current user.
     """
     start_time = time.time()
+    user_id = current_user.id
 
     # Guardrails run before anything else: sanitize-once (persist, history,
     # cache key and LLM all consume the sanitized text) + injection check.
@@ -324,7 +325,7 @@ async def chat(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Chat endpoint failed for user {current_user.id}: {e}", exc_info=True)
+        logger.error(f"Chat endpoint failed for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred while processing your request.")
 
 
