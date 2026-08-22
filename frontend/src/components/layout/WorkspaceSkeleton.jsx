@@ -4,9 +4,43 @@ import React from 'react';
  * WorkspaceSkeleton — Full Screen Shimmer Skeleton Workspace Transition
  * Displayed seamlessly after sign-in / demo initialization while loading workspace data.
  */
-export default function WorkspaceSkeleton() {
+export default function WorkspaceSkeleton({ onDismiss }) {
+  const [showSlowWarning, setShowSlowWarning] = React.useState(false);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setShowSlowWarning(true), 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="flex h-screen w-screen bg-[#050d08] text-white overflow-hidden select-none animate-in fade-in duration-200">
+    <div className="flex h-screen w-screen bg-[#050d08] text-white overflow-hidden select-none animate-in fade-in duration-200 relative">
+      {/* ── Slow Connection / Cold-start Notification ── */}
+      {showSlowWarning && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div
+            className="flex items-center gap-3 px-4 py-2 rounded-full text-xs"
+            style={{
+              background: 'rgba(13, 29, 21, 0.95)',
+              border: '1px solid rgba(0, 214, 143, 0.3)',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 214, 143, 0.15)',
+              backdropFilter: 'blur(16px)',
+            }}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span className="text-slate-300">Connecting to secure workspace...</span>
+            {onDismiss && (
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="ml-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 transition-all cursor-pointer"
+              >
+                Skip to Sign In
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Left Sidebar Skeleton ── */}
       <aside className="w-64 border-r border-white/[0.08] bg-[#07120c]/80 backdrop-blur-md flex flex-col h-full flex-shrink-0">
         {/* Header Bar */}

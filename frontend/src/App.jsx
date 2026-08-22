@@ -43,11 +43,20 @@ function App() {
         setCheckingAuth(false);
         return;
       }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
       try {
-        const u = await fetchCurrentUser();
+        const u = await fetchCurrentUser(controller.signal);
+        clearTimeout(timeoutId);
         setUser(u);
-        if (loadConversationList) loadConversationList();
+        if (loadConversationList) {
+          loadConversationList().catch(() => {});
+        }
       } catch (err) {
+        clearTimeout(timeoutId);
+        // Stale or timed-out token: clear and gracefully drop to sign-in modal
+        removeAuthToken();
         setUser(null);
       } finally {
         setCheckingAuth(false);
@@ -60,18 +69,27 @@ function App() {
     return () => window.removeEventListener('auth-expired', handleAuthExpired);
   }, []);
 
-  const handleAuthSuccess = async (authData) => {
-    // Only show the skeleton AFTER confirmed auth success — never before.
+  // Fail-safe: Ensure skeleton screen NEVER stays stuck under any circumstance
+  useEffect(() => {
+    if (checkingAuth || isSigningIn) {
+      const timer = setTimeout(() => {
+        setCheckingAuth(false);
+        setIsSigningIn(false);
+      }, 3800);
+      return () => clearTimeout(timer);
+    }
+  }, [checkingAuth, isSigningIn]);
+
+  const handleAuthSuccess = (authData) => {
+    // Show brief shimmer transition while user profile renders
     setIsSigningIn(true);
     setUser({ id: authData.user_id, email: authData.email });
-    try {
-      if (loadConversationList) await loadConversationList();
-    } catch {
-      // Non-critical: workspace still loads without conversation list
+    if (loadConversationList) {
+      loadConversationList().catch(() => {});
     }
     setTimeout(() => {
       setIsSigningIn(false);
-    }, 450);
+    }, 200);
   };
 
   // Called by AuthModal when auth fails — ensures skeleton never stays stuck
@@ -107,7 +125,14 @@ function App() {
 
   // ── Loading / skeleton ────────────────────────────────
   if (checkingAuth || isSigningIn) {
-    return <WorkspaceSkeleton />;
+    return (
+      <WorkspaceSkeleton
+        onDismiss={() => {
+          setCheckingAuth(false);
+          setIsSigningIn(false);
+        }}
+      />
+    );
   }
 
   // ── Auth gate ─────────────────────────────────────────
