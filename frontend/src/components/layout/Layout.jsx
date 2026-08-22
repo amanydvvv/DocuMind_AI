@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import DocumentSidebar from '../documents/DocumentSidebar';
 import ConversationSidebar from '../sidebar/ConversationSidebar';
 import { removeAuthToken } from '../../services/api';
@@ -14,10 +14,21 @@ export default function Layout({
   children,
 }) {
   const [activeTab, setActiveTab] = useState('chats');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     removeAuthToken();
     if (onLogout) onLogout();
+  };
+
+  const handleSelectConversation = (id) => {
+    if (onSelectConversation) onSelectConversation(id);
+    setMobileMenuOpen(false);
+  };
+
+  const handleStartNewChat = () => {
+    if (onStartNewChat) onStartNewChat();
+    setMobileMenuOpen(false);
   };
 
   return (
@@ -28,9 +39,20 @@ export default function Layout({
         <div className="star-layer" />
       </div>
 
-      {/* ── Sidebar ── */}
+      {/* ── Mobile Backdrop Overlay ── */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/75 backdrop-blur-xs z-30 md:hidden transition-opacity duration-300"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── Sidebar (Drawer on mobile, permanent column on desktop) ── */}
       <aside
-        className="w-72 h-full flex flex-col overflow-hidden z-20 relative"
+        className={`fixed inset-y-0 left-0 z-40 w-72 md:relative md:translate-x-0 h-full flex flex-col overflow-hidden transition-transform duration-300 ease-in-out ${
+          mobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
+        }`}
         style={{
           background: 'linear-gradient(180deg, rgba(9,20,16,0.98) 0%, rgba(5,13,8,0.98) 100%)',
           borderRight: '1px solid rgba(0,214,143,0.08)',
@@ -62,6 +84,17 @@ export default function Layout({
           >
             KueryCore
           </span>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+            aria-label="Close sidebar menu"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
 
         {/* Tab Switcher Area */}
@@ -112,8 +145,8 @@ export default function Layout({
             <ConversationSidebar
               conversations={conversations}
               activeConversationId={activeConversationId}
-              onSelectConversation={onSelectConversation}
-              onStartNewChat={onStartNewChat}
+              onSelectConversation={handleSelectConversation}
+              onStartNewChat={handleStartNewChat}
               onDeleteConversation={onDeleteConversation}
             />
           ) : (
@@ -174,7 +207,14 @@ export default function Layout({
 
       {/* ── Main Viewport ── */}
       <main className="flex-1 h-full overflow-hidden flex flex-col relative z-10">
-        {children}
+        {React.Children.map(children, (child) =>
+          React.isValidElement(child)
+            ? React.cloneElement(child, {
+                onOpenMobileMenu: () => setMobileMenuOpen(true),
+                onToggleMobileMenu: () => setMobileMenuOpen((prev) => !prev),
+              })
+            : child
+        )}
       </main>
     </div>
   );

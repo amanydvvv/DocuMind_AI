@@ -84,13 +84,13 @@ export default function PdfViewer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150 select-none">
-      <div className="glass-card-elevated rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150 select-none">
+      <div className="glass-card-elevated rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[94vh] sm:max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="px-6 py-3.5 border-b border-border flex justify-between items-center bg-surface">
-          <div className="flex items-center gap-2.5 min-w-0 pr-4">
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 border-b border-border flex justify-between items-center bg-surface">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 pr-3 sm:pr-4">
             <span className="text-primary text-sm font-bold flex-shrink-0">▣</span>
-            <h3 className="font-semibold text-text text-sm truncate tracking-tight">{filename}</h3>
+            <h3 className="font-semibold text-text text-xs sm:text-sm truncate tracking-tight">{filename}</h3>
           </div>
           <button
             onClick={onClose}
@@ -103,11 +103,11 @@ export default function PdfViewer({
 
         {/* Page navigation bar */}
         {numPages > 0 && (
-          <div className="px-6 py-2 flex items-center justify-between bg-surface border-b border-border text-xs">
+          <div className="px-4 sm:px-6 py-2 flex items-center justify-between bg-surface border-b border-border text-xs">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={!page || page <= 1}
-              className="px-3 py-1 text-xs font-semibold bg-surface-muted text-text rounded-lg hover:bg-surface-elevated hover:border-primary-border border border-border-subtle disabled:opacity-30 transition-all tactile-btn cursor-pointer"
+              className="px-2.5 sm:px-3 py-1 text-xs font-semibold bg-surface-muted text-text rounded-lg hover:bg-surface-elevated hover:border-primary-border border border-border-subtle disabled:opacity-30 transition-all tactile-btn cursor-pointer"
             >
               ← Prev
             </button>
@@ -117,7 +117,7 @@ export default function PdfViewer({
             <button
               onClick={() => setPage((p) => Math.min(numPages, p + 1))}
               disabled={!page || page >= numPages}
-              className="px-3 py-1 text-xs font-semibold bg-surface-muted text-text rounded-lg hover:bg-surface-elevated hover:border-primary-border border border-border-subtle disabled:opacity-30 transition-all tactile-btn cursor-pointer"
+              className="px-2.5 sm:px-3 py-1 text-xs font-semibold bg-surface-muted text-text rounded-lg hover:bg-surface-elevated hover:border-primary-border border border-border-subtle disabled:opacity-30 transition-all tactile-btn cursor-pointer"
             >
               Next →
             </button>
@@ -125,23 +125,23 @@ export default function PdfViewer({
         )}
 
         {/* PDF canvas */}
-        <div className="flex-1 overflow-auto bg-surface-well p-6 flex justify-center shadow-inner">
+        <div className="flex-1 overflow-auto bg-surface-well p-3 sm:p-6 flex justify-center shadow-inner">
           <Document
             key={`${documentId}:${attempt}`}
             file={file}
             onLoadSuccess={handleLoadSuccess}
             onLoadError={handleLoadError}
-            className="shadow-2xl rounded-lg overflow-hidden border border-border"
+            className="shadow-2xl rounded-lg overflow-hidden border border-border max-w-full"
           >
-            {page && <Page pageNumber={page} />}
+            {page && <Page pageNumber={page} width={Math.min(typeof window !== 'undefined' ? window.innerWidth - 48 : 600, 720)} />}
           </Document>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-border bg-surface flex justify-end">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 border-t border-border bg-surface flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-surface-muted hover:bg-surface-elevated border border-border text-text text-xs font-medium rounded-xl transition-all tactile-btn cursor-pointer"
+            className="px-4 py-1.5 sm:py-2 bg-surface-muted hover:bg-surface-elevated border border-border text-text text-xs font-medium rounded-xl transition-all tactile-btn cursor-pointer"
           >
             Close
           </button>
