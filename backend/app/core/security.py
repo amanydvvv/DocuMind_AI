@@ -68,6 +68,7 @@ def create_access_token(data: dict, expires_delta: Optional[int] = None) -> str:
     """Create a signed RFC 7519 HMAC-SHA256 JWT access token."""
     payload = data.copy()
     payload["type"] = "access"
+    payload.setdefault("jti", secrets.token_hex(16))
 
     now = int(time.time())
     expire_seconds = expires_delta or (ACCESS_TOKEN_EXPIRE_MINUTES * 60)

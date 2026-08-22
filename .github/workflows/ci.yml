@@ -31,8 +31,8 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://kuerycore:kuerycore_dev@localhost:5432/kuerycore
       ENVIRONMENT: development
       JWT_SECRET_KEY: ci-test-secret-do-not-use-in-production
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'test-dummy-gemini-key' }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || 'test-dummy-groq-key' }}
 
     steps:
       - name: Checkout Repository
