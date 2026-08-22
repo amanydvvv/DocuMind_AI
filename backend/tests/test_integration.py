@@ -15,6 +15,10 @@ from app.services.retrieval import retrieve_context
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    not os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY", "").startswith("test-dummy"),
+    reason="Live Gemini API key required for full RAG integration test",
+)
 async def test_full_rag_integration_pipeline():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # 1. User Auth Signup
