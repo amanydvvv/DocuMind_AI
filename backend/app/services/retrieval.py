@@ -37,7 +37,7 @@ WEIGHT_PHRASE_NORM = 0.20  # normalized phrase-coverage score
 # Initialize embedding model
 embeddings = GoogleGenerativeAIEmbeddings(
     model=f"models/{settings.EMBEDDING_MODEL}",
-    google_api_key=settings.GEMINI_API_KEY,
+    google_api_key=settings.GEMINI_API_KEY or "dummy-key-for-init",
     timeout=30.0,
 )
 
