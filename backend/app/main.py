@@ -17,7 +17,6 @@ from app.routers import (
     conversations_router,
     analytics_router,
     auth_router,
-    jules_router,
 )
 
 settings = get_settings()
@@ -121,9 +120,6 @@ app.include_router(documents_router)
 app.include_router(chat_router)
 app.include_router(conversations_router)
 app.include_router(analytics_router)
-if settings.JULES_ENABLED:
-    app.include_router(jules_router)
-    logger.info("Jules admin router registered (JULES_ENABLED=true)")
 
 
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])
