@@ -276,8 +276,11 @@ async def _ingest_pipeline(db: AsyncSession, doc: Document, file_path: Optional[
     if not os.path.exists(file_path):
         raise RuntimeError(f"File not found: {file_path}")
 
-    # Track if this is a temp file we should clean up (only files under system temp dir)
-    is_temp_file = file_path.startswith(tempfile.gettempdir())
+    # Track if this is a temp file we should clean up.
+    # Use Path.is_relative_to (Python 3.9+) to handle platform-specific path
+    # separators — os.path.startswith fails on Windows when the tmp dir path
+    # does not have a trailing separator.
+    is_temp_file = Path(file_path).resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
 
     try:
         # 2. Parse text

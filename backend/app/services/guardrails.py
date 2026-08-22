@@ -102,7 +102,9 @@ PROMPT_LEAK_FRAGMENTS = (
     "<answer>",
     "retrieved context",
     "vector database",
-    "page ",
+    # NOTE: "page " (with space) was intentionally removed — it triggered on
+    # legitimate answers containing "page of", "page layout", "multi-page", etc.
+    # "NEVER reference page numbers" (above) is a precise indicator of prompt leakage.
     "Source chunk",
     "The document states that",
     "Based on the provided text",
