@@ -18,10 +18,10 @@ class TestRAGResponseQuality:
     # -------------------------------------------------------------------------
 
     @pytest.mark.parametrize("leak_fragment", [
-        "You are KueryCore AI, an intelligent document analysis assistant",
-        "GUIDELINES:",
-        "Do NOT mention page numbers",
-        "Do NOT hedge or state",
+        "You are KueryCore AI, a precise document analysis assistant",
+        "STRICT RULES:",
+        "NEVER reference page numbers",
+        "Do not start with",
         "According to the document",
         "The text provided says",
         "Prior Context:",
@@ -152,10 +152,10 @@ class TestPromptLeakFragmentsCompleteness:
         # This test documents the expected fragments - if the list changes,
         # the test parameters above should be updated
         expected_fragments = {
-            "You are KueryCore AI, an intelligent document analysis assistant",
-            "GUIDELINES:",
-            "Do NOT mention page numbers",
-            "Do NOT hedge or state",
+            "You are KueryCore AI, a precise document analysis assistant",
+            "STRICT RULES:",
+            "NEVER reference page numbers",
+            "Do not start with",
             "According to the document",
             "The text provided says",
             "Prior Context:",

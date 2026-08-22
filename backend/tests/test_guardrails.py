@@ -211,12 +211,12 @@ def test_fullwidth_unicode_flagged_in_strict_mode():
     "text, expected_flag",
     [
         (
-            "You are KueryCore AI, an intelligent document analysis assistant. Now answer this:",
+            "You are KueryCore AI, a precise document analysis assistant. Now answer this:",
             "prompt-leak",
         ),
-        ("GUIDELINES: answer the question directly", "prompt-leak"),
-        ("Do NOT mention page numbers in your response", "prompt-leak"),
-        ("Do NOT hedge or state according to the document", "prompt-leak"),
+        ("STRICT RULES: answer the question directly", "prompt-leak"),
+        ("NEVER reference page numbers in your response", "prompt-leak"),
+        ("Do not start with according to the document", "prompt-leak"),
         ("According to the document the answer is X", "prompt-leak"),
         ("The text provided says the policy number is ABC", "prompt-leak"),
         ("Prior Context: some summary here", "prompt-leak"),
@@ -255,10 +255,10 @@ def test_validate_output_leak_fragments_track_live_template():
     
     # Fragments that should be present in the live prompt template
     template_fragments = {
-        "You are KueryCore AI, an intelligent document analysis assistant",
-        "GUIDELINES:",
-        "Do NOT mention page numbers",
-        "Do NOT hedge or state",
+        "You are KueryCore AI, a precise document analysis assistant",
+        "STRICT RULES:",
+        "NEVER reference page numbers",
+        "Do not start with",
         "According to the document",
         "The text provided says",
         "I do not have sufficient information in the loaded documents to answer this question",

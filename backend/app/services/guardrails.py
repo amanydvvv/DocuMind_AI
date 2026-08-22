@@ -89,10 +89,10 @@ _UNUSUAL_UNICODE_RE = re.compile(
 # generation. Keep in sync when the template changes — the tests derive
 # leak samples from RAG_PROMPT_TEMPLATE, so drift fails loudly.
 PROMPT_LEAK_FRAGMENTS = (
-    "You are KueryCore AI, an intelligent document analysis assistant",
-    "GUIDELINES:",
-    "Do NOT mention page numbers",
-    "Do NOT hedge or state",
+    "You are KueryCore AI, a precise document analysis assistant",
+    "STRICT RULES:",
+    "NEVER reference page numbers",
+    "Do not start with",
     "According to the document",
     "The text provided says",
     "Prior Context:",
@@ -111,6 +111,7 @@ PROMPT_LEAK_FRAGMENTS = (
     "CORPUS METADATA",
     "Workspace Documents Summary",
 )
+
 
 # Unsafe-content blocklist. Scoped as a safety net, not a moderation suite:
 # these are action phrasings, so benign document mentions (e.g. "the policy
