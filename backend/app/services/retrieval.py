@@ -18,6 +18,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from app.models import Chunk, Document
 from app.config import get_settings
 from app.services.query_cache import query_cache
+from app.database import async_session as make_session
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -109,8 +110,16 @@ async def _retrieve_vector_candidates(
             candidates.append((chunk, similarity))
 
         return candidates
-    except Exception:
-        # Fallback for DB instances without pgvector C extension compiled
+    except Exception as pgvec_err:
+        # Fallback for DB instances without pgvector C extension compiled.
+        # Log at WARNING — this path should never silently hide real DB errors
+        # in production. If this fires repeatedly, the pgvector extension is
+        # likely missing or the embedding column type is misconfigured.
+        logger.warning(
+            "pgvector HNSW query failed (%s); falling back to in-memory cosine scan. "
+            "Performance may be degraded on large corpora.",
+            pgvec_err,
+        )
         stmt = select(Chunk)
         if user_id is not None or document_id is not None:
             stmt = stmt.join(Document, Chunk.document_id == Document.id)
@@ -121,6 +130,9 @@ async def _retrieve_vector_candidates(
         if document_id is not None:
             stmt = stmt.where(Chunk.document_id == document_id)
 
+        # Cap the fallback scan — a full table scan with no LIMIT could OOM
+        # on large corpora. 10× top-K gives the cosine scorer enough candidates.
+        stmt = stmt.limit(limit * 10)
         result = await db.execute(stmt)
         chunks = result.scalars().all()
 
@@ -338,12 +350,21 @@ async def retrieve_context(
         return cached
 
     try:
-        # 1. Fetch vector and lexical candidates from DB with user_id tenant filtering
-        vector_candidates = await _retrieve_vector_candidates(
-            query=query, db=db, document_id=document_id, user_id=user_id, limit=VECTOR_TOP_N
-        )
-        lexical_candidates = await _retrieve_lexical_candidates(
-            query=query, db=db, document_id=document_id, user_id=user_id, limit=LEXICAL_TOP_N
+        # 1. Fetch vector and lexical candidates concurrently.
+        #    asyncpg does not support concurrent operations on the same session,
+        #    so the lexical leg opens its own short-lived session.
+        async def _run_lexical():
+            async with make_session() as lex_db:
+                return await _retrieve_lexical_candidates(
+                    query=query, db=lex_db, document_id=document_id,
+                    user_id=user_id, limit=LEXICAL_TOP_N,
+                )
+
+        vector_candidates, lexical_candidates = await asyncio.gather(
+            _retrieve_vector_candidates(
+                query=query, db=db, document_id=document_id, user_id=user_id, limit=VECTOR_TOP_N
+            ),
+            _run_lexical(),
         )
 
         stage1_ms = int((time.time() - start_time) * 1000)
