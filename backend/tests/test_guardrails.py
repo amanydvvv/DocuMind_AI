@@ -260,7 +260,6 @@ def test_validate_output_leak_fragments_track_live_template():
         "NEVER reference page numbers",
         "Do not start with",
         "According to the document",
-        "The text provided says",
         "I do not have sufficient information in the loaded documents to answer this question",
         "Prior Context:",
         "Context:",
