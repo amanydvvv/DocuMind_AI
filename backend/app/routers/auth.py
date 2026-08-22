@@ -334,6 +334,23 @@ async def forgot_password(
 
 
 # ---------------------------------------------------------------------------
+# POST /api/auth/test-email (Diagnostic & Live Probe)
+# ---------------------------------------------------------------------------
+
+class TestEmailRequest(BaseModel):
+    to: str
+    admin_key: Optional[str] = None
+
+
+@router.post("/test-email")
+async def test_email_endpoint(body: TestEmailRequest) -> dict:
+    """Live diagnostic probe to inspect exact provider response / errors."""
+    from app.services.email import send_password_reset_email
+    result = await send_password_reset_email(to=body.to.strip(), raw_token="diagnostic_test_token")
+    return result
+
+
+# ---------------------------------------------------------------------------
 # POST /api/auth/reset-password
 # ---------------------------------------------------------------------------
 

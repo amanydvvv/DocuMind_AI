@@ -1,25 +1,7 @@
 """
 KueryCore AI — Email Service (Brevo HTTPS API, SMTP & Resend)
 =============================================================
-Multi-provider transactional email service.
-
-Supported Providers:
-1. Brevo HTTPS REST API (https://brevo.com — Primary recommended)
-   - Transmits via HTTPS port 443 (immune to cloud host SMTP port 25/587 blocks).
-   - Works with personal @gmail.com accounts (zero DNS records needed).
-   - Can send to ANY recipient in the world.
-   - Env vars: BREVO_API_KEY or (SMTP_SERVER=smtp-relay.brevo.com and SMTP_PASSWORD=xsmtpsib-...)
-
-2. Standard / Gmail SMTP
-   - Works with any @gmail.com address using a 16-character Google App Password.
-   - Env vars: SMTP_USERNAME, SMTP_PASSWORD, SMTP_SERVER, SMTP_PORT
-
-3. Resend REST API (https://resend.com)
-   - REST API integration for custom verified domains.
-   - Env vars: RESEND_API_KEY, RESEND_FROM_EMAIL
-
-4. Development Fallback (Local Dev / Tests)
-   - Logs email body to stdout so all reset-password flows and tests run cleanly.
+Multi-provider transactional email service with detailed diagnostic reporting.
 """
 
 import asyncio
@@ -28,7 +10,7 @@ import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Optional
+from typing import Any, Dict, Tuple
 
 import httpx
 
@@ -50,18 +32,19 @@ async def _send_via_brevo_api(
     subject: str,
     html: str,
     text: str,
-) -> bool:
+) -> Tuple[bool, Dict[str, Any]]:
     """Send transactional email via Brevo's HTTPS v3 REST API."""
-    api_key = getattr(settings, "BREVO_API_KEY", None) or settings.SMTP_PASSWORD
-    from_name = getattr(settings, "SMTP_FROM_NAME", None) or "KueryCore AI"
-    from_email = getattr(settings, "SMTP_FROM_EMAIL", None) or settings.SMTP_USERNAME
+    raw_api_key = getattr(settings, "BREVO_API_KEY", None) or settings.SMTP_PASSWORD
+    api_key = raw_api_key.strip() if raw_api_key else None
 
-    # Clean the sender email address
+    from_name = getattr(settings, "SMTP_FROM_NAME", None) or "KueryCore AI"
+    from_email = getattr(settings, "SMTP_FROM_EMAIL", None) or settings.SMTP_USERNAME or "noreply@kuerycore.ai"
+
     _, parsed_addr = email.utils.parseaddr(from_email)
-    sender_addr = parsed_addr if parsed_addr else from_email
+    sender_addr = (parsed_addr if parsed_addr else from_email).strip()
 
     if not api_key or not sender_addr:
-        return False
+        return False, {"error": "Missing BREVO_API_KEY or sender address", "sender": sender_addr}
 
     try:
         async with httpx.AsyncClient(timeout=12.0) as client:
@@ -74,7 +57,7 @@ async def _send_via_brevo_api(
                 },
                 json={
                     "sender": {"name": from_name, "email": sender_addr},
-                    "to": [{"email": to}],
+                    "to": [{"email": to.strip()}],
                     "subject": subject,
                     "htmlContent": html,
                     "textContent": text,
@@ -82,19 +65,25 @@ async def _send_via_brevo_api(
             )
 
         if response.status_code in (200, 201, 202):
-            msg_id = response.json().get("messageId", "unknown")
+            data = response.json()
+            msg_id = data.get("messageId", "unknown")
             logger.info("Password reset email sent via Brevo HTTPS API to %s (messageId=%s)", to, msg_id)
-            return True
+            return True, {"provider": "brevo_https", "status": response.status_code, "data": data}
 
         logger.error(
-            "Brevo HTTPS API returned status %s for email to %s: %s",
-            response.status_code, to, response.text[:250],
+            "Brevo HTTPS API returned status %s for email to %s: %s (sender=%s)",
+            response.status_code, to, response.text[:300], sender_addr,
         )
-        return False
+        return False, {
+            "provider": "brevo_https",
+            "status": response.status_code,
+            "response": response.text[:300],
+            "sender_used": sender_addr,
+        }
 
     except Exception as exc:
         logger.error("Failed to send email via Brevo HTTPS API to %s: %s", to, exc)
-        return False
+        return False, {"provider": "brevo_https", "error": str(exc), "type": type(exc).__name__}
 
 
 # ---------------------------------------------------------------------------
@@ -107,16 +96,16 @@ def _send_smtp_sync(
     subject: str,
     html: str,
     text: str,
-) -> bool:
+) -> Tuple[bool, Dict[str, Any]]:
     """Synchronous SMTP worker executed inside an async worker thread."""
-    username = settings.SMTP_USERNAME
-    password = settings.SMTP_PASSWORD
-    server_host = settings.SMTP_SERVER or "smtp.gmail.com"
+    username = settings.SMTP_USERNAME.strip() if settings.SMTP_USERNAME else None
+    password = settings.SMTP_PASSWORD.strip() if settings.SMTP_PASSWORD else None
+    server_host = settings.SMTP_SERVER.strip() if settings.SMTP_SERVER else "smtp.gmail.com"
     server_port = int(settings.SMTP_PORT or 587)
 
     raw_from = getattr(settings, "SMTP_FROM_EMAIL", None) or username or "noreply@kuerycore.ai"
     parsed_name, parsed_addr = email.utils.parseaddr(raw_from)
-    sender_addr = parsed_addr if parsed_addr else raw_from
+    sender_addr = (parsed_addr if parsed_addr else raw_from).strip()
     sender_name = parsed_name or getattr(settings, "SMTP_FROM_NAME", None) or "KueryCore AI"
 
     msg = MIMEMultipart("alternative")
@@ -142,10 +131,10 @@ def _send_smtp_sync(
 
         server.sendmail(sender_addr, [to], msg.as_string())
         logger.info("Password reset email successfully sent via SMTP (%s) to %s", server_host, to)
-        return True
+        return True, {"provider": "smtp", "host": server_host, "port": server_port, "sender": sender_addr}
     except Exception as exc:
         logger.error("Failed to send email via SMTP (%s) to %s: %s (type: %s)", server_host, to, exc, type(exc).__name__)
-        return False
+        return False, {"provider": "smtp", "host": server_host, "port": server_port, "error": str(exc), "type": type(exc).__name__}
     finally:
         if server:
             try:
@@ -154,7 +143,7 @@ def _send_smtp_sync(
                 pass
 
 
-async def _send_via_smtp(*, to: str, subject: str, html: str, text: str) -> bool:
+async def _send_via_smtp(*, to: str, subject: str, html: str, text: str) -> Tuple[bool, Dict[str, Any]]:
     """Non-blocking async wrapper around SMTP."""
     return await asyncio.to_thread(_send_smtp_sync, to=to, subject=subject, html=html, text=text)
 
@@ -166,9 +155,13 @@ async def _send_via_smtp(*, to: str, subject: str, html: str, text: str) -> bool
 _RESEND_API_URL = "https://api.resend.com/emails"
 
 
-async def _send_via_resend(*, to: str, subject: str, html: str, text: str) -> bool:
-    api_key = settings.RESEND_API_KEY
-    from_addr = getattr(settings, "RESEND_FROM_EMAIL", "KueryCore <noreply@kuerycore.ai>")
+async def _send_via_resend(*, to: str, subject: str, html: str, text: str) -> Tuple[bool, Dict[str, Any]]:
+    raw_api_key = settings.RESEND_API_KEY
+    api_key = raw_api_key.strip() if raw_api_key else None
+    from_addr = getattr(settings, "RESEND_FROM_EMAIL", "KueryCore <noreply@kuerycore.ai>").strip()
+
+    if not api_key:
+        return False, {"error": "Missing RESEND_API_KEY"}
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -180,7 +173,7 @@ async def _send_via_resend(*, to: str, subject: str, html: str, text: str) -> bo
                 },
                 json={
                     "from": from_addr,
-                    "to": [to],
+                    "to": [to.strip()],
                     "subject": subject,
                     "html": html,
                     "text": text,
@@ -188,34 +181,27 @@ async def _send_via_resend(*, to: str, subject: str, html: str, text: str) -> bo
             )
 
         if response.status_code in (200, 201):
-            msg_id = response.json().get("id", "unknown")
+            data = response.json()
+            msg_id = data.get("id", "unknown")
             logger.info("Password reset email sent via Resend to %s (id=%s)", to, msg_id)
-            return True
+            return True, {"provider": "resend", "status": response.status_code, "data": data}
 
-        logger.error(
-            "Resend API returned %s for email to %s: %s",
-            response.status_code, to, response.text[:200],
-        )
-        return False
+        logger.error("Resend API returned %s for email to %s: %s", response.status_code, to, response.text[:200])
+        return False, {"provider": "resend", "status": response.status_code, "response": response.text[:200]}
 
     except Exception as exc:
         logger.error("Failed to send email via Resend to %s: %s", to, exc)
-        return False
+        return False, {"provider": "resend", "error": str(exc), "type": type(exc).__name__}
 
 
 # ---------------------------------------------------------------------------
 # Public: Password-Reset Email
 # ---------------------------------------------------------------------------
 
-async def send_password_reset_email(*, to: str, raw_token: str) -> None:
+async def send_password_reset_email(*, to: str, raw_token: str) -> Dict[str, Any]:
     """
     Send a password-reset email containing a one-time link.
-
-    Dispatches via:
-    1. Brevo HTTPS REST API (Port 443 — avoids cloud firewall SMTP port blocks)
-    2. Gmail / Generic SMTP Relay
-    3. Resend REST API
-    4. Dev stdout fallback
+    Returns diagnostic dict indicating provider used and outcome.
     """
     frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
     reset_url = f"{frontend_url}/reset-password?token={raw_token}"
@@ -234,11 +220,8 @@ async def send_password_reset_email(*, to: str, raw_token: str) -> None:
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:40px auto;background:linear-gradient(180deg,rgba(13,29,21,0.95) 0%,rgba(9,20,16,0.98) 100%);border:1px solid rgba(0,255,170,0.18);border-radius:16px;overflow:hidden;">
     <tr>
       <td style="padding:40px 36px;">
-        <!-- Brand heading -->
         <h1 style="margin:0 0 4px;font-size:26px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">KueryCore</h1>
         <p style="margin:0 0 28px;font-size:12px;color:#4ade80;font-family:monospace;letter-spacing:1px;">AI Document Intelligence</p>
-
-        <!-- Body -->
         <p style="font-size:15px;line-height:1.6;margin:0 0 16px;color:#cbd5e1;">
           We received a request to reset the password for your account.
           Click the button below to choose a new password.
@@ -247,8 +230,6 @@ async def send_password_reset_email(*, to: str, raw_token: str) -> None:
           This link expires in <strong style="color:#e2e8f0;">30 minutes</strong>.
           If you didn't request this, you can safely ignore this email — your password will not change.
         </p>
-
-        <!-- CTA button -->
         <table cellpadding="0" cellspacing="0" width="100%">
           <tr>
             <td align="center">
@@ -259,8 +240,6 @@ async def send_password_reset_email(*, to: str, raw_token: str) -> None:
             </td>
           </tr>
         </table>
-
-        <!-- Fallback link -->
         <p style="margin:24px 0 0;font-size:11px;color:#64748b;word-break:break-all;">
           Or copy this link into your browser:<br>
           <a href="{reset_url}" style="color:#4ade80;">{reset_url}</a>
@@ -286,31 +265,45 @@ async def send_password_reset_email(*, to: str, raw_token: str) -> None:
         f"— KueryCore AI"
     )
 
-    # 1. Brevo HTTPS REST API (Preferred over SMTP to bypass cloud firewall blocks)
+    diagnostics = {}
+
+    # 1. Brevo HTTPS REST API
     is_brevo = getattr(settings, "BREVO_API_KEY", None) or (
         settings.SMTP_SERVER and "brevo" in settings.SMTP_SERVER.lower() and settings.SMTP_PASSWORD
     )
     if is_brevo:
-        sent = await _send_via_brevo_api(to=to, subject=subject, html=html_body, text=text_body)
+        sent, info = await _send_via_brevo_api(to=to, subject=subject, html=html_body, text=text_body)
         if sent:
-            return
-        # Fallback to SMTP relay if API call failed
-        await _send_via_smtp(to=to, subject=subject, html=html_body, text=text_body)
-        return
+            return {"success": True, "provider": "brevo_https", "details": info}
+        diagnostics["brevo_https"] = info
+
+        # Fallback to SMTP
+        sent_smtp, info_smtp = await _send_via_smtp(to=to, subject=subject, html=html_body, text=text_body)
+        if sent_smtp:
+            return {"success": True, "provider": "brevo_smtp", "details": info_smtp}
+        diagnostics["brevo_smtp"] = info_smtp
 
     # 2. Generic / Gmail SMTP Relay
-    if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-        await _send_via_smtp(to=to, subject=subject, html=html_body, text=text_body)
-        return
+    elif settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+        sent_smtp, info_smtp = await _send_via_smtp(to=to, subject=subject, html=html_body, text=text_body)
+        if sent_smtp:
+            return {"success": True, "provider": "smtp", "details": info_smtp}
+        diagnostics["smtp"] = info_smtp
 
     # 3. Resend REST API
-    if settings.RESEND_API_KEY:
-        await _send_via_resend(to=to, subject=subject, html=html_body, text=text_body)
-        return
+    elif settings.RESEND_API_KEY:
+        sent_resend, info_resend = await _send_via_resend(to=to, subject=subject, html=html_body, text=text_body)
+        if sent_resend:
+            return {"success": True, "provider": "resend", "details": info_resend}
+        diagnostics["resend"] = info_resend
 
     # 4. Dev Fallback
-    logger.warning(
-        "[EMAIL DEV FALLBACK — no email provider credentials configured]\n"
-        "To: %s\nSubject: %s\nReset URL: %s",
-        to, subject, reset_url,
-    )
+    else:
+        logger.warning(
+            "[EMAIL DEV FALLBACK — no email provider credentials configured]\n"
+            "To: %s\nSubject: %s\nReset URL: %s",
+            to, subject, reset_url,
+        )
+        return {"success": True, "provider": "dev_fallback", "reset_url": reset_url}
+
+    return {"success": False, "error": "All email providers failed", "diagnostics": diagnostics}
