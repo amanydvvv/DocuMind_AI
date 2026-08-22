@@ -325,6 +325,18 @@ def _format_context_text(chunks: List[Chunk]) -> str:
     return "\n\n---\n\n".join(snippet_items)
 
 
+def _build_resolved_query_section(query: str, resolved_query: Optional[str]) -> str:
+    """Prompt section carrying the standalone (rewritten) retrieval query.
+
+    Included only when a rewrite actually happened; otherwise the empty
+    string keeps the template shape unchanged. The section is plain query
+    content, never an instruction block, so it cannot override the rules.
+    """
+    if resolved_query and resolved_query.strip() and resolved_query.strip() != query:
+        return f"Resolved Query: {resolved_query.strip()}"
+    return ""
+
+
 def _build_chain_inputs(
     query: str,
     chunks: List[Chunk],
