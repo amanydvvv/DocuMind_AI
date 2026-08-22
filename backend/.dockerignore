@@ -1,0 +1,11 @@
+.env
+.env.*
+venv/
+__pycache__/
+*.pyc
+uploads/
+.git
+.gitignore
+tests/
+pytest_snapshot.log
+test_results.log
